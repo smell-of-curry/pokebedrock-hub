@@ -17,10 +17,10 @@ Allow players to click on in-world NPCs to transfer to another server.
   - This form should be able to be open again in the case that something needs to be edited. But only operators will be able to open it by crouching and right clicking.
 
 - **Dynamic Nametag:**
-  - The NPC’s nametag should update in real time to show:
-    - The number of current online users.
-    - The server’s current status (e.g., online/offline).
-    - The current ping of the user to that server (if applicable).
+  The NPC’s nametag should update in real time to show:
+  - The number of current online users.
+  - The server’s current status (e.g., online/offline).
+  - The current ping of the user to that server (if applicable).
 
 - **Interaction & Transfer:**
   - When a player interacts (hits) the NPC, display a confirmation screen.
@@ -35,14 +35,26 @@ Manage player transfers when a target server is at capacity.
 **Requirements:**
 
 - **Queue Display:**
-  - Use the boss bar to show queue status.
-  - The boss bar should display:
-    - The player’s current position in the queue.
-    - The total time the player has been waiting.
-    - The destination server’s name.
+  Use the boss bar to show queue status.
+  The boss bar should display:
+  - The player’s current position in the queue.
+  - The total time the player has been waiting.
+  - The destination server’s name.
+
+- **Priority Queue**
+  - The queue also has a priority queue system, where as if a staff or a user who should have priority queue joins the queue
+  they are automatically pushed up above all non-priority members, still keeping position of others in priority queue.
+  - When a user joins the priority queue, all users should be moved down in position and notified through a message.
+  - The following roles get Priority Queue:
+    - Operators
+    - Administrators (discord)
+    - Supporters (discord)
+    - Server Boosters (discord)
 
 - **Security & Future Enhancements:**
-  - Note that while the hub will display queue information, the secure transmission of join requests to the upstream server will be implemented at a later stage. But will just require the Hub to send a HTTP request to the upstream server.
+  - Note that while the hub will display queue information, the secure transmission of join requests to the upstream server will be implemented at a later stage.
+  - This will just require the Hub to send a Handshake request to the upstream [Server Proxy](https://github.com/smell-of-curry/vanilla-proxy) informing that it is about to authorize a user to join.
+  - Each user MUST get this validation from the queue, else they will just be transferred back to the hub.
 
 ## 3. Compass System
 
@@ -76,6 +88,8 @@ Enable the hub to interact with the external moderation system on `pokebedrock.c
 - **Operator Commands:**
   - Implement custom commands (e.g., ban, mute, kick) that communicate with the moderation API to update user statuses.
 
+The Moderation system details can be found [here](./docs/ModerationSystem.md)
+
 ## 5. Chat Ranks System
 
 **Purpose:**  
@@ -88,7 +102,14 @@ Allow chat messages to include user ranks (e.g., `[OWNER]`, `[ADMIN]`).
   - The system should update in real time and reflect in the chat output.
   - The users should have there rank displayed below there name something like: `Smell of curry\n[§cOwner§r]`
 
-## 6. Miscellaneous Requirements
+## 6. Resource Pack Auto-Fetch
+Since the PokeBedrock Hub requires the use of the [PokeBedrock Resource Pack](https://github.com/smell-of-curry/pokebedrock-res) it must always make sure that it is using the current, up to date, version.
+
+Therefore once the application is run, and before the server starts, a prompt should be added in terminal to ask the administrator to update the current resource pack to the new version if available. This can be denied but will be always asked again next initialization.
+
+This will be created by fetching: `https://api.github.com/repos/smell-of-curry/pokebedrock-res/releases/latest`, comparing it to the current installed version, and checking if they match.
+
+## 7. Miscellaneous Requirements
 
 **Player Data:**
 
@@ -107,4 +128,4 @@ Allow chat messages to include user ranks (e.g., `[OWNER]`, `[ADMIN]`).
 - The server should be custom fit to the world provided, ensuring that no new chunks can ever be loaded or any custom mob spawning.
 
 **All Translatable**
-- All text that is displayed to the user (except for user inputted like from the NPC) should be using translatable text using the resource packs .lang. So for example instead of saying "Your position in queue is x" it should use `rawtext` to use a translatable string `hub.queue.position` and pass in the value.
+- All text that is displayed to the user (except for user inputted details from the NPC Forms) should be using translatable text using the resource packs .lang. So for example instead of saying "Your position in queue is x" it should use `rawtext` to use a translatable string `hub.queue.position` and pass in the value.
