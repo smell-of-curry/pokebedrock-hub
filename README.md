@@ -1,6 +1,6 @@
 # PokeBedrock Server Hub 
 
-This project involves remaking the current server hub (coded in PocketMine) and porting it over to Dragonfly. Although the project is not overly complex, it requires several specific features. 
+This project involves remaking the current server hub (coded in [PocketMine](https://github.com/pmmp/PocketMine-MP)) and porting it over to [Dragonfly](https://github.com/df-mc/dragonfly). Although the project is not overly complex, it requires several specific features. 
 
 Below is a detailed list of requirements.
 
