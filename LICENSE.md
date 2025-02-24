@@ -1,7 +1,7 @@
 PokeBedrock NonCommercial Attribution License (Version 1.0)
 ------------------------------------------------------------
 
-Copyright (c) [YEAR] [YOUR NAME OR ORGANIZATION]
+Copyright (c) 2025 PokeBedrock
 
 1. Definitions
    a. "Software" refers to all source code, documentation, and associated materials 
