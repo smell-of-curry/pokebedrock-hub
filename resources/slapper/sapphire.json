@@ -1,0 +1,15 @@
+{
+  "name": "Pokemon Sapphire",
+  "identifier": "sapphire",
+  "server_identifier": "sapphire",
+  "scale": 1.5,
+  "yaw": 0.0,
+  "pitch": 0.0,
+  "position": {
+    "x": 8.5,
+    "y": 96.0,
+    "z": -1.0
+  },
+  "skin_path": "resources/entity/sapphire.png",
+  "geometry_path": "resources/entity/sapphire.geo.json"
+}

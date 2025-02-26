@@ -1,0 +1,15 @@
+{
+  "name": "Pokemon Ruby",
+  "identifier": "ruby",
+  "server_identifier": "ruby",
+  "scale": 1.0,
+  "yaw": 0.0,
+  "pitch": 0.0,
+  "position": {
+    "x": 15.5,
+    "y": 96.0,
+    "z": 1.5
+  },
+  "skin_path": "resources/entity/ruby.png",
+  "geometry_path": "resources/entity/ruby.geo.json"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Pokemon Black",
+  "identifier": "black",
+  "server_identifier": "black",
+  "scale": 1.0,
+  "yaw": 0.0,
+  "pitch": 0.0,
+  "position": {
+    "x": 8.5,
+    "y": 96.0,
+    "z": 18.0
+  },
+  "skin_path": "resources/entity/black.png",
+  "geometry_path": "resources/entity/black.geo.json"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Pokemon White",
+  "identifier": "white",
+  "server_identifier": "white",
+  "scale": 1.0,
+  "yaw": 0.0,
+  "pitch": 0.0,
+  "position": {
+    "x": 1.5,
+    "y": 96.0,
+    "z": 15.5
+  },
+  "skin_path": "resources/entity/white.png",
+  "geometry_path": "resources/entity/white.geo.json"
+}

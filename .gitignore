@@ -1,6 +1,11 @@
 /.idea/
 /.git/
 
-/resources/
+# Resource Management
+/resources/*
+!/resources/
+!/resources/slapper/
+!/resources/servers/
+!/resources/entity/
 
 *.toml
