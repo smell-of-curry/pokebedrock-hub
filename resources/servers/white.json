@@ -1,5 +1,6 @@
 {
-  "name": "Pokemon White",
+  "name": "PokeBedrock §fWhite §r(US)",
   "identifier": "white",
-  "address": "us.pokebedrock.com:19136"
+  "address": "us.pokebedrock.com:19136",
+  "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/main/pack_icon.png"
 }

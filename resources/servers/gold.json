@@ -1,5 +1,6 @@
 {
-  "name": "Pokemon Gold",
+  "name": "PokeBedrock §eGold §r(US)",
   "identifier": "gold",
-  "address": "40.160.13.133:19136"
+  "address": "40.160.13.133:19136",
+  "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/main/pack_icon.png"
 }
