@@ -1,6 +1,8 @@
 package form
 
 import (
+	"fmt"
+
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/form"
 	"github.com/df-mc/dragonfly/server/world"
@@ -22,7 +24,7 @@ type ServerConfirm struct {
 func NewServerConfirm(srv *srv.Server) form.Modal {
 	f := form.NewModal(ServerConfirm{srv, form.YesButton(), form.NoButton()},
 		text.Colourf("<purple>Server Navigator</purple>")).
-		WithBody("Are you sure you want to join this server?")
+		WithBody(fmt.Sprintf("Are you sure you want to join %s?", srv.Name()))
 	return f
 }
 
