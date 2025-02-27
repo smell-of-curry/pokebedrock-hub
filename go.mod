@@ -4,10 +4,9 @@ go 1.23
 
 require (
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.2-0.20250220025742-a38d0964c7dc
+	github.com/df-mc/dragonfly v0.10.2
 	github.com/df-mc/npc v1.0.5
 	github.com/go-gl/mathgl v1.2.0
-	github.com/pelletier/go-toml v1.9.5
 	github.com/restartfu/gophig v0.0.2
 	github.com/sandertv/go-raknet v1.14.2
 	github.com/sandertv/gophertunnel v1.44.0
