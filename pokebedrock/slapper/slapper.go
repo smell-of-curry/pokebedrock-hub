@@ -34,6 +34,8 @@ func New(log *slog.Logger, conf *Config) *Slapper {
 
 // preloadSkin ...
 func (s *Slapper) preloadSkin() {
+	// TODO: Use Skin from Resouce pack instead of static skins.
+
 	s.skin = npc.MustSkin(
 		npc.MustParseTexture(s.conf.SkinPath),
 		npc.MustParseModel(s.conf.GeometryPath),

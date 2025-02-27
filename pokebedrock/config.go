@@ -8,6 +8,8 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/text"
 )
 
+// TODO: Remove Resource pack from config, and create auto fetching.
+
 // Config ...
 type Config struct {
 	PokeBedrock struct {
