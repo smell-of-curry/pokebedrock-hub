@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Name       string `json:"name"`
 	Identifier string `json:"identifier"`
+	Icon       string `json:"icon"`
 
 	Address string `json:"address"`
 }

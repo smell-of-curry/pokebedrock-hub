@@ -25,6 +25,7 @@ func NewServerNavigator() form.Menu {
 		st := s.Status()
 		name := fmt.Sprintf("%s - [%d]", s.Name(), st.PlayerCount)
 		btns = append(btns, form.NewButton(name, ""))
+		btns = append(btns, form.NewButton(name, s.Icon()))
 	}
 
 	return f.WithButtons(btns...)

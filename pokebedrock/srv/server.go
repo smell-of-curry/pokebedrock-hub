@@ -60,6 +60,11 @@ func (s *Server) Name() string {
 	return s.conf.Name
 }
 
+// Icon ...
+func (s *Server) Icon() string {
+	return s.conf.Icon
+}
+
 // Address ...
 func (s *Server) Address() string {
 	return s.conf.Address
