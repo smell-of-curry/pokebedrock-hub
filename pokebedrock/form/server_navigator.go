@@ -17,14 +17,19 @@ type serverNavigator struct{}
 // NewServerNavigator ...
 func NewServerNavigator() form.Menu {
 	f := form.NewMenu(serverNavigator{},
-		text.Colourf("<purple>Server Navigator</purple>")).
-		WithBody("Pick a server to join:")
+		text.Colourf("<purple>Server Navigator</purple>"))
 
 	var btns []form.Button
 	for _, s := range srv.All() {
 		st := s.Status()
-		name := fmt.Sprintf("%s - [%d]", s.Name(), st.PlayerCount)
-		btns = append(btns, form.NewButton(name, ""))
+		statusName := "Unknown"
+		if st.Online {
+			statusName = "§aOnline"
+		} else {
+			statusName = "§4Offline"
+		}
+
+		name := fmt.Sprintf("%s\n%s§r (%d§l/§r%d)", s.Name(), statusName, st.PlayerCount, st.MaxPlayerCount)
 		btns = append(btns, form.NewButton(name, s.Icon()))
 	}
 
