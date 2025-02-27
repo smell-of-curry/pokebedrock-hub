@@ -8,13 +8,8 @@ import (
 
 // handleInteract ...
 func (s *Slapper) handleInteract(p *player.Player) {
-	h, ok := p.Handler().(rankHandler)
+	_, ok := p.Handler().(rankHandler)
 	if !ok {
-		return
-	}
-
-	if p.Sneaking() && h.Rank() >= rank.Admin {
-		// TODO: Admin form
 		return
 	}
 
