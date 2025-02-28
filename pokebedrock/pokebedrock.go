@@ -35,6 +35,8 @@ func New(log *slog.Logger, conf Config) *PokeBedrock {
 		log.Error("Failed to check/update resource pack", "error", err)
 	}
 
+	log.Info("Starting Server...")
+
 	c, err := conf.UserConfig.Config(log)
 	if err != nil {
 		panic(err)
