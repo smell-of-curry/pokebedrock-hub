@@ -9,6 +9,7 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
@@ -27,6 +28,12 @@ type PokeBedrock struct {
 
 // New ...
 func New(log *slog.Logger, conf Config) *PokeBedrock {
+	// Initialize resource pack manager and check for updates
+	resManager := resources.NewManager(conf.UserConfig.Resources.Folder)
+	if err := resManager.CheckAndUpdate(); err != nil {
+		log.Error("Failed to check/update resource pack", "error", err)
+	}
+
 	c, err := conf.UserConfig.Config(log)
 	if err != nil {
 		panic(err)

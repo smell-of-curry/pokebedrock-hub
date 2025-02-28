@@ -8,8 +8,6 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/text"
 )
 
-// TODO: Remove Resource pack from config, and create auto fetching.
-
 // Config ...
 type Config struct {
 	PokeBedrock struct {
@@ -30,8 +28,12 @@ func DefaultConfig() Config {
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
 	userConfig.Server.DisableJoinQuitMessages = true
 	userConfig.Players.Folder = "resources/player_data"
-	userConfig.Resources.Folder = "resources/resource_pack"
 	userConfig.World.Folder = "resources/world"
+
+	userConfig.Resources.Required = true
+	userConfig.Resources.Folder = "resources/resource_pack"
+	userConfig.Resources.AutoBuildPack = false
+
 	c.UserConfig = userConfig
 
 	return c
