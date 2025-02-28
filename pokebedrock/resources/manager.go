@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -170,6 +171,30 @@ func (m *Manager) downloadResourcePack(release *GithubRelease) error {
 	return m.unzipResourcePack(packPath)
 }
 
+// isAlreadyUnpacked checks if the resource pack is already unpacked and matches the version
+func (m *Manager) isAlreadyUnpacked(version string) bool {
+	// Check if unpacked directory exists
+	unpackPath := m.GetUnpackedPath()
+	if _, err := os.Stat(unpackPath); os.IsNotExist(err) {
+		return false
+	}
+
+	// Check version file
+	versionFile := filepath.Join(unpackPath, ".version")
+	content, err := os.ReadFile(versionFile)
+	if err != nil {
+		return false
+	}
+
+	return strings.TrimSpace(string(content)) == version
+}
+
+// markAsUnpacked creates a version file in the unpacked directory
+func (m *Manager) markAsUnpacked(version string) error {
+	versionFile := filepath.Join(m.GetUnpackedPath(), ".version")
+	return os.WriteFile(versionFile, []byte(version), 0644)
+}
+
 func (m *Manager) unzipResourcePack(packPath string) error {
 	reader, err := zip.OpenReader(packPath)
 	if err != nil {
@@ -177,10 +202,31 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 	}
 	defer reader.Close()
 
+	// Get version from pack path
+	version := strings.TrimPrefix(filepath.Base(packPath), "pokebedrock-res-")
+	version = strings.TrimSuffix(version, ".mcpack")
+
+	// Check if already unpacked with correct version
+	if m.isAlreadyUnpacked(version) {
+		fmt.Printf("Resource pack %s is already unpacked\n", version)
+		return nil
+	}
+
 	unpackPath := m.GetUnpackedPath()
 	if err := os.MkdirAll(unpackPath, 0755); err != nil {
 		return fmt.Errorf("failed to create unpack directory: %w", err)
 	}
+
+	// Count total files for progress bar
+	totalFiles := 0
+	for _, file := range reader.File {
+		if !file.FileInfo().IsDir() {
+			totalFiles++
+		}
+	}
+
+	// Create progress bar
+	bar := progressbar.Default(int64(totalFiles), "Unzipping resource pack")
 
 	for _, file := range reader.File {
 		path := filepath.Join(unpackPath, file.Name)
@@ -211,6 +257,14 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		if err != nil {
 			return fmt.Errorf("failed to copy file contents: %w", err)
 		}
+
+		bar.Add(1)
 	}
+
+	// Mark as unpacked with current version
+	if err := m.markAsUnpacked(version); err != nil {
+		return fmt.Errorf("failed to mark as unpacked: %w", err)
+	}
+
 	return nil
 }
