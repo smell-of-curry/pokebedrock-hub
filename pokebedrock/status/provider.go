@@ -17,7 +17,7 @@ func NewProvider(serverName, serverSubName string) *Provider {
 }
 
 // ServerStatus ...
-func (p *Provider) ServerStatus(int, int) minecraft.ServerStatus {
+func (p *Provider) ServerStatus(playerCount, maxPlayers int) minecraft.ServerStatus {
 	var count, maxCount int
 	for _, server := range srv.All() {
 		if st := server.Status(); st.Online {
@@ -25,6 +25,8 @@ func (p *Provider) ServerStatus(int, int) minecraft.ServerStatus {
 			maxCount += st.MaxPlayerCount
 		}
 	}
+	count += playerCount
+	maxCount += maxPlayers
 
 	return minecraft.ServerStatus{
 		ServerName:    p.name,
