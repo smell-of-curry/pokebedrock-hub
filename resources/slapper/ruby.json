@@ -2,8 +2,8 @@
   "name": "PokeBedrock §cRuby §r(EU)",
   "identifier": "ruby",
   "server_identifier": "ruby",
-  "scale": 1.0,
-  "yaw": 0.0,
+  "scale": 1.5,
+  "yaw": -45.0,
   "pitch": 0.0,
   "position": {
     "x": 15.5,

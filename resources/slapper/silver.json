@@ -2,8 +2,8 @@
   "name": "PokeBedrock §7Silver §r(US)",
   "identifier": "silver",
   "server_identifier": "silver",
-  "scale": 1.0,
-  "yaw": 0.0,
+  "scale": 1.5,
+  "yaw": -90.0,
   "pitch": 0.0,
   "position": {
     "x": -1.0,
