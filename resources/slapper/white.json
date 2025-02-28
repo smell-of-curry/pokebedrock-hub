@@ -9,7 +9,5 @@
     "x": 1.5,
     "y": 96.0,
     "z": 15.5
-  },
-  "skin_path": "resources/entity/white.png",
-  "geometry_path": "resources/entity/white.geo.json"
+  }
 }

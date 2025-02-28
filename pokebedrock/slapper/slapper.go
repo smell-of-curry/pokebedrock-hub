@@ -3,6 +3,7 @@ package slapper
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/skin"
@@ -10,23 +11,25 @@ import (
 	"github.com/df-mc/npc"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
 // Slapper ...
 type Slapper struct {
-	log  *slog.Logger
-	conf *Config
-
-	skin   skin.Skin
-	handle *world.EntityHandle
+	log        *slog.Logger
+	conf       *Config
+	resManager *resources.Manager
+	skin       skin.Skin
+	handle     *world.EntityHandle
 }
 
 // New ...
-func New(log *slog.Logger, conf *Config) *Slapper {
+func New(log *slog.Logger, conf *Config, resManager *resources.Manager) *Slapper {
 	s := &Slapper{
-		log:  log,
-		conf: conf,
+		log:        log,
+		conf:       conf,
+		resManager: resManager,
 	}
 	s.preloadSkin()
 	return s
@@ -34,11 +37,14 @@ func New(log *slog.Logger, conf *Config) *Slapper {
 
 // preloadSkin ...
 func (s *Slapper) preloadSkin() {
-	// TODO: Use Skin from Resouce pack instead of static skins.
+	// Convert paths to full filesystem paths
+	unpackedPath := s.resManager.GetUnpackedPath()
+	texturePath := filepath.Join(unpackedPath, "textures", "entity", "hub_npcs", s.conf.ServerIdentifier) + ".png"
+	geometryPath := filepath.Join(unpackedPath, "models", "entity", "hub_npcs", s.conf.ServerIdentifier) + ".geo.json"
 
 	s.skin = npc.MustSkin(
-		npc.MustParseTexture(s.conf.SkinPath),
-		npc.MustParseModel(s.conf.GeometryPath),
+		npc.MustParseTexture(texturePath),
+		npc.MustParseModel(geometryPath),
 	)
 }
 

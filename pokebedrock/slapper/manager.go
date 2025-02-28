@@ -5,15 +5,16 @@ import (
 	"sync"
 
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 )
 
 // Slappers ...
 var slappers sync.Map
 
 // SummonAll ...
-func SummonAll(log *slog.Logger, cfgs []Config, tx *world.Tx) {
+func SummonAll(log *slog.Logger, cfgs []Config, tx *world.Tx, resManager *resources.Manager) {
 	for _, c := range cfgs {
-		s := New(log, &c)
+		s := New(log, &c, resManager)
 		s.Spawn(tx)
 		slappers.Store(c.Identifier, s)
 	}

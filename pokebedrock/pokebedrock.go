@@ -23,7 +23,8 @@ type PokeBedrock struct {
 	srv *server.Server
 	w   *world.World
 
-	c chan struct{}
+	c          chan struct{}
+	resManager *resources.Manager
 }
 
 // New ...
@@ -43,7 +44,8 @@ func New(log *slog.Logger, conf Config) *PokeBedrock {
 		log:  log,
 		conf: conf,
 
-		c: make(chan struct{}),
+		c:          make(chan struct{}),
+		resManager: resManager,
 	}
 
 	c.ReadOnlyWorld = true
@@ -120,7 +122,7 @@ func (p *PokeBedrock) loadSlappers() {
 	}
 
 	<-w.Exec(func(tx *world.Tx) {
-		slapper.SummonAll(p.log, cfgs, tx)
+		slapper.SummonAll(p.log, cfgs, tx, p.resManager)
 	})
 }
 

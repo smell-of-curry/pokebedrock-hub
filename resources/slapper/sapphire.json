@@ -9,7 +9,5 @@
     "x": 8.5,
     "y": 96.0,
     "z": -1.0
-  },
-  "skin_path": "resources/entity/sapphire.png",
-  "geometry_path": "resources/entity/sapphire.geo.json"
+  }
 }

@@ -24,8 +24,6 @@ type Config struct {
 		Y float64 `json:"y"`
 		Z float64 `json:"z"`
 	} `json:"position"`
-	SkinPath     string `json:"skin_path"`
-	GeometryPath string `json:"geometry_path"`
 }
 
 // ReadAll ...

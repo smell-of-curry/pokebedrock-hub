@@ -9,7 +9,5 @@
     "x": 15.5,
     "y": 96.0,
     "z": 1.5
-  },
-  "skin_path": "resources/entity/ruby.png",
-  "geometry_path": "resources/entity/ruby.geo.json"
+  }
 }
