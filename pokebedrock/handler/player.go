@@ -23,9 +23,7 @@ type PlayerHandler struct {
 
 // NewPlayerHandler ...
 func NewPlayerHandler() *PlayerHandler {
-	return &PlayerHandler{
-		rank: rank.Owner, // TODO: Load data from API.
-	}
+	return &PlayerHandler{} // TODO: Load Rank for player from API
 }
 
 // HandleJoin ...
