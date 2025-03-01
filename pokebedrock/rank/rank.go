@@ -6,18 +6,30 @@ import "github.com/sandertv/gophertunnel/minecraft/text"
 type Rank int
 
 const (
-	Vip Rank = iota
+	Trainer Rank = iota
+	Premium
+	Sponsor
+	Moderator
 	Admin
+	Manager
 	Owner
 )
 
 // Name ...
 func (r Rank) Name() string {
 	switch r {
-	case Vip:
-		return "VIP"
+	case Trainer:
+		return "Trainer"
+	case Premium:
+		return "Premium"
+	case Sponsor:
+		return "Sponsor"
+	case Moderator:
+		return "Moderator"
 	case Admin:
 		return "Admin"
+	case Manager:
+		return "Manager"
 	case Owner:
 		return "Owner"
 	}
@@ -26,9 +38,7 @@ func (r Rank) Name() string {
 
 // Chat ...
 func (r Rank) Chat(name, message string) string {
-	switch r {
-	case Vip:
-		return text.Colourf("<grey>%s: %s</grey>", name, message)
+	switch r { // TODO: Adjust for the rest.
 	case Admin:
 		return text.Colourf("<red>Admin %s</red>: <grey>%s</grey>", name, message)
 	case Owner:
@@ -39,9 +49,7 @@ func (r Rank) Chat(name, message string) string {
 
 // NameTag ...
 func (r Rank) NameTag(name string) string {
-	switch r {
-	case Vip:
-		return text.Colourf("<grey>%s</grey>", name)
+	switch r { // TODO: Adjust for the rest.
 	case Admin:
 		return text.Colourf("<red>Admin %s</red>", name)
 	case Owner:

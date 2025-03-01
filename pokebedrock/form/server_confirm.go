@@ -30,10 +30,7 @@ func NewServerConfirm(srv *srv.Server) form.Modal {
 
 // Submit ...
 func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
-	if f.srv == nil {
-		return
-	}
-	if b != f.YesButton {
+	if f.srv == nil || b != f.YesButton {
 		return
 	}
 
@@ -43,10 +40,10 @@ func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 		return
 	}
 
-	queue.QueueManager.AddPlayer(p, h.Rank(), f.srv.Address())
+	queue.QueueManager.AddPlayer(p, h.HighestRank(), f.srv)
 }
 
 // rankHandler ...
 type rankHandler interface {
-	Rank() rank.Rank
+	HighestRank() rank.Rank
 }

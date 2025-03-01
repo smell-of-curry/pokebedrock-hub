@@ -1,5 +1,6 @@
 /.idea/
 /.git/
+/tests/
 
 # Resource Management
 /resources/*

@@ -38,7 +38,7 @@ func New(log *slog.Logger, conf *Config, resManager *resources.Manager) *Slapper
 // preloadSkin ...
 func (s *Slapper) preloadSkin() {
 	// Convert paths to full filesystem paths
-	unpackedPath := s.resManager.GetUnpackedPath()
+	unpackedPath := s.resManager.UnpackedPath()
 	texturePath := filepath.Join(unpackedPath, "textures", "entity", "hub_npcs", s.conf.ServerIdentifier) + ".png"
 	geometryPath := filepath.Join(unpackedPath, "models", "entity", "hub_npcs", s.conf.ServerIdentifier) + ".geo.json"
 

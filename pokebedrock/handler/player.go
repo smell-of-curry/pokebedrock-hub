@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"sync"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/block/cube"
@@ -16,21 +17,24 @@ import (
 
 // PlayerHandler ...
 type PlayerHandler struct {
-	rank rank.Rank
+	rankMu sync.Mutex
+	ranks  []rank.Rank
 
 	player.NopHandler
 }
 
 // NewPlayerHandler ...
-func NewPlayerHandler() *PlayerHandler {
-	return &PlayerHandler{} // TODO: Load Rank for player from API
+func NewPlayerHandler(p *player.Player) *PlayerHandler {
+	h := &PlayerHandler{}
+	h.loadRanks(p.XUID())
+	return h
 }
 
 // HandleJoin ...
 func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 	p.Inventory().Handle(InventoryHandler{})
 	p.Teleport(w.Spawn().Vec3Middle())
-	p.SetNameTag(h.rank.NameTag(p.Name()))
+	p.SetNameTag(h.HighestRank().NameTag(p.Name()))
 
 	kit.Apply(kit.Lobby, p)
 }
@@ -52,7 +56,7 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	ctx.Cancel()
 	p := ctx.Val()
 
-	msg := h.rank.Chat(p.Name(), *message)
+	msg := h.HighestRank().Chat(p.Name(), *message)
 	_, _ = chat.Global.WriteString(msg)
 }
 
@@ -89,9 +93,4 @@ func (h *PlayerHandler) HandleItemDrop(ctx *player.Context, _ item.Stack) {
 // HandleItemDamage ...
 func (h *PlayerHandler) HandleItemDamage(ctx *player.Context, _ item.Stack, _ int) {
 	ctx.Cancel()
-}
-
-// Rank ...
-func (h *PlayerHandler) Rank() rank.Rank {
-	return h.rank
 }

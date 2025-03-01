@@ -13,6 +13,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/translation"
 )
 
 // PokeBedrock ...
@@ -30,9 +31,9 @@ type PokeBedrock struct {
 // New ...
 func New(log *slog.Logger, conf Config) *PokeBedrock {
 	// Initialize resource pack manager and check for updates
-	resManager := resources.NewManager(conf.UserConfig.Resources.Folder)
+	resManager := resources.NewManager(log, conf.UserConfig.Resources.Folder)
 	if err := resManager.CheckAndUpdate(); err != nil {
-		log.Error("Failed to check/update resource pack", "error", err)
+		log.Error("failed to check/update resource pack", "error", err)
 	}
 
 	log.Info("Starting Server...")
@@ -49,6 +50,8 @@ func New(log *slog.Logger, conf Config) *PokeBedrock {
 		c:          make(chan struct{}),
 		resManager: resManager,
 	}
+	// TODO: Enable when these get fixed.
+	// p.loadTranslations(&c)
 
 	c.ReadOnlyWorld = true
 	c.Generator = func(dim world.Dimension) world.Generator { // ensures that no new chunks are generated.
@@ -88,15 +91,23 @@ func (p *PokeBedrock) handleWorld() {
 	w.StopTime()
 	w.SetTickRange(0)
 
-	l := world.NewLoader(32, w, world.NopViewer{})
+	l := world.NewLoader(8, w, world.NopViewer{})
 	<-w.Exec(func(tx *world.Tx) {
 		l.Move(tx, w.Spawn().Vec3Middle())
-		l.Load(tx, 250)
+		l.Load(tx, 50)
 	})
 
 	p.loadServers()
 	p.loadSlappers()
 	go p.startTicking()
+}
+
+// loadTranslations ...
+func (p *PokeBedrock) loadTranslations(c *server.Config) {
+	conf := p.conf
+	c.JoinMessage = translation.MessageJoin(conf.Translation.MessageJoin)
+	c.QuitMessage = translation.MessageQuit(conf.Translation.MessageLeave)
+	c.ShutdownMessage = translation.MessageServerDisconnect(conf.Translation.MessageServerDisconnect)
 }
 
 // loadServers ...
@@ -108,7 +119,7 @@ func (p *PokeBedrock) loadServers() {
 
 	for _, cfg := range cfgs {
 		srv.Register(
-			srv.New(p.log, &cfg),
+			srv.New(p.log, cfg),
 		)
 	}
 
@@ -162,7 +173,7 @@ func (p *PokeBedrock) startTicking() {
 
 // accept ...
 func (p *PokeBedrock) accept(pl *player.Player) {
-	h := handler.NewPlayerHandler()
+	h := handler.NewPlayerHandler(pl)
 	pl.Handle(h)
 
 	h.HandleJoin(pl, p.w)

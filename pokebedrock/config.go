@@ -14,6 +14,11 @@ type Config struct {
 		ServerPath  string
 		SlapperPath string
 	}
+	Translation struct {
+		MessageJoin             string
+		MessageLeave            string
+		MessageServerDisconnect string
+	}
 	server.UserConfig
 }
 
@@ -24,11 +29,16 @@ func DefaultConfig() Config {
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.SlapperPath = "resources/slapper"
 
+	c.Translation.MessageJoin = "<yellow>%v joined the game</yellow>"
+	c.Translation.MessageLeave = "<yellow>%v left the game</yellow>"
+	c.Translation.MessageServerDisconnect = "<yellow>Disconnected by Server</yellow>"
+
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
-	userConfig.Server.DisableJoinQuitMessages = true
-	userConfig.Players.Folder = "resources/player_data"
 	userConfig.World.Folder = "resources/world"
+
+	userConfig.Players.Folder = "resources/player_data"
+	userConfig.Players.MaximumChunkRadius = 8
 
 	userConfig.Resources.Required = true
 	userConfig.Resources.Folder = "resources/resource_pack"

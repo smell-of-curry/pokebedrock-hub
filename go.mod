@@ -12,6 +12,7 @@ require (
 	github.com/sandertv/go-raknet v1.14.2
 	github.com/sandertv/gophertunnel v1.44.0
 	github.com/schollz/progressbar/v3 v3.18.0
+	golang.org/x/text v0.21.0
 )
 
 require (
@@ -41,6 +42,5 @@ require (
 	golang.org/x/oauth2 v0.25.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/term v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

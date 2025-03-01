@@ -10,6 +10,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
 // QueueManager ...
@@ -37,12 +38,12 @@ func NewManager() *Manager {
 }
 
 // AddPlayer ...
-func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, transferAddress string) {
+func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 	entry := &Entry{
-		joinTime:        time.Now(),
-		handle:          p.H(),
-		rank:            r,
-		transferAddress: transferAddress,
+		joinTime: time.Now(),
+		handle:   p.H(),
+		rank:     r,
+		srv:      srv,
 	}
 	m.AddToQueue(entry)
 	m.updateBossBars(p.Tx())
@@ -86,7 +87,25 @@ func (m *Manager) Update(tx *world.Tx) {
 			return
 		}
 
-		_ = ent.(*player.Player).Transfer(next.transferAddress)
+		s := next.srv
+		st := s.Status()
+		if !st.Online {
+			m.AddToQueue(next)
+			return
+		}
+
+		p := ent.(*player.Player)
+		if st.PlayerCount < st.MaxPlayerCount-5 {
+			if next.rank >= rank.Admin {
+				_ = p.Transfer(s.Address())
+				m.updateBossBars(tx)
+				return
+			}
+			m.AddToQueue(next)
+			return
+		}
+
+		_ = p.Transfer(s.Address())
 		m.updateBossBars(tx)
 	}
 }

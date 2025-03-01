@@ -1,20 +1,22 @@
 package srv
 
-import "sync"
+import (
+	"sync"
+)
 
 // Servers ...
 var servers sync.Map
 
 // Register ...
 func Register(serv *Server) {
-	servers.Store(serv.conf.Identifier, serv)
+	servers.Store(serv.Identifier(), serv)
 }
 
 // UpdateAll ...
 func UpdateAll() {
 	servers.Range(func(_, value any) bool {
-		if s, ok := value.(*Server); ok {
-			go s.pingServer()
+		if srv, ok := value.(*Server); ok {
+			go srv.pingServer()
 		}
 		return true
 	})
@@ -22,17 +24,17 @@ func UpdateAll() {
 
 // FromIdentifier ...
 func FromIdentifier(identifier string) *Server {
-	if serv, ok := servers.Load(identifier); ok {
-		return serv.(*Server)
+	if srv, ok := servers.Load(identifier); ok {
+		return srv.(*Server)
 	}
 	return nil
 }
 
 // FromName ...
 func FromName(name string) *Server {
-	for _, s := range All() {
-		if s.Name() == name {
-			return s
+	for _, srv := range All() {
+		if srv.Name() == name {
+			return srv
 		}
 	}
 	return nil

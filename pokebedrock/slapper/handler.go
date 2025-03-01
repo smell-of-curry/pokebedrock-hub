@@ -18,5 +18,5 @@ func (s *Slapper) handleInteract(p *player.Player) {
 
 // rankHandler ...
 type rankHandler interface {
-	Rank() rank.Rank
+	HighestRank() rank.Rank
 }

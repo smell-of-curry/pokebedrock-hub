@@ -10,28 +10,37 @@ import (
 
 // Server ...
 type Server struct {
-	log  *slog.Logger
-	conf *Config
+	log *slog.Logger
 
-	status atomic.Value[Status]
+	retries atomic.Int32
+	conf    atomic.Value[Config]
+	status  atomic.Value[Status]
 }
 
 // New ...
-func New(log *slog.Logger, conf *Config) *Server {
-	return &Server{
-		log:  log,
-		conf: conf,
+func New(log *slog.Logger, conf Config) *Server {
+	srv := &Server{
+		log: log,
 	}
+	srv.conf.Store(conf)
+	return srv
 }
 
 // pingServer ...
 func (s *Server) pingServer() {
-	response, err := ping.Ping(s.conf.Address)
+	response, err := ping.Ping(s.Address())
 	if err != nil {
-		s.assumeOffline()
-		s.log.Debug("failed to ping server", "error", err)
+		s.retries.Inc()
+		if s.Retries() > 5 {
+			s.assumeOffline()
+			s.log.Warn("server assumed offline after multiple failures", "address", s.Address())
+		} else {
+			s.log.Debug("failed to ping server", "error", err, "retry", s.Retries())
+		}
 		return
 	}
+
+	s.retries.Store(0)
 
 	st := Status{
 		Online: true,
@@ -57,17 +66,32 @@ func (s *Server) assumeOffline() {
 
 // Name ...
 func (s *Server) Name() string {
-	return s.conf.Name
+	return s.Config().Name
+}
+
+// Identifier ...
+func (s *Server) Identifier() string {
+	return s.Config().Identifier
 }
 
 // Icon ...
 func (s *Server) Icon() string {
-	return s.conf.Icon
+	return s.Config().Icon
 }
 
 // Address ...
 func (s *Server) Address() string {
-	return s.conf.Address
+	return s.Config().Address
+}
+
+// Retries ...
+func (s *Server) Retries() int32 {
+	return s.retries.Load()
+}
+
+// Config ...
+func (s *Server) Config() Config {
+	return s.conf.Load()
 }
 
 // Status ...

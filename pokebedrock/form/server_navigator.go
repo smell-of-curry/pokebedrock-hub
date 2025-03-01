@@ -1,7 +1,6 @@
 package form
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/df-mc/dragonfly/server/player"
@@ -24,12 +23,12 @@ func NewServerNavigator() form.Menu {
 		st := s.Status()
 		statusName := "Unknown"
 		if st.Online {
-			statusName = "§aOnline"
+			statusName = "<green>Online</green>"
 		} else {
-			statusName = "§4Offline"
+			statusName = "<dark-red>Offline</dark-red>"
 		}
 
-		name := fmt.Sprintf("%s\n%s§r (%d§l/§r%d)", s.Name(), statusName, st.PlayerCount, st.MaxPlayerCount)
+		name := text.Colourf("%s\n%s (%d<b>/</b>%d)", s.Name(), statusName, st.PlayerCount, st.MaxPlayerCount)
 		btns = append(btns, form.NewButton(name, s.Icon()))
 	}
 
@@ -38,11 +37,12 @@ func NewServerNavigator() form.Menu {
 
 // Submit ...
 func (serverNavigator) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
+	p := sub.(*player.Player)
 	serverName := strings.Split(b.Text, "\n")[0]
-	s := srv.FromName(serverName)
-	if s == nil {
-		sub.(*player.Player).Messagef("§4Failed to find server with name %s", serverName)
+	server := srv.FromName(serverName)
+	if server == nil {
+		p.Message(text.Colourf("<dark-red>Failed to find server with name %s.</dark-red>", serverName))
 		return
 	}
-	sub.(*player.Player).SendForm(NewServerConfirm(s))
+	p.SendForm(NewServerConfirm(server))
 }
