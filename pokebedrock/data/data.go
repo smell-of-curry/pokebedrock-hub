@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,9 +19,9 @@ var (
 
 const (
 	roleAPIURL     = "http://15.204.44.68:4000/"
-	requestTimeout = 5 * time.Second
-	maxRetries     = 2
-	retryDelay     = 500 * time.Millisecond
+	requestTimeout = 2 * time.Second
+	maxRetries     = 1
+	retryDelay     = 300 * time.Millisecond
 )
 
 // Roles fetches the roles for a player with the given XUID.
@@ -41,8 +42,18 @@ func Roles(xuid string) ([]string, error) {
 			time.Sleep(retryDelay)
 		}
 
-		// Make the request
-		resp, err := client.Get(roleAPIURL + xuid)
+		// Make the request with a context that can be canceled
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		req, err := http.NewRequestWithContext(ctx, "GET", roleAPIURL+xuid, nil)
+		if err != nil {
+			cancel()
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		// Execute the request
+		resp, err := client.Do(req)
+		cancel() // Always cancel the context to release resources
+
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
 			// Retry on timeout or temporary network errors
