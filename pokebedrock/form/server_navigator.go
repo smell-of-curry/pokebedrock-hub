@@ -38,7 +38,7 @@ func NewServerNavigator() form.Menu {
 // Submit ...
 func (serverNavigator) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	p := sub.(*player.Player)
-	serverName := strings.Split(b.Text, "\n")[0]
+	serverName := text.Clean(strings.Split(b.Text, "\n")[0])
 	server := srv.FromName(serverName)
 	if server == nil {
 		p.Message(text.Colourf("<dark-red>Failed to find server with name %s.</dark-red>", serverName))

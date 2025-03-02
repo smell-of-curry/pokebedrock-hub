@@ -2,6 +2,8 @@ package srv
 
 import (
 	"sync"
+
+	"github.com/sandertv/gophertunnel/minecraft/text"
 )
 
 // Servers ...
@@ -33,7 +35,7 @@ func FromIdentifier(identifier string) *Server {
 // FromName ...
 func FromName(name string) *Server {
 	for _, srv := range All() {
-		if srv.Name() == name {
+		if text.Clean(srv.Name()) == name {
 			return srv
 		}
 	}
