@@ -36,24 +36,34 @@ func (r Rank) Name() string {
 	return "Unknown"
 }
 
+// formatName formats a player name according to their rank
+func (r Rank) formatName(name string) string {
+	switch r {
+	case Trainer:
+		return text.Colourf("<grey>%s</grey>", name)
+	case Premium:
+		return text.Colourf("<green>Premium %s</green>", name)
+	case Sponsor:
+		return text.Colourf("<gold>Sponsor %s</gold>", name)
+	case Moderator:
+		return text.Colourf("<blue>Moderator %s</blue>", name)
+	case Admin:
+		return text.Colourf("<red>Admin %s</red>", name)
+	case Manager:
+		return text.Colourf("<purple>Manager %s</purple>", name)
+	case Owner:
+		return text.Colourf("<dark-red>Owner %s</dark-red>", name)
+	default:
+		return text.Colourf("<grey>%s</grey>", name)
+	}
+}
+
 // Chat ...
 func (r Rank) Chat(name, message string) string {
-	switch r { // TODO: Adjust for the rest.
-	case Admin:
-		return text.Colourf("<red>Admin %s</red>: <grey>%s</grey>", name, message)
-	case Owner:
-		return text.Colourf("<dark-red>Owner %s</dark-red>: <grey>%s</grey>", name, message)
-	}
-	return text.Colourf("<grey>%s: %s</grey>", name, message)
+	return text.Colourf("%s: <grey>%s</grey>", r.formatName(name), message)
 }
 
 // NameTag ...
 func (r Rank) NameTag(name string) string {
-	switch r { // TODO: Adjust for the rest.
-	case Admin:
-		return text.Colourf("<red>Admin %s</red>", name)
-	case Owner:
-		return text.Colourf("<dark-red>Owner %s</dark-red>", name)
-	}
-	return text.Colourf("<grey>%s</grey>", name)
+	return r.formatName(name)
 }
