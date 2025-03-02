@@ -171,8 +171,9 @@ func (p *PokeBedrock) startTicking() {
 	}
 }
 
-// accept ...
+// accept handles a new player joining the server
 func (p *PokeBedrock) accept(pl *player.Player) {
+	// Create and set the player handler
 	h := handler.NewPlayerHandler(pl)
 	pl.Handle(h)
 
