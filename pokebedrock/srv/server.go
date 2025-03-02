@@ -33,14 +33,13 @@ func (s *Server) pingServer() {
 		s.retries.Inc()
 		if s.Retries() > 5 {
 			s.assumeOffline()
-			s.log.Warn("server assumed offline after multiple failures", "address", s.Address())
+			s.log.Warn("server assumed offline after multiple failures", "name", s.Name(), "address", s.Address())
+			s.retries.Store(0)
 		} else {
-			s.log.Debug("failed to ping server", "error", err, "retry", s.Retries())
+			s.log.Debug("failed to ping server", "name", s.Name(), "error", err.Error(), "retry", s.Retries())
 		}
 		return
 	}
-
-	s.retries.Store(0)
 
 	st := Status{
 		Online: true,

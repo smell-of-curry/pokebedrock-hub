@@ -29,6 +29,24 @@ type GithubRelease struct {
 	} `json:"assets"`
 }
 
+// ManifestJSON represents the structure of a Minecraft resource pack manifest.json file
+type ManifestJSON struct {
+	FormatVersion int `json:"format_version"`
+	Header        struct {
+		Name             string `json:"name"`
+		Description      string `json:"description"`
+		UUID             string `json:"uuid"`
+		Version          []int  `json:"version"`
+		MinEngineVersion []int  `json:"min_engine_version"`
+	} `json:"header"`
+	Modules []struct {
+		Type        string `json:"type"`
+		UUID        string `json:"uuid"`
+		Version     []int  `json:"version"`
+		Description string `json:"description,omitempty"`
+	} `json:"modules"`
+}
+
 // EntityDefinition ...
 type EntityDefinition struct {
 	FormatVersion string `json:"format_version"`
@@ -67,7 +85,10 @@ func (m *Manager) CheckAndUpdate() error {
 	}
 
 	// Get current version
-	currentVersion := m.CurrentVersion()
+	currentVersion, err := m.CurrentVersion()
+	if err != nil {
+		m.log.Info("No valid resource pack found, will download", "error", err)
+	}
 
 	// Get latest release info
 	release, err := m.LatestRelease()
@@ -75,11 +96,9 @@ func (m *Manager) CheckAndUpdate() error {
 		return fmt.Errorf("failed to get latest release: %w", err)
 	}
 
-	if currentVersion == release.TagName {
+	if currentVersion == strings.TrimPrefix(release.TagName, "v") && m.isResourcePackValid() {
 		m.log.Info("Resource pack is up to date", "version", currentVersion)
-		// Even if up to date, ensure it's unpacked
-		packPath := filepath.Join(m.resourceDir, fmt.Sprintf("pokebedrock-res-%s.mcpack", currentVersion))
-		return m.unzipResourcePack(packPath)
+		return nil
 	}
 
 	// Ask for update if there's an existing version
@@ -106,21 +125,61 @@ func (m *Manager) CheckAndUpdate() error {
 	return nil
 }
 
-// CurrentVersion ...
-func (m *Manager) CurrentVersion() string {
+// CurrentVersion gets the current version of the resource pack.
+// It tries to read from manifest.json if available, otherwise falls back to checking .mcpack files.
+func (m *Manager) CurrentVersion() (string, error) {
+	// First try to read from manifest.json in the unpacked directory
+	manifestPath := filepath.Join(m.UnpackedPath(), "manifest.json")
+	if _, err := os.Stat(manifestPath); err == nil {
+		// Manifest exists, read version from it
+		manifest, err := m.ReadManifest()
+		if err == nil && len(manifest.Header.Version) >= 3 {
+			// Convert version array to string format
+			version := fmt.Sprintf("%d.%d.%d",
+				manifest.Header.Version[0],
+				manifest.Header.Version[1],
+				manifest.Header.Version[2])
+			return version, nil
+		}
+	}
+
+	// Fall back to checking .mcpack files
 	files, err := os.ReadDir(m.resourceDir)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("failed to read resource directory: %w", err)
 	}
 
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), "pokebedrock-res-") && strings.HasSuffix(file.Name(), ".mcpack") {
 			version := strings.TrimPrefix(file.Name(), "pokebedrock-res-")
 			version = strings.TrimSuffix(version, ".mcpack")
-			return version
+			return version, nil
 		}
 	}
-	return ""
+	return "", fmt.Errorf("no resource pack found")
+}
+
+// ReadManifest reads the manifest.json file from the unpacked resource pack
+func (m *Manager) ReadManifest() (*ManifestJSON, error) {
+	manifestPath := filepath.Join(m.UnpackedPath(), "manifest.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read manifest.json: %w", err)
+	}
+
+	var manifest ManifestJSON
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("failed to parse manifest.json: %w", err)
+	}
+
+	return &manifest, nil
+}
+
+// isResourcePackValid checks if the unpacked resource pack is valid by looking for manifest.json
+func (m *Manager) isResourcePackValid() bool {
+	manifestPath := filepath.Join(m.UnpackedPath(), "manifest.json")
+	_, err := os.Stat(manifestPath)
+	return err == nil
 }
 
 // LatestRelease ...
@@ -177,7 +236,16 @@ func (m *Manager) downloadResourcePack(release *GithubRelease) error {
 	}
 
 	// Unzip the resource pack
-	return m.unzipResourcePack(packPath)
+	if err = m.unzipResourcePack(packPath); err != nil {
+		return err
+	}
+
+	// Delete the .mcpack file after successful unpacking
+	if err = os.Remove(packPath); err != nil {
+		m.log.Warn("failed to delete .mcpack file after unpacking", "error", err)
+	}
+
+	return nil
 }
 
 // AlreadyUnpacked checks if the resource pack is already unpacked and matches the version.
@@ -204,7 +272,7 @@ func (m *Manager) markAsUnpacked(version string) error {
 	return os.WriteFile(versionFile, []byte(version), 0644)
 }
 
-// unzipResourcePack ...
+// unzipResourcePack extracts the resource pack to the unpacked directory
 func (m *Manager) unzipResourcePack(packPath string) error {
 	reader, err := zip.OpenReader(packPath)
 	if err != nil {
@@ -212,18 +280,20 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 	}
 	defer reader.Close()
 
-	// Get version from pack path
+	// Get version from pack path for logging
 	version := strings.TrimPrefix(filepath.Base(packPath), "pokebedrock-res-")
 	version = strings.TrimSuffix(version, ".mcpack")
 
-	// Check if already unpacked with correct version
-	if m.AlreadyUnpacked(version) {
-		m.log.Info("Resource pack is already unpacked", "version", version)
-		return nil
+	// Check if unpacked directory exists
+	unpackPath := m.UnpackedPath()
+	if _, err := os.Stat(unpackPath); !os.IsNotExist(err) {
+		// Delete the unpacked directory to ensure clean state
+		if err := os.RemoveAll(unpackPath); err != nil {
+			m.log.Warn("failed to clean up old unpacked directory", "error", err)
+		}
 	}
 
-	unpackPath := m.UnpackedPath()
-	if err = os.MkdirAll(unpackPath, 0755); err != nil {
+	if err := os.MkdirAll(unpackPath, 0755); err != nil {
 		return fmt.Errorf("failed to create unpack directory: %w", err)
 	}
 
@@ -271,10 +341,11 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		bar.Add(1)
 	}
 
-	// Mark as unpacked with current version
-	if err = m.markAsUnpacked(version); err != nil {
-		return fmt.Errorf("failed to mark as unpacked: %w", err)
+	// Validate the unpacked resource pack
+	if !m.isResourcePackValid() {
+		return fmt.Errorf("unpacked resource pack is invalid: manifest.json not found")
 	}
 
+	m.log.Info("Successfully unpacked resource pack", "version", version)
 	return nil
 }

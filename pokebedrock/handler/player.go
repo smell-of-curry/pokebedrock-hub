@@ -27,6 +27,16 @@ type PlayerHandler struct {
 func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	h := &PlayerHandler{}
 	h.loadRanks(p.XUID())
+	highestRank := h.HighestRank()
+	if highestRank == rank.Trainer {
+		// Player probably has not connected there discord account.
+		p.Message("Welcome to the PokeBedrock Hub! Your current rank is a Trainer.")
+		p.Message("If you have priority queue, or want to sync your rank, ensure your discord is linked.")
+		p.Message("Use /link in the Discord to link your roles.")
+	} else {
+		p.Messagef("Welcome %s, you have synced role: %s", p.Name(), h.HighestRank().Name())
+	}
+
 	return h
 }
 
