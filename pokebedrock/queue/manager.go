@@ -3,6 +3,7 @@ package queue
 import (
 	"container/heap"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/df-mc/atomic"
@@ -20,6 +21,13 @@ var QueueManager *Manager
 // init ...
 func init() {
 	QueueManager = NewManager()
+}
+
+// QueueTransfer represents a player waiting to be transferred to a server
+type QueueTransfer struct {
+	player *player.Player
+	entry  *Entry
+	server *srv.Server
 }
 
 // Manager ...
@@ -108,12 +116,28 @@ func (m *Manager) Update(tx *world.Tx) {
 		return
 	}
 
-	// Check each player in the queue in order (respecting priority)
+	// Instead of modifying the queue during iteration,
+	// we'll track changes and apply them afterward
+	var entriesToRemove []int
+	var playersToTransfer []*QueueTransfer
+
+	// First pass: check queue entries and mark for removal/transfer
 	for i, entry := range queue {
+		// Skip already marked entries
+		if i < 0 || i >= len(queue) {
+			continue
+		}
+
+		// Check for nil entries
+		if entry == nil || entry.handle == nil {
+			entriesToRemove = append(entriesToRemove, i)
+			continue
+		}
+
 		// Verify player still exists
 		p, ok := entry.handle.Entity(tx)
 		if !ok {
-			m.RemoveFromQueue(i)
+			entriesToRemove = append(entriesToRemove, i)
 			continue
 		}
 		player := p.(*player.Player)
@@ -121,7 +145,7 @@ func (m *Manager) Update(tx *world.Tx) {
 		// Verify server still exists and is valid
 		s := entry.srv
 		if s == nil {
-			m.RemoveFromQueue(i)
+			entriesToRemove = append(entriesToRemove, i)
 			player.Message(text.Colourf("<red>Your queue destination no longer exists.</red>"))
 			continue
 		}
@@ -146,22 +170,42 @@ func (m *Manager) Update(tx *world.Tx) {
 			continue
 		}
 
-		// Remove from queue before transfer to avoid race conditions
-		m.RemoveFromQueue(i)
+		// Mark for transfer
+		playersToTransfer = append(playersToTransfer, &QueueTransfer{
+			player: player,
+			entry:  entry,
+			server: s,
+		})
+		entriesToRemove = append(entriesToRemove, i)
 
+		// Only process one transfer per tick
+		break
+	}
+
+	// Second pass: remove entries marked for removal (in reverse order to maintain indices)
+	sort.Sort(sort.Reverse(sort.IntSlice(entriesToRemove)))
+	for _, i := range entriesToRemove {
+		if i >= 0 && i < len(m.Queue()) {
+			m.RemoveFromQueue(i)
+		}
+	}
+
+	// Third pass: process transfers
+	for _, transfer := range playersToTransfer {
 		// Notify the player they're being transferred
-		player.Message(text.Colourf("<green>Connecting you to %s...</green>", s.Name()))
+		transfer.player.Message(text.Colourf("<green>Connecting you to %s...</green>", transfer.server.Name()))
 
 		// Transfer the player
-		if err := player.Transfer(s.Address()); err != nil {
+		if err := transfer.player.Transfer(transfer.server.Address()); err != nil {
 			// If transfer fails, add player back to queue
-			player.Message(text.Colourf("<red>Connection failed: %v. You've been placed back in queue.</red>", err))
-			m.AddToQueue(entry)
+			transfer.player.Message(text.Colourf("<red>Connection failed: %v. You've been placed back in queue.</red>", err))
+			m.AddToQueue(transfer.entry)
 		}
+	}
 
-		// Update boss bars for remaining players
+	// Update boss bars for remaining players if any changes were made
+	if len(entriesToRemove) > 0 {
 		m.updateBossBars(tx)
-		break // Only process one transfer per tick
 	}
 }
 
