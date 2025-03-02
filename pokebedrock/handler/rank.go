@@ -2,6 +2,8 @@ package handler
 
 import (
 	"log/slog"
+	"math"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -25,7 +27,36 @@ var (
 	ranksCacheMu   sync.RWMutex
 	ranksCacheTTL  = 10 * time.Minute
 	cachePurgeTime = time.Now()
+
+	// Channel for async rank updates
+	rankUpdateCh = make(chan rankUpdate, 100)
 )
+
+// rankUpdate represents a rank update request for a player
+type rankUpdate struct {
+	handler *PlayerHandler
+	player  *player.Player
+	xuid    string
+}
+
+// init starts the background rank worker
+func init() {
+	go rankWorker()
+}
+
+// rankWorker processes rank updates in the background
+func rankWorker() {
+	for update := range rankUpdateCh {
+		// Process the update
+		ranks := fetchRanks(update.xuid)
+
+		// Update the player's ranks
+		update.handler.SetRanks(ranks)
+
+		// TODO: Update Player nametag, idk how bc world.Tx has finished
+		// TODO: And tell Player there rank has been updated
+	}
+}
 
 type rankCacheEntry struct {
 	ranks    []rank.Rank
@@ -33,11 +64,10 @@ type rankCacheEntry struct {
 	attempts int
 }
 
-// loadRanks loads the ranks for a player based on their XUID.
-// It will try to load from cache first, and if not available or expired, fetch from the API.
-// If the API request fails, it will use cached values if available (even if expired) or default to Trainer rank.
+// loadRanks loads the ranks for a player synchronously, but only from cache
+// If not in cache, it assigns a default rank and triggers an async fetch
 func (h *PlayerHandler) loadRanks(xuid string) {
-	// Try to purge expired cache entries occasionally (not on every call to avoid overhead)
+	// Try to purge expired cache entries occasionally
 	if time.Since(cachePurgeTime) > time.Minute {
 		go purgeExpiredCacheEntries()
 		cachePurgeTime = time.Now()
@@ -54,6 +84,47 @@ func (h *PlayerHandler) loadRanks(xuid string) {
 		return
 	}
 
+	// If in cache but expired, use cached ranks temporarily
+	if found {
+		h.SetRanks(entry.ranks)
+	} else {
+		// Not in cache, set default rank temporarily
+		h.SetRanks([]rank.Rank{rank.Trainer})
+	}
+
+	// Queue async fetch of latest ranks
+	h.LoadRanksAsync(xuid, nil)
+}
+
+// LoadRanksAsync queues an asynchronous fetch of player ranks
+// If player is provided, their nametag will be updated once ranks are fetched
+func (h *PlayerHandler) LoadRanksAsync(xuid string, p *player.Player) {
+	select {
+	case rankUpdateCh <- rankUpdate{
+		handler: h,
+		player:  p,
+		xuid:    xuid,
+	}:
+		// Request queued successfully
+	default:
+		// Channel full, log warning but continue
+		rankLogger.Warn("Rank update queue is full, skipping update", "xuid", xuid)
+	}
+}
+
+// fetchRanks is a helper function that fetches ranks from API or cache
+// This runs in the background worker and doesn't block the main thread
+func fetchRanks(xuid string) []rank.Rank {
+	// Check cache first
+	ranksCacheMu.RLock()
+	entry, found := ranksCache[xuid]
+	ranksCacheMu.RUnlock()
+
+	// If found in cache and not expired, use cached ranks
+	if found && time.Now().Before(entry.expiry) {
+		return entry.ranks
+	}
+
 	// If not in cache or expired, fetch from API
 	roles, err := data.Roles(xuid)
 	if err != nil {
@@ -62,30 +133,29 @@ func (h *PlayerHandler) loadRanks(xuid string) {
 
 		// Use cached ranks if available (even if expired)
 		if found {
-			h.SetRanks(entry.ranks)
-
 			// Update the cache with extended expiry to avoid hammering the API
 			entry.attempts++
-			backoffTime := time.Duration(entry.attempts*30) * time.Second
-			if backoffTime > 5*time.Minute {
-				backoffTime = 5 * time.Minute
-			}
+			backoffDuration := time.Duration(entry.attempts*30) * time.Second
+			maxDuration := 5 * time.Minute
+			backoffTime := time.Duration(math.Min(float64(backoffDuration), float64(maxDuration)))
 			entry.expiry = time.Now().Add(backoffTime)
 
 			ranksCacheMu.Lock()
 			ranksCache[xuid] = entry
 			ranksCacheMu.Unlock()
-			return
+
+			return entry.ranks
 		}
 
 		// If not in cache and API fails, use default rank
-		h.SetRanks([]rank.Rank{rank.Trainer})
-		return
+		return []rank.Rank{rank.Trainer}
 	}
 
-	// API request successful, set ranks from roles
+	// API request successful, get ranks
 	ranks := rank.RolesToRanks(roles)
-	h.SetRanks(ranks)
+	if len(ranks) == 0 {
+		ranks = []rank.Rank{rank.Trainer}
+	}
 
 	// Update cache with freshly fetched ranks
 	ranksCacheMu.Lock()
@@ -95,6 +165,8 @@ func (h *PlayerHandler) loadRanks(xuid string) {
 		attempts: 0,
 	}
 	ranksCacheMu.Unlock()
+
+	return ranks
 }
 
 // RefreshRanks forces a refresh of the player's ranks from the API.
@@ -109,11 +181,8 @@ func (h *PlayerHandler) RefreshRanks(p *player.Player) {
 	delete(ranksCache, p.XUID())
 	ranksCacheMu.Unlock()
 
-	// Load ranks again
-	h.loadRanks(p.XUID())
-
-	// Update player's name tag to reflect new rank
-	p.SetNameTag(h.HighestRank().NameTag(p.Name()))
+	// Load ranks asynchronously
+	h.LoadRanksAsync(p.XUID(), p)
 }
 
 // SetRanks updates the player's ranks and sorts them.
@@ -155,12 +224,7 @@ func (h *PlayerHandler) HasRank(r rank.Rank) bool {
 	h.rankMu.Lock()
 	defer h.rankMu.Unlock()
 
-	for _, playerRank := range h.ranks {
-		if playerRank == r {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(h.ranks, r)
 }
 
 // HasRankOrHigher checks if the player has the specified rank or a higher one.

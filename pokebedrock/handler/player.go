@@ -26,18 +26,35 @@ type PlayerHandler struct {
 // NewPlayerHandler ...
 func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	h := &PlayerHandler{}
+
+	// Initialize with initial rank from cache only
 	h.loadRanks(p.XUID())
+
+	// Display initial welcome message
+	h.displayWelcomeMessage(p)
+
+	// Queue async loading of ranks after player is fully initialized
+	// This will update the player's nametag when ranks are loaded
+	go func() {
+		// Small delay to ensure player is fully initialized
+		time.Sleep(100 * time.Millisecond)
+		h.LoadRanksAsync(p.XUID(), p)
+	}()
+
+	return h
+}
+
+// displayWelcomeMessage shows the appropriate welcome message based on current rank
+func (h *PlayerHandler) displayWelcomeMessage(p *player.Player) {
 	highestRank := h.HighestRank()
 	if highestRank == rank.Trainer {
-		// Player probably has not connected there discord account.
+		// Player probably has not connected their discord account
 		p.Message("Welcome to the PokeBedrock Hub! Your current rank is a Trainer.")
 		p.Message("If you have priority queue, or want to sync your rank, ensure your discord is linked.")
 		p.Message("Use /link in the Discord to link your roles.")
 	} else {
-		p.Messagef("Welcome %s, you have synced role: %s", p.Name(), h.HighestRank().Name())
+		p.Messagef("Welcome %s, you have synced role: %s", p.Name(), highestRank.Name())
 	}
-
-	return h
 }
 
 // HandleJoin ...
