@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/sandertv/gophertunnel/minecraft/text"
@@ -42,12 +43,18 @@ func FromName(name string) *Server {
 	return nil
 }
 
-// All ...
-func All() map[string]*Server {
-	result := make(map[string]*Server)
+// All returns a slice of all registered servers sorted by their identifier.
+func All() []*Server {
+	var result []*Server
 	servers.Range(func(key, value any) bool {
-		result[key.(string)] = value.(*Server)
+		result = append(result, value.(*Server))
 		return true
 	})
+
+	// Sort the servers by identifier for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Identifier() < result[j].Identifier()
+	})
+
 	return result
 }
