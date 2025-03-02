@@ -156,6 +156,7 @@ func (m *Manager) CurrentVersion() (string, error) {
 			return version, nil
 		}
 	}
+
 	return "", fmt.Errorf("no resource pack found")
 }
 
@@ -264,12 +265,6 @@ func (m *Manager) AlreadyUnpacked(version string) bool {
 	}
 
 	return strings.TrimSpace(string(content)) == version
-}
-
-// markAsUnpacked creates a version file in the unpacked directory.
-func (m *Manager) markAsUnpacked(version string) error {
-	versionFile := filepath.Join(m.UnpackedPath(), ".version")
-	return os.WriteFile(versionFile, []byte(version), 0644)
 }
 
 // unzipResourcePack extracts the resource pack to the unpacked directory
