@@ -44,9 +44,5 @@ func (serverNavigator) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 		p.Message(text.Colourf("<dark-red>Failed to find server with name %s.</dark-red>", serverName))
 		return
 	}
-	if !server.Status().Online {
-		p.Message(text.Colourf("<dark-red>%s is currently offline.</dark-red>", serverName))
-		return
-	}
 	p.SendForm(NewServerConfirm(server))
 }
