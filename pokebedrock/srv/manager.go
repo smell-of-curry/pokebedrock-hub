@@ -11,8 +11,8 @@ import (
 var servers sync.Map
 
 // Register ...
-func Register(serv *Server) {
-	servers.Store(serv.Identifier(), serv)
+func Register(srv *Server) {
+	servers.Store(srv.Identifier(), srv)
 }
 
 // UpdateAll ...
