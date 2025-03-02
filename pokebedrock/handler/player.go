@@ -7,9 +7,9 @@ import (
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/player"
-	"github.com/df-mc/dragonfly/server/player/chat"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
+	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/form"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
@@ -83,8 +83,10 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	ctx.Cancel()
 	p := ctx.Val()
 
-	msg := h.HighestRank().Chat(p.Name(), *message)
-	_, _ = chat.Global.WriteString(msg)
+	// TODO - Re-enable once moderation system is fixed.
+	p.Message(text.Colourf("<red>Chat is currently disabled.</red>"))
+	// msg := h.HighestRank().Chat(p.Name(), *message)
+	// _, _ = chat.Global.WriteString(msg)
 }
 
 // HandleFoodLoss ...
