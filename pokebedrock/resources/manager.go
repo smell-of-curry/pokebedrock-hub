@@ -304,7 +304,16 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 	bar := progressbar.Default(int64(totalFiles), "Unzipping resource pack")
 
 	for _, file := range reader.File {
+		if strings.Contains(file.Name, "..") {
+			m.log.Warn("skipping file with invalid path", "file", file.Name)
+			continue
+		}
 		path := filepath.Join(unpackPath, file.Name)
+		relPath, err := filepath.Rel(unpackPath, filepath.Clean(path))
+		if err != nil || strings.HasPrefix(relPath, "..") {
+			m.log.Warn("skipping file with invalid path", "file", file.Name)
+			continue
+		}
 
 		if file.FileInfo().IsDir() {
 			os.MkdirAll(path, 0755)
