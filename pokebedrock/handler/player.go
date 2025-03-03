@@ -38,7 +38,7 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	go func() {
 		// Small delay to ensure player is fully initialized
 		time.Sleep(100 * time.Millisecond)
-		h.LoadRanksAsync(p.XUID(), p)
+		h.LoadRanksAsync(p.XUID(), p.H())
 	}()
 
 	return h
@@ -73,6 +73,9 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 	if id, ok := it.Value("lobby"); ok {
 		switch id {
 		case 0:
+			w := p.Tx().World()
+			p.Teleport(w.Spawn().Vec3Middle())
+		case 1:
 			p.SendForm(form.NewServerNavigator())
 		}
 	}

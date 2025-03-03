@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/data"
+	"github.com/df-mc/dragonfly/server/world"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
 
@@ -35,7 +35,7 @@ var (
 // rankUpdate represents a rank update request for a player
 type rankUpdate struct {
 	handler *PlayerHandler
-	player  *player.Player
+	handle  *world.EntityHandle
 	xuid    string
 }
 
@@ -53,11 +53,20 @@ func rankWorker() {
 		// Update the player's ranks
 		update.handler.SetRanks(ranks)
 
-		// TODO: Update Player nametag, idk how bc world.Tx has finished
-		// TODO: And tell Player there rank has been updated
+		if update.handle != nil {
+			update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+				p := e.(*player.Player)
+
+				nameTag := update.handler.HighestRank().NameTag(p.Name())
+				p.SetNameTag(nameTag)
+
+				// TODO: And tell Player there rank has been updated
+			})
+		}
 	}
 }
 
+// rankCacheEntry ...
 type rankCacheEntry struct {
 	ranks    []rank.Rank
 	expiry   time.Time
@@ -98,11 +107,11 @@ func (h *PlayerHandler) loadRanks(xuid string) {
 
 // LoadRanksAsync queues an asynchronous fetch of player ranks
 // If player is provided, their nametag will be updated once ranks are fetched
-func (h *PlayerHandler) LoadRanksAsync(xuid string, p *player.Player) {
+func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) {
 	select {
 	case rankUpdateCh <- rankUpdate{
 		handler: h,
-		player:  p,
+		handle:  handle,
 		xuid:    xuid,
 	}:
 		// Request queued successfully
@@ -126,10 +135,10 @@ func fetchRanks(xuid string) []rank.Rank {
 	}
 
 	// If not in cache or expired, fetch from API
-	roles, err := data.Roles(xuid)
+	roles, err := rank.GlobalService().RolesOfXUID(xuid)
 	if err != nil {
 		// Log the error
-		data.LogRolesError(rankLogger, xuid, err)
+		rank.RolesError(rankLogger, xuid, err)
 
 		// Use cached ranks if available (even if expired)
 		if found {
@@ -182,7 +191,7 @@ func (h *PlayerHandler) RefreshRanks(p *player.Player) {
 	ranksCacheMu.Unlock()
 
 	// Load ranks asynchronously
-	h.LoadRanksAsync(p.XUID(), p)
+	h.LoadRanksAsync(p.XUID(), p.H())
 }
 
 // SetRanks updates the player's ranks and sorts them.

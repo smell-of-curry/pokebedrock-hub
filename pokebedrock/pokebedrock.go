@@ -8,12 +8,16 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/translation"
+	"golang.org/x/text/language"
 )
 
 // PokeBedrock ...
@@ -21,16 +25,15 @@ type PokeBedrock struct {
 	log  *slog.Logger
 	conf Config
 
-	srv *server.Server
-	w   *world.World
-
-	c          chan struct{}
+	srv        *server.Server
 	resManager *resources.Manager
+
+	c chan struct{}
 }
 
-// New ...
-func New(log *slog.Logger, conf Config) *PokeBedrock {
-	// Initialize resource pack manager and check for updates
+// NewPokeBedrock ...
+func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
+	// Initialize resource pack manager and check for updates.
 	resManager := resources.NewManager(log, conf.UserConfig.Resources.Folder)
 	if err := resManager.CheckAndUpdate(); err != nil {
 		log.Error("failed to check/update resource pack", "error", err)
@@ -40,7 +43,7 @@ func New(log *slog.Logger, conf Config) *PokeBedrock {
 
 	c, err := conf.UserConfig.Config(log)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	p := &PokeBedrock{
@@ -52,6 +55,9 @@ func New(log *slog.Logger, conf Config) *PokeBedrock {
 	}
 	// TODO: Enable when these get fixed.
 	// p.loadTranslations(&c)
+	if err = p.loadLocales(); err != nil {
+		return nil, err
+	}
 
 	c.ReadOnlyWorld = true
 	c.Generator = func(dim world.Dimension) world.Generator { // ensures that no new chunks are generated.
@@ -60,13 +66,15 @@ func New(log *slog.Logger, conf Config) *PokeBedrock {
 	c.StatusProvider = status.NewProvider(c.Name, c.Name) // ensures synchronized server count display.
 
 	p.srv = c.New()
-	p.w = p.srv.World()
 	p.srv.CloseOnProgramEnd()
-	return p
+
+	p.loadServices()
+
+	return p, nil
 }
 
 // Start ...
-func (p *PokeBedrock) Start() error {
+func (p *PokeBedrock) Start() {
 	p.srv.Listen()
 	p.handleWorld()
 
@@ -75,12 +83,11 @@ func (p *PokeBedrock) Start() error {
 	}
 
 	close(p.c)
-	return nil
 }
 
 // handleWorld ...
 func (p *PokeBedrock) handleWorld() {
-	w := p.w
+	w := p.World()
 	w.Handle(handler.WorldHandler{})
 
 	w.StopWeatherCycle()
@@ -110,6 +117,26 @@ func (p *PokeBedrock) loadTranslations(c *server.Config) {
 	c.ShutdownMessage = translation.MessageServerDisconnect(conf.Translation.MessageServerDisconnect)
 }
 
+// loadLocales ...
+func (p *PokeBedrock) loadLocales() error {
+	path := p.conf.PokeBedrock.LocalePath
+	locales := []language.Tag{
+		language.English,
+	}
+	for _, l := range locales {
+		if err := locale.Register(l, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// loadServices ...
+func (p *PokeBedrock) loadServices() {
+	rank.NewService(p.log, p.conf.Service.RolesURL)
+	moderation.NewService(p.log, p.conf.Service.ModerationKey)
+}
+
 // loadServers ...
 func (p *PokeBedrock) loadServers() {
 	cfgs, err := srv.ReadAll(p.conf.PokeBedrock.ServerPath)
@@ -119,7 +146,7 @@ func (p *PokeBedrock) loadServers() {
 
 	for _, cfg := range cfgs {
 		srv.Register(
-			srv.New(p.log, cfg),
+			srv.NewServer(p.log, cfg),
 		)
 	}
 
@@ -128,7 +155,7 @@ func (p *PokeBedrock) loadServers() {
 
 // loadSlappers ...
 func (p *PokeBedrock) loadSlappers() {
-	w := p.w
+	w := p.World()
 	cfgs, err := slapper.ReadAll(p.conf.PokeBedrock.SlapperPath)
 	if err != nil {
 		panic(err)
@@ -141,7 +168,7 @@ func (p *PokeBedrock) loadSlappers() {
 
 // startTicking ...
 func (p *PokeBedrock) startTicking() {
-	w := p.w
+	w := p.World()
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
 
@@ -171,11 +198,16 @@ func (p *PokeBedrock) startTicking() {
 	}
 }
 
-// accept handles a new player joining the server
+// accept handles a new player joining the server.
 func (p *PokeBedrock) accept(pl *player.Player) {
-	// Create and set the player handler
+	// Create and set the player handler.
 	h := handler.NewPlayerHandler(pl)
 	pl.Handle(h)
 
-	h.HandleJoin(pl, p.w)
+	h.HandleJoin(pl, p.World())
+}
+
+// World ...
+func (p *PokeBedrock) World() *world.World {
+	return p.srv.World()
 }

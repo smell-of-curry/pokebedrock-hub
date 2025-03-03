@@ -24,8 +24,8 @@ type Slapper struct {
 	handle     *world.EntityHandle
 }
 
-// New ...
-func New(log *slog.Logger, conf *Config, resManager *resources.Manager) *Slapper {
+// NewSlapper ...
+func NewSlapper(log *slog.Logger, conf *Config, resManager *resources.Manager) *Slapper {
 	s := &Slapper{
 		log:        log,
 		conf:       conf,

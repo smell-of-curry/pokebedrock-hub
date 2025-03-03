@@ -18,9 +18,12 @@ type lobby struct{}
 // Items ...
 func (lobby) Items(*player.Player) (items [36]item.Stack) {
 	return [36]item.Stack{
+		7: item.NewStack(item.NetherStar{}, 1).
+			WithCustomName(text.Colourf("<yellow>Back to Spawn</yellow>")).
+			WithValue("lobby", 0),
 		8: item.NewStack(item.Compass{}, 1).
 			WithCustomName(text.Colourf("<purple>Server Navigator</purple>")).
-			WithValue("lobby", 0),
+			WithValue("lobby", 1),
 	}
 }
 

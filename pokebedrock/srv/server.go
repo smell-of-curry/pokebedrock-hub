@@ -17,8 +17,8 @@ type Server struct {
 	status  atomic.Value[Status]
 }
 
-// New ...
-func New(log *slog.Logger, conf Config) *Server {
+// NewServer ...
+func NewServer(log *slog.Logger, conf Config) *Server {
 	srv := &Server{
 		log: log,
 	}

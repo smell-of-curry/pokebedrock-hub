@@ -13,11 +13,16 @@ type Config struct {
 	PokeBedrock struct {
 		ServerPath  string
 		SlapperPath string
+		LocalePath  string
 	}
 	Translation struct {
 		MessageJoin             string
 		MessageLeave            string
 		MessageServerDisconnect string
+	}
+	Service struct {
+		RolesURL      string
+		ModerationKey string
 	}
 	server.UserConfig
 }
@@ -28,10 +33,14 @@ func DefaultConfig() Config {
 
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.SlapperPath = "resources/slapper"
+	c.PokeBedrock.LocalePath = "resources/locales"
 
 	c.Translation.MessageJoin = "<yellow>%v joined the game</yellow>"
 	c.Translation.MessageLeave = "<yellow>%v left the game</yellow>"
 	c.Translation.MessageServerDisconnect = "<yellow>Disconnected by Server</yellow>"
+
+	c.Service.RolesURL = "http://127.0.0.1:4000/"
+	c.Service.ModerationKey = "secret-key"
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")

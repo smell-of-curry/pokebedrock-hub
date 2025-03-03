@@ -13,8 +13,6 @@ func init() {
 	chat.Global.Subscribe(chat.StdoutSubscriber{})
 }
 
-// TODO: Moderation api wrapper.
-
 // main ...
 func main() {
 	log := slog.Default()
@@ -23,8 +21,10 @@ func main() {
 		panic(err)
 	}
 
-	poke := pokebedrock.New(log, conf)
-	if err = poke.Start(); err != nil {
+	poke, err := pokebedrock.NewPokeBedrock(log, conf)
+	if err != nil {
 		panic(err)
 	}
+
+	poke.Start()
 }

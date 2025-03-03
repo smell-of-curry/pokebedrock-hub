@@ -36,7 +36,7 @@ func (r Rank) Name() string {
 	return "Unknown"
 }
 
-// formatName formats a player name according to their rank
+// formatName formats a player name according to their rank.
 func (r Rank) formatName(name string) string {
 	switch r {
 	case Trainer:
