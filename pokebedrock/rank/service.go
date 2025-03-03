@@ -69,8 +69,6 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		defer cancel()
-
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s%s", s.url, xuid), nil)
 		if err != nil {
 			cancel()
