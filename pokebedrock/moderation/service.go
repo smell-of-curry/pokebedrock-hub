@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/df-mc/dragonfly/server/player"
 )
 
 // globalService ...
@@ -45,6 +47,21 @@ const (
 	retryDelay     = 300 * time.Millisecond
 	requestTimeout = 2 * time.Second
 )
+
+// InflictionOfPlayer ...
+func (s *Service) InflictionOfPlayer(p *player.Player) (*ModelResponse, error) {
+	return s.InflictionOfXUID(p.XUID())
+}
+
+// InflictionOfXUID ...
+func (s *Service) InflictionOfXUID(xuid string) (*ModelResponse, error) {
+	return s.InflictionOf(ModelRequest{XUID: xuid})
+}
+
+// InflictionOfName ...
+func (s *Service) InflictionOfName(name string) (*ModelResponse, error) {
+	return s.InflictionOf(ModelRequest{Name: name})
+}
 
 // InflictionOf ...
 func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {

@@ -4,11 +4,11 @@ package moderation
 type InflictionType string
 
 const (
-	Banned InflictionType = "BANNED"
-	Muted  InflictionType = "MUTED"
-	Frozen InflictionType = "FROZEN"
-	Warned InflictionType = "WARNED"
-	Kicked InflictionType = "KICKED"
+	InflictionBanned InflictionType = "BANNED"
+	InflictionMuted  InflictionType = "MUTED"
+	InflictionFrozen InflictionType = "FROZEN"
+	InflictionWarned InflictionType = "WARNED"
+	InflictionKicked InflictionType = "KICKED"
 )
 
 // Infliction ...

@@ -64,6 +64,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		return world.NopGenerator{}
 	}
 	c.StatusProvider = status.NewProvider(c.Name, c.Name) // ensures synchronized server count display.
+	c.Allower = &Allower{}
 
 	p.srv = c.New()
 	p.srv.CloseOnProgramEnd()

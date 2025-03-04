@@ -4,21 +4,26 @@ import (
 	"sync"
 	"time"
 
+	"github.com/df-mc/atomic"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/player"
+	"github.com/df-mc/dragonfly/server/player/chat"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/form"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
 
 // PlayerHandler ...
-type PlayerHandler struct {
+type PlayerHandler struct { // TODO: Move ranks & punishments within a session package.
 	rankMu sync.Mutex
 	ranks  []rank.Rank
+
+	muted atomic.Bool
 
 	player.NopHandler
 }
@@ -26,6 +31,8 @@ type PlayerHandler struct {
 // NewPlayerHandler ...
 func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	h := &PlayerHandler{}
+
+	h.loadMute(p)
 
 	// Initialize with initial rank from cache only
 	h.loadRanks(p.XUID())
@@ -42,6 +49,23 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	}()
 
 	return h
+}
+
+// loadMute ...
+func (h *PlayerHandler) loadMute(p *player.Player) {
+	resp, err := moderation.GlobalService().InflictionOfPlayer(p)
+	if err != nil {
+		h.muted.Store(false)
+		return
+	}
+
+	h.muted.Store(false)
+	for _, i := range resp.CurrentInflictions {
+		if i.Type == moderation.InflictionMuted {
+			h.muted.Store(true)
+			break
+		}
+	}
 }
 
 // displayWelcomeMessage shows the appropriate welcome message based on current rank
@@ -86,10 +110,13 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	ctx.Cancel()
 	p := ctx.Val()
 
-	// TODO - Re-enable once moderation system is fixed.
-	p.Message(text.Colourf("<red>Chat is currently disabled.</red>"))
-	// msg := h.HighestRank().Chat(p.Name(), *message)
-	// _, _ = chat.Global.WriteString(msg)
+	if h.muted.Load() {
+		p.Message(text.Colourf("<red>You're muted.</red>"))
+		return
+	}
+
+	msg := h.HighestRank().Chat(p.Name(), *message)
+	_, _ = chat.Global.WriteString(msg)
 }
 
 // HandleFoodLoss ...
