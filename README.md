@@ -1,78 +1,75 @@
-# PokeBedrock Server Hub 
+# PokeBedrock Server Hub
 
-This project involves remaking the current server hub (coded in [PocketMine](https://github.com/pmmp/PocketMine-MP)) and porting it over to [Dragonfly](https://github.com/df-mc/dragonfly). Although the project is not overly complex, it requires several specific features. 
+The PokeBedrock Server Hub is a powerful, high-performance central lobby system built with [Dragonfly](https://github.com/df-mc/dragonfly). It serves as the entry point for players into the PokeBedrock network, managing server connections, player queues, and providing a seamless experience for navigating between the main servers.
 
-Below is a detailed list of requirements.
+## Features
 
-## 1. NPC Slapper System
+### NPC Slapper System
 
-**Purpose:**  
-Allow players to click on in-world NPCs to transfer to another server.
+The hub employs interactive NPCs throughout the world that allow players to connect to various servers in the network.
 
-**Requirements:**
-- **Spawning & Configuration:**
-  - When an NPC is spawned, a modal form should be displayed that lets the user modify the target address (default format: `IP:PORT`, e.g., `us.pokebedrock.com:19132`).
-  - Allow editing of the NPC’s skin ID. The mapping reference is available in the JSON file here: [hub_npc.json](https://github.com/smell-of-curry/pokebedrock-res/blob/main/entity/hub_npc.json).
-  - The ability to set a custom name for the server for example: `§fPoke§rBedrock §eGold§r`
-  - This form should be able to be open again in the case that something needs to be edited. But only operators will be able to open it by crouching and right clicking.
+- **Dynamic Nametags**:
+  - Real-time updates showing current online player counts
+  - Server status indicators (online/offline)
+  - Visual indicators of server capacity
 
-- **Dynamic Nametag:**
-  The NPC’s nametag should update in real time to show:
-  - The number of current online users.
-  - The server’s current status (e.g., online/offline).
-  - The current ping of the user to that server (if applicable).
+- **Smart Interaction**:
+  - Players can interact with NPCs to initiate server transfer
+  - Confirmation dialog prevents accidental transfers
+  - Automatic queue placement when servers are at capacity
 
-- **Interaction & Transfer:**
-  - When a player interacts (hits) the NPC, display a confirmation screen.
-  - The confirmation screen should inform the player that they are about to transfer to a new server.
-  - If the target server is full, or there is players in the queue, the system should allow the player to join the queue (see Queue System below); otherwise, provide an immediate transfer option via a button.
+### Priority Queue System
 
-## 2. Queue System
+The hub features a sophisticated priority queue system that manages player transfers efficiently, especially during high-traffic periods.
 
-**Purpose:**  
-Manage player transfers when a target server is at capacity.
+- **Visual Queue Display**:
+  - Boss bar shows accurate queue position, waiting time, and destination
+  - Position updates in real-time based on priority algorithms
+  - Clear indication of estimated wait time
 
-**Requirements:**
+- **Priority Rankings**:
+  - Players are sorted based on their rank (Admin > Moderator > Premium > Trainer)
+  - Within the same rank, players are ordered by join time (first come, first served)
+  - Queue position is clearly communicated to players
 
-- **Queue Display:**
-  Use the boss bar to show queue status.
-  The boss bar should display:
-  - The player’s current position in the queue.
-  - The total time the player has been waiting.
-  - The destination server’s name.
+- **Intelligent Transfer**:
+  - Players are transferred automatically when space becomes available
+  - Failed transfers are handled gracefully with automatic queue re-entry
+  - Admin bypass allows staff to join near-capacity servers
 
-- **Priority Queue**
-  - The queue also has a priority queue system, where as if a staff or a user who should have priority queue joins the queue
-  they are automatically pushed up above all non-priority members, still keeping position of others in priority queue.
-  - When a user joins the priority queue, all users should be moved down in position and notified through a message.
-  - The following roles get Priority Queue:
-    - Operators
-    - Administrators (discord)
-    - Supporters (discord)
-    - Server Boosters (discord)
+### Compass Navigator
+  - Players receive a special compass in their inventory
+  - Compass opens a form showing all available servers
+  - Server status and player counts are displayed in the navigation interface
+  - Allows players to enter into the queue for the server like the npcs.
 
-- **Security & Future Enhancements:**
-  - Note that while the hub will display queue information, the secure transmission of join requests to the upstream server will be implemented at a later stage.
-  - This will just require the Hub to send a Handshake request to the upstream [Server Proxy](https://github.com/smell-of-curry/vanilla-proxy) informing that it is about to authorize a user to join.
-  - Each user MUST get this validation from the queue, else they will just be transferred back to the hub.
+### Rank System Integration
 
-## 3. Compass System
+The hub integrates with Discord roles to provide a comprehensive rank system.
 
-**Purpose:**  
-Offer an alternative method for transferring to different servers using a compass tool.
+- **Asynchronous Rank Loading**:
+  - Player ranks are loaded from the API without blocking server performance
+  - Cached ranks provide instant recognition for returning players
+  - Background refresh ensures ranks stay current
 
-**Requirements:**
+- **Visual Rank Display**:
+  - Custom formatted nametags show player ranks
+  - Chat messages are formatted according to player rank
+  - Distinct colors and styles for different ranks (Admin, Moderator, Premium, etc.)
 
-- **Interaction:**
-  - Instead of interacting with an NPC, players can use the compass to trigger an Action Form.
-  - The Action Form should list available servers for transfer.
+### Resource Pack Management
 
-- **Icons & Slot:**
-  - Each server in the list should display its designated icon (as provided in the resource pack).
-  - The compass should be:
-    - Automatically given to players on spawn.
-    - Locked in the 9th slot of the player’s hotbar.
-    - Non-droppable by players.
+Since the PokeBedrock Hub requires the use of the [PokeBedrock Resource Pack](https://github.com/smell-of-curry/pokebedrock-res) it must always make sure that it is using the current, up to date, version.
+
+- **Version Checking**:
+  - Automatic detection of new resource pack versions
+  - Seamless updates from GitHub releases
+  - Verification of pack integrity
+
+- **Asset Management**:
+  - Dynamic unpacking and organization of resource assets
+  - Support for custom textures, models, and sounds
+  - Efficient loading of only necessary resources
 
 ## 4. Moderation Integration
 
@@ -90,42 +87,9 @@ Enable the hub to interact with the external moderation system on `pokebedrock.c
 
 The Moderation system details can be found [here](./docs/ModerationSystem.md)
 
-## 5. Chat Ranks System
+## Additional Notes
 
-**Purpose:**  
-Allow chat messages to include user ranks (e.g., `[OWNER]`, `[ADMIN]`).
-
-**Requirements:**
-
-- **Dynamic Rank Assignment:**
-  - Implement a system that can assign and change chat ranks dynamically (preferably a form, but commands work too). 
-  - The system should update in real time and reflect in the chat output.
-  - The users should have there rank displayed below there name something like: `Smell of curry\n[§cOwner§r]`
-
-## 6. Resource Pack Auto-Fetch
-Since the PokeBedrock Hub requires the use of the [PokeBedrock Resource Pack](https://github.com/smell-of-curry/pokebedrock-res) it must always make sure that it is using the current, up to date, version.
-
-Therefore once the application is run, and before the server starts, a prompt should be added in terminal to ask the administrator to update the current resource pack to the new version if available. This can be denied but will be always asked again next initialization.
-
-This will be created by fetching: `https://api.github.com/repos/smell-of-curry/pokebedrock-res/releases/latest`, comparing it to the current installed version, and checking if they match.
-
-## 7. Miscellaneous Requirements
-
-**Player Data:**
-
-- Non-staff player data should not be saved. Only staff (or players with custom chat ranks) will have persistent data.
-
-**Server Count Display:**
-
-- The hub’s displayed player count should be a combined total of:
-  - The number of players currently on the hub.
-  - The total number of players across all linked servers.
-  
-  _For example:_
-  - If there are 20 players on server White, 30 on server Black, and 2 on the hub, the displayed count should be **52**.
-
-**Finite World Size**
-- The server should be custom fit to the world provided, ensuring that no new chunks can ever be loaded or any custom mob spawning.
-
-**All Translatable**
-- All text that is displayed to the user (except for user inputted details from the NPC Forms) should be using translatable text using the resource packs .lang. So for example instead of saying "Your position in queue is x" it should use `rawtext` to use a translatable string `hub.queue.position` and pass in the value.
+- **Player Data**: The hub only persists data for staff members and players with special ranks
+- **Server Count Display**: The hub displays a combined player count across all network servers
+- **World Limitations**: The world is finite with custom boundaries to prevent chunk generation
+- **Localization**: All player-facing text uses resource pack translations for multi-language support
