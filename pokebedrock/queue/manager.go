@@ -48,6 +48,12 @@ func NewManager() *Manager {
 
 // AddPlayer adds a player to the queue for a specific server.
 // If the player is already in a queue, they are removed from it first.
+//
+// Note about queue priority:
+// Players are prioritized by rank first, then by join time.
+// This means a player with a higher rank (e.g., Admin) will always be placed
+// ahead of players with lower ranks (e.g., Trainer), regardless of how long
+// the lower-ranked players have been waiting.
 func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 	// First check if player is already in queue
 	m.RemovePlayer(p)
@@ -72,7 +78,7 @@ func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 	// Update UI
 	m.updateBossBars(p.Tx())
 
-	// Inform player
+	// Inform player about their queue status and explain priority system
 	status := srv.Status()
 	if status.Online && status.PlayerCount < status.MaxPlayerCount {
 		p.Message(text.Colourf("<green>You've been added to the queue for %s. The server has space available, you'll be transferred shortly.</green>", srv.Name()))
@@ -82,6 +88,9 @@ func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 		p.Message(text.Colourf("<yellow>You've been added to the queue for %s. The server is currently full (%d/%d players). You'll be transferred when space becomes available.</yellow>",
 			srv.Name(), status.PlayerCount, status.MaxPlayerCount))
 	}
+
+	// Explain queue priority system to the player
+	p.Message(text.Colourf("<aqua>Note: Queue priority is based on rank first, then waiting time. Players with higher ranks will be placed ahead in the queue.</aqua>"))
 }
 
 // RemovePlayer ...
@@ -217,8 +226,24 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 		return
 	}
 
-	pos := 1
-	for _, entry := range queue {
+	// Create a sorted copy of the queue to accurately show positions
+	// We need to do this because the underlying heap's order doesn't necessarily match the priority order
+	sortedEntries := make([]*Entry, length)
+	copy(sortedEntries, queue)
+
+	// Sort entries by the same priority rules as the queue
+	sort.Slice(sortedEntries, func(i, j int) bool {
+		// Sort in priority order (reverse of what Less does since we want highest priority first)
+		if sortedEntries[i].rank == sortedEntries[j].rank {
+			return sortedEntries[i].joinTime.Before(sortedEntries[j].joinTime)
+		}
+		return sortedEntries[i].rank > sortedEntries[j].rank
+	})
+
+	// Now update boss bars with accurate positions
+	for i, entry := range sortedEntries {
+		position := i + 1 // 1-indexed position
+
 		ent, ok := entry.handle.Entity(tx)
 		if !ok {
 			continue
@@ -227,19 +252,19 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 
 		// Show estimated time based on position
 		var waitMsg string
-		if pos == 1 {
+		if position == 1 {
 			waitMsg = "You're next in line!"
-		} else if pos <= 3 {
+		} else if position <= 3 {
 			waitMsg = "Almost your turn"
-		} else if pos <= 10 {
+		} else if position <= 10 {
 			waitMsg = "Short wait"
 		} else {
 			waitMsg = "Longer wait"
 		}
 
-		bar := bossbar.New(fmt.Sprintf("Queue position: #%d - %s", pos, waitMsg))
+		bar := bossbar.New(fmt.Sprintf("Queue position: #%d - %s", position, waitMsg))
 		player.SendBossBar(bar)
-		pos++
+		position++
 	}
 }
 
@@ -263,14 +288,43 @@ func (m *Manager) Queue() PriorityQueue {
 }
 
 // GetQueuePosition returns a player's position in the queue, or -1 if not in queue.
+// The position is calculated based on the priority order (rank, then join time).
 func (m *Manager) GetQueuePosition(p *player.Player) int {
 	queue := m.Queue()
-	for i, entry := range queue {
-		if entry.handle == p.H() {
-			return i + 1 // 1-indexed position for user display
+	if len(queue) == 0 {
+		return -1
+	}
+
+	// First check if player is in the queue at all
+	playerHandle := p.H()
+	playerEntry := (*Entry)(nil)
+
+	for _, entry := range queue {
+		if entry.handle == playerHandle {
+			playerEntry = entry
+			break
 		}
 	}
-	return -1 // Not in queue
+
+	if playerEntry == nil {
+		return -1 // Player not in queue
+	}
+
+	// Count how many players are ahead of this player based on priority
+	position := 1
+	for _, entry := range queue {
+		if entry == playerEntry {
+			continue // Skip self
+		}
+
+		// Same priority rules as queue - check if this entry has higher priority
+		if entry.rank > playerEntry.rank ||
+			(entry.rank == playerEntry.rank && entry.joinTime.Before(playerEntry.joinTime)) {
+			position++
+		}
+	}
+
+	return position
 }
 
 // IsPlayerInQueue checks if a player is already in the queue.
