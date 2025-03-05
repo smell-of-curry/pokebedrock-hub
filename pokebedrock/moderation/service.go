@@ -40,6 +40,7 @@ func NewService(log *slog.Logger, key string) {
 	}
 }
 
+// TODO: Add to config
 const (
 	baseURL = "https://pokebedrock.com/api/moderation"
 
@@ -102,6 +103,10 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 		if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return nil, err
 		}
+
+		// Log that we got the response
+		s.log.Debug(fmt.Sprintf("Fetched inflictions of %s, and got: %+v", req.XUID, response))
+
 		return &response, nil
 	}
 	return nil, lastErr
