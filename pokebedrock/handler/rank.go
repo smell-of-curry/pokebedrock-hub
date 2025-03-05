@@ -172,13 +172,17 @@ func fetchRanks(xuid string) []rank.Rank {
 		rank.RolesError(rankLogger, xuid, err)
 
 		// Use default rank
-		return []rank.Rank{rank.Trainer}
+		return []rank.Rank{rank.UnLinked}
 	}
 
 	// API request successful, get ranks
 	ranks := rank.RolesToRanks(roles)
 	if len(ranks) == 0 {
+		// Player has no valid roles that map to ranks, shouldn't be possible so we will just map to Trainer
 		ranks = []rank.Rank{rank.Trainer}
+
+		// Log the error
+		rank.RolesError(rankLogger, xuid, fmt.Errorf("Player has account linked but no valid roles"))
 	}
 
 	return ranks
@@ -186,10 +190,6 @@ func fetchRanks(xuid string) []rank.Rank {
 
 // SetRanks updates the player's ranks and sorts them.
 func (h *PlayerHandler) SetRanks(ranks []rank.Rank) {
-	if len(ranks) == 0 {
-		ranks = []rank.Rank{rank.Trainer}
-	}
-
 	h.rankMu.Lock()
 	h.ranks = ranks
 	h.rankMu.Unlock()
@@ -202,7 +202,7 @@ func (h *PlayerHandler) HighestRank() rank.Rank {
 	defer h.rankMu.Unlock()
 
 	if len(h.ranks) == 0 {
-		return rank.Trainer
+		return rank.UnLinked
 	}
 	return h.ranks[len(h.ranks)-1]
 }
