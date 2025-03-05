@@ -122,6 +122,12 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 		return
 	}
 
+	// Only allow users with ranks other than Trainer to chat
+	if h.HighestRank() == rank.Trainer {
+		p.Message(text.Colourf("<red>You must have a rank greater than Trainer to chat.</red>"))
+		return
+	}
+
 	msg := h.HighestRank().Chat(p.Name(), *message)
 	_, _ = chat.Global.WriteString(msg)
 }
