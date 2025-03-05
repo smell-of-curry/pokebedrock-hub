@@ -123,8 +123,8 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	}
 
 	// Only allow users with ranks other than Trainer to chat
-	if h.HighestRank() == rank.Trainer {
-		p.Message(text.Colourf("<red>You must have a rank greater than Trainer to chat.</red>"))
+	if h.HighestRank() == rank.UnLinked {
+		p.Message(text.Colourf("<red>You must have your discord account linked to use chat.</red>"))
 		return
 	}
 
