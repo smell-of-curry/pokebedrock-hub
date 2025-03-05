@@ -1,45 +1,41 @@
 package handler
 
 import (
+	"fmt"
 	"log/slog"
-	"math"
 	"slices"
 	"sort"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
 
 // Global logger for rank-related operations
 var rankLogger = slog.Default()
 
+// Channel for async rank updates and shutdown
+var (
+	rankUpdateCh = make(chan rankUpdate, 100)
+)
+
 // SetRankLogger sets the logger used for rank operations
 func SetRankLogger(logger *slog.Logger) {
 	rankLogger = logger
 }
-
-// ranksCache is a temporary cache of player ranks to reduce API calls
-var (
-	ranksCache     = make(map[string]rankCacheEntry)
-	ranksCacheMu   sync.RWMutex
-	ranksCacheTTL  = 10 * time.Minute
-	cachePurgeTime = time.Now()
-
-	// Channel for async rank updates
-	rankUpdateCh = make(chan rankUpdate, 100)
-)
 
 // rankUpdate represents a rank update request for a player
 type rankUpdate struct {
 	handler *PlayerHandler
 	handle  *world.EntityHandle
 	xuid    string
+	doneCh  chan struct{}
 }
 
-// init starts the background rank worker
+// init starts the background rank worker and cache cleanup
 func init() {
 	go rankWorker()
 }
@@ -47,116 +43,130 @@ func init() {
 // rankWorker processes rank updates in the background
 func rankWorker() {
 	for update := range rankUpdateCh {
-		// Process the update
+		// Check if the update timed out
+		select {
+		case <-update.doneCh:
+			continue
+		default:
+		}
+
+		// Fetch the player's ranks
 		ranks := fetchRanks(update.xuid)
+
+		// Ensure the player is still online
+		if update.handle == nil {
+			continue
+		}
 
 		// Update the player's ranks
 		update.handler.SetRanks(ranks)
 
-		if update.handle != nil {
-			update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-				p := e.(*player.Player)
+		// Signal completion
+		close(update.doneCh)
 
-				nameTag := update.handler.HighestRank().NameTag(p.Name())
-				p.SetNameTag(nameTag)
+		update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
 
-				// TODO: And tell Player there rank has been updated
-			})
-		}
+			highestRank := update.handler.HighestRank()
+			nameTag := highestRank.NameTag(p.Name())
+			p.SetNameTag(nameTag)
+
+			rankUpdateMessage := text.Colourf("<green>Your highest rank has been synced to '%s'!</green>", highestRank.Name())
+			p.SendTip(rankUpdateMessage) // Send to update in action bar
+			p.Message(rankUpdateMessage) // Send to keep player notified if they exit out.
+		})
 	}
-}
-
-// rankCacheEntry ...
-type rankCacheEntry struct {
-	ranks    []rank.Rank
-	expiry   time.Time
-	attempts int
-}
-
-// loadRanks loads the ranks for a player synchronously, but only from cache
-// If not in cache, it assigns a default rank and triggers an async fetch
-func (h *PlayerHandler) loadRanks(xuid string) {
-	// Try to purge expired cache entries occasionally
-	if time.Since(cachePurgeTime) > time.Minute {
-		go purgeExpiredCacheEntries()
-		cachePurgeTime = time.Now()
-	}
-
-	// Check cache first
-	ranksCacheMu.RLock()
-	entry, found := ranksCache[xuid]
-	ranksCacheMu.RUnlock()
-
-	// If found in cache and not expired, use cached ranks
-	if found && time.Now().Before(entry.expiry) {
-		h.SetRanks(entry.ranks)
-		return
-	}
-
-	// If in cache but expired, use cached ranks temporarily
-	if found {
-		h.SetRanks(entry.ranks)
-	} else {
-		// Not in cache, set default rank temporarily
-		h.SetRanks([]rank.Rank{rank.Trainer})
-	}
-
-	// Queue async fetch of latest ranks
-	h.LoadRanksAsync(xuid, nil)
 }
 
 // LoadRanksAsync queues an asynchronous fetch of player ranks
 // If player is provided, their nametag will be updated once ranks are fetched
 func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) {
+	// Create a buffered channel to prevent goroutine leak
+	doneCh := make(chan struct{}, 1)
+
 	select {
 	case rankUpdateCh <- rankUpdate{
 		handler: h,
 		handle:  handle,
 		xuid:    xuid,
+		doneCh:  doneCh,
 	}:
-		// Request queued successfully
+		handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+			p.SendTip("Fetching your rank")
+		})
 	default:
 		// Channel full, log warning but continue
-		rankLogger.Warn("Rank update queue is full, skipping update", "xuid", xuid)
+		handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+			p.SendTip(text.Colourf("<red>Rank update queue is full, please try again later.</red>"))
+		})
+		return
+	}
+
+	// Start a goroutine to handle the timeout and tips
+	timeout := time.After(5 * time.Second) // Increased timeout
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer ticker.Stop()
+
+	i := 0
+	for {
+		select {
+		case <-doneCh:
+			return
+		case <-ticker.C:
+			select {
+			case <-doneCh:
+				return
+			default:
+				if handle == nil {
+					ticker.Stop()
+					return
+				}
+				handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+					p, ok := e.(*player.Player)
+					if !ok {
+						return
+					}
+					cycle := []int{1, 2, 3}
+					p.SendTip(fmt.Sprintf("Fetching your rank%s", strings.Repeat(".", cycle[i%len(cycle)])))
+				})
+			}
+			i++
+		case <-timeout:
+			if handle == nil {
+				return
+			}
+			doneCh <- struct{}{} // Close the channel to signal timeout
+			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+				p, ok := e.(*player.Player)
+				if !ok {
+					return
+				}
+				p.SendTip(text.Colourf("<red>Rank fetch timed out, try again later.</red>"))
+			})
+			return
+		}
 	}
 }
 
-// fetchRanks is a helper function that fetches ranks from API or cache
-// This runs in the background worker and doesn't block the main thread
+// fetchRanks is a helper function that fetches ranks from API.
 func fetchRanks(xuid string) []rank.Rank {
-	// Check cache first
-	ranksCacheMu.RLock()
-	entry, found := ranksCache[xuid]
-	ranksCacheMu.RUnlock()
-
-	// If found in cache and not expired, use cached ranks
-	if found && time.Now().Before(entry.expiry) {
-		return entry.ranks
-	}
-
-	// If not in cache or expired, fetch from API
 	roles, err := rank.GlobalService().RolesOfXUID(xuid)
 	if err != nil {
 		// Log the error
 		rank.RolesError(rankLogger, xuid, err)
 
-		// Use cached ranks if available (even if expired)
-		if found {
-			// Update the cache with extended expiry to avoid hammering the API
-			entry.attempts++
-			backoffDuration := time.Duration(entry.attempts*30) * time.Second
-			maxDuration := 5 * time.Minute
-			backoffTime := time.Duration(math.Min(float64(backoffDuration), float64(maxDuration)))
-			entry.expiry = time.Now().Add(backoffTime)
-
-			ranksCacheMu.Lock()
-			ranksCache[xuid] = entry
-			ranksCacheMu.Unlock()
-
-			return entry.ranks
-		}
-
-		// If not in cache and API fails, use default rank
+		// Use default rank
 		return []rank.Rank{rank.Trainer}
 	}
 
@@ -166,32 +176,7 @@ func fetchRanks(xuid string) []rank.Rank {
 		ranks = []rank.Rank{rank.Trainer}
 	}
 
-	// Update cache with freshly fetched ranks
-	ranksCacheMu.Lock()
-	ranksCache[xuid] = rankCacheEntry{
-		ranks:    ranks,
-		expiry:   time.Now().Add(ranksCacheTTL),
-		attempts: 0,
-	}
-	ranksCacheMu.Unlock()
-
 	return ranks
-}
-
-// RefreshRanks forces a refresh of the player's ranks from the API.
-// This is useful when ranks might have changed externally.
-func (h *PlayerHandler) RefreshRanks(p *player.Player) {
-	if p == nil {
-		return
-	}
-
-	// Clear from cache first
-	ranksCacheMu.Lock()
-	delete(ranksCache, p.XUID())
-	ranksCacheMu.Unlock()
-
-	// Load ranks asynchronously
-	h.LoadRanksAsync(p.XUID(), p.H())
 }
 
 // SetRanks updates the player's ranks and sorts them.
@@ -249,17 +234,4 @@ func (h *PlayerHandler) sortRanks() {
 	sort.SliceStable(h.ranks, func(i, j int) bool {
 		return h.ranks[i] < h.ranks[j]
 	})
-}
-
-// purgeExpiredCacheEntries removes expired entries from the ranks cache.
-func purgeExpiredCacheEntries() {
-	now := time.Now()
-	ranksCacheMu.Lock()
-	defer ranksCacheMu.Unlock()
-
-	for xuid, entry := range ranksCache {
-		if now.After(entry.expiry) {
-			delete(ranksCache, xuid)
-		}
-	}
 }

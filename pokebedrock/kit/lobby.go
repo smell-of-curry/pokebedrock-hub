@@ -18,12 +18,15 @@ type lobby struct{}
 // Items ...
 func (lobby) Items(*player.Player) (items [36]item.Stack) {
 	return [36]item.Stack{
+		6: item.NewStack(item.Clock{}, 1).
+			WithCustomName(text.Colourf("<green>Re-Fetch Synced Rank</green>")).
+			WithValue("lobby", 2),
 		7: item.NewStack(item.NetherStar{}, 1).
 			WithCustomName(text.Colourf("<yellow>Back to Spawn</yellow>")).
-			WithValue("lobby", 0),
+			WithValue("lobby", 1),
 		8: item.NewStack(item.Compass{}, 1).
 			WithCustomName(text.Colourf("<purple>Server Navigator</purple>")).
-			WithValue("lobby", 1),
+			WithValue("lobby", 0),
 	}
 }
 

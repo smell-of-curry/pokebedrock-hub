@@ -41,10 +41,11 @@ func NewService(log *slog.Logger, url string) {
 	}
 }
 
+// TODO: Add to config
 const (
-	maxRetries     = 1
-	retryDelay     = 300 * time.Millisecond
-	requestTimeout = 2 * time.Second
+	maxRetries     = 3
+	retryDelay     = 1 * time.Second
+	requestTimeout = 5 * time.Second
 )
 
 var (
@@ -97,6 +98,9 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 				return nil, fmt.Errorf("failed to parse roles: %w", err)
 			}
 
+			// Log that we successfully fetched the roles.
+			s.log.Debug("Fetched roles", "xuid", xuid, "roles", roles)
+
 			return roles, nil
 		case http.StatusNotFound:
 			return nil, UserNotFound
@@ -118,6 +122,11 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 
 // isTemporaryError ...
 func isTemporaryError(err error) bool {
+	// Check for context deadline exceeded errors
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
 	var netErr net.Error
 	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
 		return true

@@ -23,7 +23,8 @@ type PlayerHandler struct { // TODO: Move ranks & punishments within a session p
 	rankMu sync.Mutex
 	ranks  []rank.Rank
 
-	muted atomic.Bool
+	muted           atomic.Bool
+	lastRankRefetch atomic.Value[time.Time]
 
 	player.NopHandler
 }
@@ -31,11 +32,9 @@ type PlayerHandler struct { // TODO: Move ranks & punishments within a session p
 // NewPlayerHandler ...
 func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	h := &PlayerHandler{}
+	h.lastRankRefetch.Store(time.Time{})
 
 	h.loadMute(p)
-
-	// Initialize with initial rank from cache only
-	h.loadRanks(p.XUID())
 
 	// Display initial welcome message
 	h.displayWelcomeMessage(p)
@@ -70,15 +69,9 @@ func (h *PlayerHandler) loadMute(p *player.Player) {
 
 // displayWelcomeMessage shows the appropriate welcome message based on current rank
 func (h *PlayerHandler) displayWelcomeMessage(p *player.Player) {
-	highestRank := h.HighestRank()
-	if highestRank == rank.Trainer {
-		// Player probably has not connected their discord account
-		p.Message("Welcome to the PokeBedrock Hub! Your current rank is a Trainer.")
-		p.Message("If you have priority queue, or want to sync your rank, ensure your discord is linked.")
-		p.Message("Use /link in the Discord to link your roles.")
-	} else {
-		p.Messagef("Welcome %s, you have synced role: %s", p.Name(), highestRank.Name())
-	}
+	p.Message("Welcome to the PokeBedrock Hub!")
+	p.Message("If you have priority queue, or want to sync your rank, ensure your discord is linked.")
+	p.Message("Use /link in the Discord to link your roles.")
 }
 
 // HandleJoin ...
@@ -97,10 +90,24 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 	if id, ok := it.Value("lobby"); ok {
 		switch id {
 		case 0:
+			p.SendForm(form.NewServerNavigator())
+		case 1:
 			w := p.Tx().World()
 			p.Teleport(w.Spawn().Vec3Middle())
-		case 1:
-			p.SendForm(form.NewServerNavigator())
+		case 2:
+			// Check cooldown for rank refetch
+			lastRefetch := h.lastRankRefetch.Load()
+			if time.Since(lastRefetch) < time.Second*5 {
+				remaining := time.Second*5 - time.Since(lastRefetch)
+				p.SendTip(text.Colourf("<yellow>Please wait %.1f seconds before refreshing your rank again.</yellow>", remaining.Seconds()))
+				return
+			}
+
+			h.lastRankRefetch.Store(time.Now())
+			p.SendTip("Fetching your rank...")
+			go func() {
+				h.LoadRanksAsync(p.XUID(), p.H())
+			}()
 		}
 	}
 }
