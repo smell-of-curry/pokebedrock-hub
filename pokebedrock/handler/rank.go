@@ -143,18 +143,23 @@ func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) 
 			}
 			i++
 		case <-timeout:
-			if handle == nil {
+			select {
+			case <-doneCh:
 				return
-			}
-			doneCh <- struct{}{} // Close the channel to signal timeout
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-				p, ok := e.(*player.Player)
-				if !ok {
+			default:
+				if handle == nil {
 					return
 				}
-				p.SendTip(text.Colourf("<red>Rank fetch timed out, try again later.</red>"))
-			})
-			return
+				doneCh <- struct{}{} // Close the channel to signal timeout
+				handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+					p, ok := e.(*player.Player)
+					if !ok {
+						return
+					}
+					p.SendTip(text.Colourf("<red>Rank fetch timed out, try again later.</red>"))
+				})
+				return
+			}
 		}
 	}
 }
