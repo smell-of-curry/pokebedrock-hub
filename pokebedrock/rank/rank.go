@@ -87,7 +87,7 @@ func (r Rank) formatName(name string) string {
 	case Helper:
 		return text.Colourf("<yellow>Helper %s</yellow>", name)
 	case MonthlyTournamentMVP:
-		return text.Colourf("<cyan>Monthly Tournament MVP %s</cyan>", name)
+		return text.Colourf("<aqua>Monthly Tournament MVP %s</aqua>", name)
 	case ContentCreator:
 		return text.Colourf("<pink>Content Creator %s</pink>", name)
 	case Supporter:
