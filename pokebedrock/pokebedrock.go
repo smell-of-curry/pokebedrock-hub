@@ -99,12 +99,6 @@ func (p *PokeBedrock) handleWorld() {
 	w.StopTime()
 	w.SetTickRange(0)
 
-	l := world.NewLoader(8, w, world.NopViewer{})
-	<-w.Exec(func(tx *world.Tx) {
-		l.Move(tx, w.Spawn().Vec3Middle())
-		l.Load(tx, 50)
-	})
-
 	p.loadServers()
 	p.loadSlappers()
 	go p.startTicking()
