@@ -99,7 +99,7 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 			lastRefetch := h.lastRankRefetch.Load()
 			if time.Since(lastRefetch) < time.Second*5 {
 				remaining := time.Second*5 - time.Since(lastRefetch)
-				p.SendTip(text.Colourf("<yellow>Please wait %.1f seconds before refreshing your rank again.</yellow>", remaining.Seconds()))
+				p.SendTip(text.Colourf("<yellow>Please wait %.1f seconds before refetching your rank.</yellow>", remaining.Seconds()))
 				return
 			}
 
