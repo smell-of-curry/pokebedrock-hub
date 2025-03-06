@@ -1,7 +1,6 @@
 module github.com/smell-of-curry/pokebedrock-hub
 
 go 1.23
-
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
@@ -12,7 +11,7 @@ require (
 	github.com/sandertv/go-raknet v1.14.2
 	github.com/sandertv/gophertunnel v1.44.0
 	github.com/schollz/progressbar/v3 v3.18.0
-	golang.org/x/text v0.22.0
+	golang.org/x/text v0.23.0
 )
 
 require (
