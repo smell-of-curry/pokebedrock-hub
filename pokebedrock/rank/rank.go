@@ -63,8 +63,8 @@ var rankInfos = map[Rank]RankInfo{
 }
 
 func init() {
-	for i, info := range rankInfos {
-		rolesToRanks[info.RoleID] = Rank(i)
+	for r, info := range rankInfos {
+		rolesToRanks[info.RoleID] = r
 	}
 }
 

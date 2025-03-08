@@ -15,7 +15,7 @@ type Allower struct{}
 func (Allower) Allow(_ net.Addr, d login.IdentityData, _ login.ClientData) (string, bool) {
 	resp, err := moderation.GlobalService().InflictionOfXUID(d.XUID)
 	if err != nil {
-		return "", true // TODO: just allow right through or would it be better to disconnect at this stage?
+		return text.Colourf("<yellow>There was an error whilst loading your inflictions. Please try relogging and contact support if the issue persists.</yellow>"), false
 	}
 	for _, i := range resp.CurrentInflictions {
 		if i.Type == moderation.InflictionBanned {

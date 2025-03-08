@@ -1,6 +1,7 @@
 module github.com/smell-of-curry/pokebedrock-hub
 
-go 1.23
+go 1.24.0
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0

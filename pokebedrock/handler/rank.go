@@ -182,7 +182,7 @@ func fetchRanks(xuid string) []rank.Rank {
 		ranks = []rank.Rank{rank.Trainer}
 
 		// Log the error
-		rank.RolesError(rankLogger, xuid, fmt.Errorf("Player has account linked but no valid roles"))
+		rank.RolesError(rankLogger, xuid, fmt.Errorf("player has account linked but no valid roles"))
 	}
 
 	return ranks

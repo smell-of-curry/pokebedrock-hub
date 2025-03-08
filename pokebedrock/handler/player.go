@@ -16,25 +16,28 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 )
 
 // PlayerHandler ...
-type PlayerHandler struct { // TODO: Move ranks & punishments within a session package.
-	rankMu sync.Mutex
-	ranks  []rank.Rank
-
-	muted           atomic.Bool
+type PlayerHandler struct { // TODO: Move player data within a session package.
+	rankMu          sync.Mutex
+	ranks           []rank.Rank
 	lastRankRefetch atomic.Value[time.Time]
+
+	inflictions *session.Inflictions
 
 	player.NopHandler
 }
 
 // NewPlayerHandler ...
 func NewPlayerHandler(p *player.Player) *PlayerHandler {
-	h := &PlayerHandler{}
+	h := &PlayerHandler{
+		inflictions: session.NewInflictions(),
+	}
 	h.lastRankRefetch.Store(time.Time{})
 
-	h.loadMute(p)
+	go h.loadInflictions(p.H())
 
 	// Display initial welcome message
 	h.displayWelcomeMessage(p)
@@ -50,21 +53,38 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	return h
 }
 
-// loadMute ...
-func (h *PlayerHandler) loadMute(p *player.Player) {
-	resp, err := moderation.GlobalService().InflictionOfPlayer(p)
-	if err != nil {
-		h.muted.Store(false)
-		return
-	}
-
-	h.muted.Store(false)
-	for _, i := range resp.CurrentInflictions {
-		if i.Type == moderation.InflictionMuted {
-			h.muted.Store(true)
-			break
+// loadInflictions ...
+func (h *PlayerHandler) loadInflictions(handle *world.EntityHandle) {
+	handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+		p := e.(*player.Player)
+		resp, err := moderation.GlobalService().InflictionOfPlayer(p)
+		if err != nil {
+			return
 		}
+
+		for _, infliction := range resp.CurrentInflictions {
+			switch infliction.Type {
+			case moderation.InflictionMuted:
+				h.inflictions.SetMuted(true)
+			case moderation.InflictionFrozen:
+				h.inflictions.SetFrozen(true)
+			}
+		}
+
+		h.handleActiveInflictions(p)
+	})
+}
+
+// handleActiveInflictions ...
+func (h *PlayerHandler) handleActiveInflictions(p *player.Player) {
+	if h.inflictions.Frozen() {
+		p.SetImmobile()
 	}
+}
+
+// Inflictions ...
+func (h *PlayerHandler) Inflictions() *session.Inflictions {
+	return h.inflictions
 }
 
 // displayWelcomeMessage shows the appropriate welcome message based on current rank
@@ -117,7 +137,7 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	ctx.Cancel()
 	p := ctx.Val()
 
-	if h.muted.Load() {
+	if h.inflictions.Muted() {
 		p.Message(text.Colourf("<red>You're muted.</red>"))
 		return
 	}

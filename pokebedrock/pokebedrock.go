@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
+	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
@@ -58,6 +60,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	if err = p.loadLocales(); err != nil {
 		return nil, err
 	}
+	p.loadCommands()
 
 	c.ReadOnlyWorld = true
 	c.Generator = func(dim world.Dimension) world.Generator { // ensures that no new chunks are generated.
@@ -126,10 +129,15 @@ func (p *PokeBedrock) loadLocales() error {
 	return nil
 }
 
+// loadCommands ...
+func (p *PokeBedrock) loadCommands() {
+	cmd.Register(command.NewModerate(rank.Moderator))
+}
+
 // loadServices ...
 func (p *PokeBedrock) loadServices() {
 	rank.NewService(p.log, p.conf.Service.RolesURL)
-	moderation.NewService(p.log, p.conf.Service.ModerationKey)
+	moderation.NewService(p.log, p.conf.Service.ModerationURL, p.conf.Service.ModerationKey)
 }
 
 // loadServers ...

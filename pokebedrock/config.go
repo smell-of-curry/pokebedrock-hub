@@ -22,6 +22,7 @@ type Config struct {
 	}
 	Service struct {
 		RolesURL      string
+		ModerationURL string
 		ModerationKey string
 	}
 	server.UserConfig
@@ -39,7 +40,8 @@ func DefaultConfig() Config {
 	c.Translation.MessageLeave = "<yellow>%v left the game</yellow>"
 	c.Translation.MessageServerDisconnect = "<yellow>Disconnected by Server</yellow>"
 
-	c.Service.RolesURL = "http://127.0.0.1:4000/"
+	c.Service.RolesURL = "http://127.0.0.1:4000/api/roles"
+	c.Service.ModerationURL = "http://127.0.0.1:4000/api/moderation"
 	c.Service.ModerationKey = "secret-key"
 
 	userConfig := server.DefaultConfig()

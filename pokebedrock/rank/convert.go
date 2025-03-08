@@ -5,8 +5,8 @@ package rank
 var rolesToRanks = make(map[string]Rank)
 
 func init() {
-	for i, info := range rankInfos {
-		rolesToRanks[info.RoleID] = Rank(i)
+	for r, info := range rankInfos {
+		rolesToRanks[info.RoleID] = r
 	}
 }
 

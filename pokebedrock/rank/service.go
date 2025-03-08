@@ -41,7 +41,6 @@ func NewService(log *slog.Logger, url string) {
 	}
 }
 
-// TODO: Add to config
 const (
 	maxRetries     = 3
 	retryDelay     = 1 * time.Second
@@ -70,7 +69,7 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s%s", s.url, xuid), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", s.url, xuid), nil)
 		if err != nil {
 			cancel()
 			return nil, fmt.Errorf("failed to create request: %w", err)
@@ -138,12 +137,12 @@ func isTemporaryError(err error) bool {
 func RolesError(log *slog.Logger, xuid string, err error) {
 	switch {
 	case errors.Is(err, UserNotFound):
-		log.Info("No roles found for player", "xuid", xuid)
+		log.Info("no roles found for player", "xuid", xuid)
 	case errors.Is(err, TimeoutError):
-		log.Warn("Timeout while fetching roles", "xuid", xuid)
+		log.Warn("timeout while fetching roles", "xuid", xuid)
 	case errors.Is(err, ServerError):
-		log.Error("Server error while fetching roles", "xuid", xuid)
+		log.Error("server error while fetching roles", "xuid", xuid)
 	default:
-		log.Error("Failed to fetch roles", "xuid", xuid, "error", err)
+		log.Error("failed to fetch roles", "xuid", xuid, "error", err)
 	}
 }
