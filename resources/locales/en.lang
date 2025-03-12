@@ -1,3 +1,22 @@
-# example comment
-example.1=Hello, world!
-example.2=Hello, %1!
+error.inflictions.load=<yellow>There was an error whilst loading your inflictions. Please try relogging and contact support if the issue persists.</yellow>
+error.ban.message=<red>You're banned! Reason: %1, Expiry Date: %2, Prosecutor: %3</red>
+
+welcome.hub=<white>Welcome to the PokeBedrock Hub!</white><new-line><grey>If you have priority queue, or want to sync your rank, ensure your Discord is linked.</grey><new-line><grey>Use /link in the Discord to link your roles.</grey>
+rank.fetching=<grey>Fetching your rank...</grey>
+rank.refetch.wait=<yellow>Please wait %1 seconds before refetching your rank.</yellow>
+mute.message=<red>You're muted.</red>
+chat.discord.linked=<red>You must have your discord account linked to use chat.</red>
+rank.synced=<green>Your highest rank has been synced to '%1'!</green>
+rank.update.queue.full=<red>Rank update queue is full, please try again later.</red>
+rank.fetch.timeout=<red>Rank fetch timed out, try again later.</red>
+
+queue.nonexistent.server=<red>Cannot queue for a non-existent server.</red>
+queue.added.success=<green>You've been added to the queue for %1. The server has space available, you'll be transferred shortly.</green>
+queue.added.offline=<yellow>You've been added to the queue for %1. The server is currently offline. You'll be transferred when it comes online.</yellow>
+queue.added.full=<yellow>You've been added to the queue for %1. The server is currently full (%2/%3 players). You'll be transferred when space becomes available.</yellow>
+queue.priority.note=<aqua>Note: Queue priority is based on rank first, then waiting time. Players with higher ranks will be placed ahead in the queue.</aqua>
+queue.removed=<red>You've been removed from the queue for %1.</red>
+queue.destination.invalid=<red>Your queue destination no longer exists.</red>
+connection.connecting=<green>Connecting you to %1...</green>
+connection.failed=<red>Connection failed: %1. You've been placed back in queue.</red>
+queue.position=<white>Queue position: #%1 - %2</white>

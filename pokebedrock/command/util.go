@@ -4,12 +4,8 @@ import (
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 )
-
-// rankHandler ...
-type rankHandler interface {
-	HighestRank() rank.Rank
-}
 
 // rankAllower ...
 type rankAllower struct {
@@ -26,5 +22,10 @@ func (r rankAllower) Allow(s cmd.Source) bool {
 	if !ok {
 		return false
 	}
-	return h.HighestRank() >= r.rank
+	return h.Ranks().HighestRank() >= r.rank
+}
+
+// rankHandler ...
+type rankHandler interface {
+	Ranks() *session.Ranks
 }

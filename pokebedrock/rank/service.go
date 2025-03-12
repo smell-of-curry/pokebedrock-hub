@@ -125,7 +125,6 @@ func isTemporaryError(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
-
 	var netErr net.Error
 	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
 		return true

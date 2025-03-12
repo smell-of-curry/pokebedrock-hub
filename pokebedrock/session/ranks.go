@@ -1,38 +1,33 @@
-package handler
+package session
 
 import (
 	"fmt"
 	"log/slog"
 	"slices"
 	"sort"
-	"strings"
+	"sync"
 	"time"
 
+	"github.com/df-mc/atomic"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
-	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
-
-// Global logger for rank-related operations
-var rankLogger = slog.Default()
 
 // Channel for async rank updates and shutdown
 var (
 	rankUpdateCh = make(chan rankUpdate, 100)
 )
 
-// SetRankLogger sets the logger used for rank operations
-func SetRankLogger(logger *slog.Logger) {
-	rankLogger = logger
-}
-
 // rankUpdate represents a rank update request for a player
 type rankUpdate struct {
-	handler *PlayerHandler
-	handle  *world.EntityHandle
-	xuid    string
-	doneCh  chan struct{}
+	xuid string
+
+	handle *world.EntityHandle
+	ranks  *Ranks
+
+	ch chan struct{}
 }
 
 // init starts the background rank worker and cache cleanup
@@ -45,7 +40,7 @@ func rankWorker() {
 	for update := range rankUpdateCh {
 		// Check if the update timed out
 		select {
-		case <-update.doneCh:
+		case <-update.ch:
 			continue
 		default:
 		}
@@ -59,10 +54,10 @@ func rankWorker() {
 		}
 
 		// Update the player's ranks
-		update.handler.SetRanks(ranks)
+		update.ranks.SetRanks(ranks)
 
 		// Signal completion
-		close(update.doneCh)
+		close(update.ch)
 
 		update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
 			p, ok := e.(*player.Player)
@@ -70,36 +65,53 @@ func rankWorker() {
 				return
 			}
 
-			highestRank := update.handler.HighestRank()
+			highestRank := update.ranks.HighestRank()
 			nameTag := highestRank.NameTag(p.Name())
 			p.SetNameTag(nameTag)
 
-			rankUpdateMessage := text.Colourf("<green>Your highest rank has been synced to '%s'!</green>", highestRank.Name())
-			p.SendTip(rankUpdateMessage) // Send to update in action bar
-			p.Message(rankUpdateMessage) // Send to keep player notified if they exit out.
+			msg := locale.Translate("rank.synced", highestRank.Name())
+			p.SendTip(msg) // Send to update in action bar
+			p.Message(msg) // Send to keep player notified if they exit out.
 		})
 	}
 }
 
-// LoadRanksAsync queues an asynchronous fetch of player ranks
-// If player is provided, their nametag will be updated once ranks are fetched
-func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) {
+// Ranks ...
+type Ranks struct {
+	rankMu sync.Mutex
+	ranks  []rank.Rank
+
+	lastRankFetch atomic.Value[time.Time]
+}
+
+// NewRanks ...
+func NewRanks() *Ranks {
+	r := &Ranks{
+		ranks: make([]rank.Rank, 0),
+	}
+	r.lastRankFetch.Store(time.Time{})
+	return r
+}
+
+// Load queues an asynchronous fetch of player ranks
+// If player is provided, their name tag will be updated once ranks are fetched
+func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 	// Create a buffered channel to prevent goroutine leak
 	doneCh := make(chan struct{}, 1)
 
 	select {
 	case rankUpdateCh <- rankUpdate{
-		handler: h,
-		handle:  handle,
-		xuid:    xuid,
-		doneCh:  doneCh,
+		ranks:  r,
+		handle: handle,
+		xuid:   xuid,
+		ch:     doneCh,
 	}:
 		handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
 			p, ok := e.(*player.Player)
 			if !ok {
 				return
 			}
-			p.SendTip("Fetching your rank")
+			p.SendTip(locale.Translate("rank.fetching"))
 		})
 	default:
 		// Channel full, log warning but continue
@@ -108,7 +120,7 @@ func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) 
 			if !ok {
 				return
 			}
-			p.SendTip(text.Colourf("<red>Rank update queue is full, please try again later.</red>"))
+			p.SendTip(locale.Translate("rank.update.queue.full"))
 		})
 		return
 	}
@@ -118,7 +130,6 @@ func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) 
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
 
-	i := 0
 	for {
 		select {
 		case <-doneCh:
@@ -132,16 +143,7 @@ func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) 
 					ticker.Stop()
 					return
 				}
-				handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-					p, ok := e.(*player.Player)
-					if !ok {
-						return
-					}
-					cycle := []int{1, 2, 3}
-					p.SendTip(fmt.Sprintf("Fetching your rank%s", strings.Repeat(".", cycle[i%len(cycle)])))
-				})
 			}
-			i++
 		case <-timeout:
 			select {
 			case <-doneCh:
@@ -156,7 +158,7 @@ func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) 
 					if !ok {
 						return
 					}
-					p.SendTip(text.Colourf("<red>Rank fetch timed out, try again later.</red>"))
+					p.SendTip(locale.Translate("rank.fetch.timeout"))
 				})
 				return
 			}
@@ -164,13 +166,13 @@ func (h *PlayerHandler) LoadRanksAsync(xuid string, handle *world.EntityHandle) 
 	}
 }
 
-// fetchRanks is a helper function that fetches ranks from API.
+// fetchRanks retrieves the ranks associated with the given XUID from the API.
 func fetchRanks(xuid string) []rank.Rank {
+	log := slog.Default()
 	roles, err := rank.GlobalService().RolesOfXUID(xuid)
 	if err != nil {
 		// Log the error
-		rank.RolesError(rankLogger, xuid, err)
-
+		rank.RolesError(log, xuid, err)
 		// Use default rank
 		return []rank.Rank{rank.UnLinked}
 	}
@@ -180,63 +182,65 @@ func fetchRanks(xuid string) []rank.Rank {
 	if len(ranks) == 0 {
 		// Player has no valid roles that map to ranks, shouldn't be possible so we will just map to Trainer
 		ranks = []rank.Rank{rank.Trainer}
-
 		// Log the error
-		rank.RolesError(rankLogger, xuid, fmt.Errorf("player has account linked but no valid roles"))
+		rank.RolesError(log, xuid, fmt.Errorf("player has account linked but no valid roles"))
 	}
-
 	return ranks
 }
 
-// SetRanks updates the player's ranks and sorts them.
-func (h *PlayerHandler) SetRanks(ranks []rank.Rank) {
-	h.rankMu.Lock()
-	h.ranks = ranks
-	h.rankMu.Unlock()
-	h.sortRanks()
+// SetRanks updates the players ranks and sorts them.
+func (r *Ranks) SetRanks(ranks []rank.Rank) {
+	r.rankMu.Lock()
+	r.ranks = ranks
+	r.rankMu.Unlock()
+	r.sortRanks()
 }
 
-// HighestRank returns the player's highest rank.
-func (h *PlayerHandler) HighestRank() rank.Rank {
-	h.rankMu.Lock()
-	defer h.rankMu.Unlock()
-
-	if len(h.ranks) == 0 {
+// HighestRank returns the players highest rank.
+func (r *Ranks) HighestRank() rank.Rank {
+	r.rankMu.Lock()
+	defer r.rankMu.Unlock()
+	if len(r.ranks) == 0 {
 		return rank.UnLinked
 	}
-	return h.ranks[len(h.ranks)-1]
+	return r.ranks[len(r.ranks)-1]
 }
 
-// Ranks returns a copy of the player's ranks.
-func (h *PlayerHandler) Ranks() []rank.Rank {
-	h.rankMu.Lock()
-	defer h.rankMu.Unlock()
-
-	// Return a copy to prevent external modifications
-	ranksCopy := make([]rank.Rank, len(h.ranks))
-	copy(ranksCopy, h.ranks)
+// Ranks returns a copy of the players ranks.
+func (r *Ranks) Ranks() []rank.Rank {
+	r.rankMu.Lock()
+	defer r.rankMu.Unlock()
+	ranksCopy := append([]rank.Rank(nil), r.ranks...)
 	return ranksCopy
 }
 
 // HasRank checks if the player has a specific rank.
-func (h *PlayerHandler) HasRank(r rank.Rank) bool {
-	h.rankMu.Lock()
-	defer h.rankMu.Unlock()
-
-	return slices.Contains(h.ranks, r)
+func (r *Ranks) HasRank(ra rank.Rank) bool {
+	r.rankMu.Lock()
+	defer r.rankMu.Unlock()
+	return slices.Contains(r.ranks, ra)
 }
 
 // HasRankOrHigher checks if the player has the specified rank or a higher one.
-func (h *PlayerHandler) HasRankOrHigher(r rank.Rank) bool {
-	return h.HighestRank() >= r
+func (r *Ranks) HasRankOrHigher(ra rank.Rank) bool {
+	return r.HighestRank() >= ra
 }
 
 // sortRanks sorts the ranks in ascending order.
-func (h *PlayerHandler) sortRanks() {
-	h.rankMu.Lock()
-	defer h.rankMu.Unlock()
-
-	sort.SliceStable(h.ranks, func(i, j int) bool {
-		return h.ranks[i] < h.ranks[j]
+func (r *Ranks) sortRanks() {
+	r.rankMu.Lock()
+	defer r.rankMu.Unlock()
+	sort.SliceStable(r.ranks, func(i, j int) bool {
+		return r.ranks[i] < r.ranks[j]
 	})
+}
+
+// LastRankFetch ...
+func (r *Ranks) LastRankFetch() time.Time {
+	return r.lastRankFetch.Load()
+}
+
+// SetLastRankFetch ...
+func (r *Ranks) SetLastRankFetch(t time.Time) {
+	r.lastRankFetch.Store(t)
 }

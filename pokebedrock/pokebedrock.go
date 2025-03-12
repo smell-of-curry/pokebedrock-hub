@@ -48,7 +48,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		return nil, err
 	}
 
-	p := &PokeBedrock{
+	poke := &PokeBedrock{
 		log:  log,
 		conf: conf,
 
@@ -56,11 +56,11 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		resManager: resManager,
 	}
 	// TODO: Enable when these get fixed.
-	// p.loadTranslations(&c)
-	if err = p.loadLocales(); err != nil {
+	// poke.loadTranslations(&c)
+	if err = poke.loadLocales(); err != nil {
 		return nil, err
 	}
-	p.loadCommands()
+	poke.loadCommands()
 
 	c.ReadOnlyWorld = true
 	c.Generator = func(dim world.Dimension) world.Generator { // ensures that no new chunks are generated.
@@ -69,30 +69,29 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	c.StatusProvider = status.NewProvider(c.Name, c.Name) // ensures synchronized server count display.
 	c.Allower = &Allower{}
 
-	p.srv = c.New()
-	p.srv.CloseOnProgramEnd()
+	poke.srv = c.New()
+	poke.srv.CloseOnProgramEnd()
 
-	p.loadServices()
+	poke.loadServices()
 
-	return p, nil
+	return poke, nil
 }
 
 // Start ...
-func (p *PokeBedrock) Start() {
-	p.srv.Listen()
-	p.handleWorld()
+func (poke *PokeBedrock) Start() {
+	poke.srv.Listen()
+	poke.handleWorld()
 
-	for pl := range p.srv.Accept() {
-		p.accept(pl)
+	for pl := range poke.srv.Accept() {
+		poke.accept(pl)
 	}
 
-	close(p.c)
+	close(poke.c)
 }
 
 // handleWorld ...
-func (p *PokeBedrock) handleWorld() {
-	w := p.World()
-	w.Handle(handler.WorldHandler{})
+func (poke *PokeBedrock) handleWorld() {
+	w := poke.World()
 
 	w.StopWeatherCycle()
 	w.StopRaining()
@@ -102,22 +101,22 @@ func (p *PokeBedrock) handleWorld() {
 	w.StopTime()
 	w.SetTickRange(0)
 
-	p.loadServers()
-	p.loadSlappers()
-	go p.startTicking()
+	poke.loadServers()
+	poke.loadSlappers()
+	go poke.startTicking()
 }
 
 // loadTranslations ...
-func (p *PokeBedrock) loadTranslations(c *server.Config) {
-	conf := p.conf
+func (poke *PokeBedrock) loadTranslations(c *server.Config) {
+	conf := poke.conf
 	c.JoinMessage = translation.MessageJoin(conf.Translation.MessageJoin)
 	c.QuitMessage = translation.MessageQuit(conf.Translation.MessageLeave)
 	c.ShutdownMessage = translation.MessageServerDisconnect(conf.Translation.MessageServerDisconnect)
 }
 
 // loadLocales ...
-func (p *PokeBedrock) loadLocales() error {
-	path := p.conf.PokeBedrock.LocalePath
+func (poke *PokeBedrock) loadLocales() error {
+	path := poke.conf.PokeBedrock.LocalePath
 	locales := []language.Tag{
 		language.English,
 	}
@@ -130,26 +129,26 @@ func (p *PokeBedrock) loadLocales() error {
 }
 
 // loadCommands ...
-func (p *PokeBedrock) loadCommands() {
+func (poke *PokeBedrock) loadCommands() {
 	cmd.Register(command.NewModerate(rank.Moderator))
 }
 
 // loadServices ...
-func (p *PokeBedrock) loadServices() {
-	rank.NewService(p.log, p.conf.Service.RolesURL)
-	moderation.NewService(p.log, p.conf.Service.ModerationURL, p.conf.Service.ModerationKey)
+func (poke *PokeBedrock) loadServices() {
+	rank.NewService(poke.log, poke.conf.Service.RolesURL)
+	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
 }
 
 // loadServers ...
-func (p *PokeBedrock) loadServers() {
-	cfgs, err := srv.ReadAll(p.conf.PokeBedrock.ServerPath)
+func (poke *PokeBedrock) loadServers() {
+	cfgs, err := srv.ReadAll(poke.conf.PokeBedrock.ServerPath)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, cfg := range cfgs {
 		srv.Register(
-			srv.NewServer(p.log, cfg),
+			srv.NewServer(poke.log, cfg),
 		)
 	}
 
@@ -157,21 +156,21 @@ func (p *PokeBedrock) loadServers() {
 }
 
 // loadSlappers ...
-func (p *PokeBedrock) loadSlappers() {
-	w := p.World()
-	cfgs, err := slapper.ReadAll(p.conf.PokeBedrock.SlapperPath)
+func (poke *PokeBedrock) loadSlappers() {
+	w := poke.World()
+	cfgs, err := slapper.ReadAll(poke.conf.PokeBedrock.SlapperPath)
 	if err != nil {
 		panic(err)
 	}
 
 	<-w.Exec(func(tx *world.Tx) {
-		slapper.SummonAll(p.log, cfgs, tx, p.resManager)
+		slapper.SummonAll(poke.log, cfgs, tx, poke.resManager)
 	})
 }
 
 // startTicking ...
-func (p *PokeBedrock) startTicking() {
-	w := p.World()
+func (poke *PokeBedrock) startTicking() {
+	w := poke.World()
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
 
@@ -182,7 +181,7 @@ func (p *PokeBedrock) startTicking() {
 
 	for {
 		select {
-		case <-p.c:
+		case <-poke.c:
 			return
 		case <-t.C:
 			w.Exec(func(tx *world.Tx) {
@@ -202,15 +201,15 @@ func (p *PokeBedrock) startTicking() {
 }
 
 // accept handles a new player joining the server.
-func (p *PokeBedrock) accept(pl *player.Player) {
+func (poke *PokeBedrock) accept(p *player.Player) {
 	// Create and set the player handler.
-	h := handler.NewPlayerHandler(pl)
-	pl.Handle(h)
+	h := handler.NewPlayerHandler(p)
+	p.Handle(h)
 
-	h.HandleJoin(pl, p.World())
+	h.HandleJoin(p, poke.World())
 }
 
 // World ...
-func (p *PokeBedrock) World() *world.World {
-	return p.srv.World()
+func (poke *PokeBedrock) World() *world.World {
+	return poke.srv.World()
 }

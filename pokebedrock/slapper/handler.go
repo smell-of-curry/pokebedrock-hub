@@ -3,7 +3,7 @@ package slapper
 import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/form"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 )
 
 // handleInteract ...
@@ -18,5 +18,5 @@ func (s *Slapper) handleInteract(p *player.Player) {
 
 // rankHandler ...
 type rankHandler interface {
-	HighestRank() rank.Rank
+	Ranks() *session.Ranks
 }

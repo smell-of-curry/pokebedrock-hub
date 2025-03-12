@@ -2,7 +2,6 @@ package queue
 
 import (
 	"container/heap"
-	"fmt"
 	"sort"
 	"time"
 
@@ -10,7 +9,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
-	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
@@ -60,7 +59,7 @@ func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 
 	// Verify server exists
 	if srv == nil {
-		p.Message(text.Colourf("<red>Cannot queue for a non-existent server.</red>"))
+		p.Message(locale.Translate("queue.nonexistent.server"))
 		return
 	}
 
@@ -81,16 +80,16 @@ func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 	// Inform player about their queue status and explain priority system
 	status := srv.Status()
 	if status.Online && status.PlayerCount < status.MaxPlayerCount {
-		p.Message(text.Colourf("<green>You've been added to the queue for %s. The server has space available, you'll be transferred shortly.</green>", srv.Name()))
+		p.Message(locale.Translate("queue.added.success", srv.Name()))
 	} else if !status.Online {
-		p.Message(text.Colourf("<yellow>You've been added to the queue for %s. The server is currently offline. You'll be transferred when it comes online.</yellow>", srv.Name()))
+		p.Message(locale.Translate("queue.added.offline", srv.Name()))
 	} else {
-		p.Message(text.Colourf("<yellow>You've been added to the queue for %s. The server is currently full (%d/%d players). You'll be transferred when space becomes available.</yellow>",
+		p.Message(locale.Translate("queue.added.full",
 			srv.Name(), status.PlayerCount, status.MaxPlayerCount))
 	}
 
 	// Explain queue priority system to the player
-	p.Message(text.Colourf("<aqua>Note: Queue priority is based on rank first, then waiting time. Players with higher ranks will be placed ahead in the queue.</aqua>"))
+	p.Message(locale.Translate("queue.priority.note"))
 }
 
 // RemovePlayer ...
@@ -98,7 +97,7 @@ func (m *Manager) RemovePlayer(p *player.Player) {
 	for i, entry := range m.Queue() {
 		if entry.handle == p.H() {
 			m.RemoveFromQueue(i)
-			p.Messagef(text.Colourf("<red>You've been removed from the queue for %s.</red>", entry.srv.Name()))
+			p.Messagef(locale.Translate("queue.removed", entry.srv.Name()))
 			break
 		}
 	}
@@ -143,32 +142,32 @@ func (m *Manager) Update(tx *world.Tx) {
 			continue
 		}
 
-		// Verify player still exists
-		p, ok := entry.handle.Entity(tx)
+		// Verify p still exists
+		ent, ok := entry.handle.Entity(tx)
 		if !ok {
 			entriesToRemove = append(entriesToRemove, i)
 			continue
 		}
-		player := p.(*player.Player)
+		p := ent.(*player.Player)
 
 		// Verify server still exists and is valid
 		s := entry.srv
 		if s == nil {
 			entriesToRemove = append(entriesToRemove, i)
-			player.Message(text.Colourf("<red>Your queue destination no longer exists.</red>"))
+			p.Message(locale.Translate("queue.destination.invalid"))
 			continue
 		}
 
 		// Check server status
 		st := s.Status()
 		if !st.Online {
-			// Skip offline servers but keep player in queue
+			// Skip offline servers but keep p in queue
 			continue
 		}
 
 		// Check if there's capacity in the server
 		if st.PlayerCount >= st.MaxPlayerCount {
-			// Server is full, keep player in queue
+			// Server is full, keep p in queue
 			continue
 		}
 
@@ -181,7 +180,7 @@ func (m *Manager) Update(tx *world.Tx) {
 
 		// Mark for transfer
 		playersToTransfer = append(playersToTransfer, &QueueTransfer{
-			player: player,
+			player: p,
 			entry:  entry,
 			server: s,
 		})
@@ -202,12 +201,12 @@ func (m *Manager) Update(tx *world.Tx) {
 	// Third pass: process transfers
 	for _, transfer := range playersToTransfer {
 		// Notify the player they're being transferred
-		transfer.player.Message(text.Colourf("<green>Connecting you to %s...</green>", transfer.server.Name()))
+		transfer.player.Message(locale.Translate("connection.connecting", transfer.server.Name()))
 
 		// Transfer the player
 		if err := transfer.player.Transfer(transfer.server.Address()); err != nil {
 			// If transfer fails, add player back to queue
-			transfer.player.Message(text.Colourf("<red>Connection failed: %v. You've been placed back in queue.</red>", err))
+			transfer.player.Message(locale.Translate("connection.failed", err))
 			m.AddToQueue(transfer.entry)
 		}
 	}
@@ -233,7 +232,7 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 
 	// Sort entries by the same priority rules as the queue
 	sort.Slice(sortedEntries, func(i, j int) bool {
-		// Sort in priority order (reverse of what Less does since we want highest priority first)
+		// Sort in priority order (reverse of what Less() does since we want highest priority first)
 		if sortedEntries[i].rank == sortedEntries[j].rank {
 			return sortedEntries[i].joinTime.Before(sortedEntries[j].joinTime)
 		}
@@ -248,7 +247,7 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 		if !ok {
 			continue
 		}
-		player := ent.(*player.Player)
+		p := ent.(*player.Player)
 
 		// Show estimated time based on position
 		var waitMsg string
@@ -262,8 +261,8 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 			waitMsg = "Longer wait"
 		}
 
-		bar := bossbar.New(fmt.Sprintf("Queue position: #%d - %s", position, waitMsg))
-		player.SendBossBar(bar)
+		bar := bossbar.New(locale.Translate("queue.position", position, waitMsg))
+		p.SendBossBar(bar)
 		position++
 	}
 }

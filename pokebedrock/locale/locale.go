@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sandertv/gophertunnel/minecraft/text"
 	"golang.org/x/text/language"
 )
 
@@ -49,14 +50,19 @@ func Register(lang language.Tag, filePath string) error {
 }
 
 // Translate ...
-func Translate(lang language.Tag, key string, args ...any) string {
-	locale, found := locales[lang]
-	if !found {
+func Translate(key string, args ...any) string {
+	return text.Colourf(TranslateL(language.English, key, args...))
+}
+
+// TranslateL ...
+func TranslateL(lang language.Tag, key string, args ...any) string {
+	locale, ok := locales[lang]
+	if !ok {
 		locale = locales[language.English]
 	}
 
-	translation, found := locale[key]
-	if !found {
+	translation, ok := locale[key]
+	if !ok {
 		return fmt.Sprintf("missing translation for '%s'", key)
 	}
 

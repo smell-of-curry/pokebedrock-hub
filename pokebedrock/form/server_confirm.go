@@ -8,7 +8,7 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
@@ -40,10 +40,10 @@ func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 		return
 	}
 
-	queue.QueueManager.AddPlayer(p, h.HighestRank(), f.srv)
+	queue.QueueManager.AddPlayer(p, h.Ranks().HighestRank(), f.srv)
 }
 
 // rankHandler ...
 type rankHandler interface {
-	HighestRank() rank.Rank
+	Ranks() *session.Ranks
 }
