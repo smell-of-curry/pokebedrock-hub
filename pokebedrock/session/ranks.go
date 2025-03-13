@@ -1,8 +1,6 @@
 package session
 
 import (
-	"fmt"
-	"log/slog"
 	"slices"
 	"sort"
 	"sync"
@@ -11,6 +9,7 @@ import (
 	"github.com/df-mc/atomic"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
@@ -35,6 +34,28 @@ func init() {
 	go rankWorker()
 }
 
+// updatePlayer sends a colored message to the player, sets their ranks, and closes the update's done channel.
+func updatePlayer(update rankUpdate, message string, color string) {
+	// Ensure the player is still online
+	if update.handle == nil {
+		return
+	}
+
+	// Get execute permission
+	update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+		p, ok := e.(*player.Player)
+		if !ok {
+			return
+		}
+		msg := text.Colourf("<%s>%s</%s>", color, message, color)
+		p.SendTip(msg)
+		p.Message(msg)
+	})
+
+	// Notify the worker that the update is done
+	close(update.ch)
+}
+
 // rankWorker processes rank updates in the background
 func rankWorker() {
 	for update := range rankUpdateCh {
@@ -45,8 +66,25 @@ func rankWorker() {
 		default:
 		}
 
-		// Fetch the player's ranks
-		ranks := fetchRanks(update.xuid)
+		// Ensure the player is still online
+		if update.handle == nil {
+			continue
+		}
+
+		// Fetch the player's roles
+		roles, err := rank.GlobalService().RolesOfXUID(update.xuid)
+		if err != nil {
+			update.ranks.SetRanks([]rank.Rank{rank.UnLinked})
+			updatePlayer(update, rank.RolesError(err), "red")
+			continue
+		}
+
+		// API request successful, map roles to ranks
+		ranks := rank.RolesToRanks(roles)
+		if len(ranks) == 0 {
+			// Player has no valid roles that map to ranks, shouldn't be possible so we will just map to Trainer
+			ranks = []rank.Rank{rank.Trainer}
+		}
 
 		// Ensure the player is still online
 		if update.handle == nil {
@@ -56,22 +94,19 @@ func rankWorker() {
 		// Update the player's ranks
 		update.ranks.SetRanks(ranks)
 
-		// Signal completion
-		close(update.ch)
+		highestRank := update.ranks.HighestRank()
+		rankUpdateMessage := locale.Translate("rank.synced", highestRank.Name())
+		updatePlayer(update, rankUpdateMessage, "green")
 
+		// Update the player's nametag
 		update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
 			p, ok := e.(*player.Player)
 			if !ok {
 				return
 			}
 
-			highestRank := update.ranks.HighestRank()
 			nameTag := highestRank.NameTag(p.Name())
 			p.SetNameTag(nameTag)
-
-			msg := locale.Translate("rank.synced", highestRank.Name())
-			p.SendTip(msg) // Send to update in action bar
-			p.Message(msg) // Send to keep player notified if they exit out.
 		})
 	}
 }
@@ -125,8 +160,7 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 		return
 	}
 
-	// Start a goroutine to handle the timeout and tips
-	timeout := time.After(5 * time.Second) // Increased timeout
+	timeout := time.After(5 * time.Second)
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -166,28 +200,6 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 	}
 }
 
-// fetchRanks retrieves the ranks associated with the given XUID from the API.
-func fetchRanks(xuid string) []rank.Rank {
-	log := slog.Default()
-	roles, err := rank.GlobalService().RolesOfXUID(xuid)
-	if err != nil {
-		// Log the error
-		rank.RolesError(log, xuid, err)
-		// Use default rank
-		return []rank.Rank{rank.UnLinked}
-	}
-
-	// API request successful, get ranks
-	ranks := rank.RolesToRanks(roles)
-	if len(ranks) == 0 {
-		// Player has no valid roles that map to ranks, shouldn't be possible so we will just map to Trainer
-		ranks = []rank.Rank{rank.Trainer}
-		// Log the error
-		rank.RolesError(log, xuid, fmt.Errorf("player has account linked but no valid roles"))
-	}
-	return ranks
-}
-
 // SetRanks updates the players ranks and sorts them.
 func (r *Ranks) SetRanks(ranks []rank.Rank) {
 	r.rankMu.Lock()
@@ -210,7 +222,7 @@ func (r *Ranks) HighestRank() rank.Rank {
 func (r *Ranks) Ranks() []rank.Rank {
 	r.rankMu.Lock()
 	defer r.rankMu.Unlock()
-	ranksCopy := append([]rank.Rank(nil), r.ranks...)
+	ranksCopy := slices.Clone(r.ranks)
 	return ranksCopy
 }
 
