@@ -121,14 +121,17 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 			}
 
 			err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
+				// TODO: Add a way to get the XUID of the target
 				Name:             c.target,
 				InflictionStatus: moderation.InflictionStatusCurrent,
 				Infliction:       infliction,
 			})
+
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s' %s.</red>", c.target, err.Error()))
 				return
 			}
+
 			prosecutor.Message(text.Colourf("<green>Added infliction on '%s'.</green>", c.target))
 
 			for ent := range tx.Players() {
