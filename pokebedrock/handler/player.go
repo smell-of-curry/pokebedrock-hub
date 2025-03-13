@@ -90,6 +90,7 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	p := ctx.Val()
 	ctx.Cancel()
 
+	// TODO: Re-fetch moderation api, or cache the expiry date to ensure they are still muted.
 	if h.inflictions.Muted() {
 		p.Message(locale.Translate("mute.message"))
 		return
