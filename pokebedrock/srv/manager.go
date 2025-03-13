@@ -7,15 +7,15 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/text"
 )
 
-// Servers ...
+// servers holds all the registered server instances in a sync.Map for thread-safe access.
 var servers sync.Map
 
-// Register ...
+// Register adds a new server to the list of registered servers using its identifier as the key.
 func Register(srv *Server) {
 	servers.Store(srv.Identifier(), srv)
 }
 
-// UpdateAll ...
+// UpdateAll iterates over all registered servers and invokes the pingServer method concurrently.
 func UpdateAll() {
 	servers.Range(func(_, value any) bool {
 		if srv, ok := value.(*Server); ok {
@@ -25,7 +25,7 @@ func UpdateAll() {
 	})
 }
 
-// FromIdentifier ...
+// FromIdentifier retrieves a server by its identifier.
 func FromIdentifier(identifier string) *Server {
 	if srv, ok := servers.Load(identifier); ok {
 		return srv.(*Server)
@@ -33,7 +33,7 @@ func FromIdentifier(identifier string) *Server {
 	return nil
 }
 
-// FromName ...
+// FromName searches all registered servers by their name and returns the first match.
 func FromName(name string) *Server {
 	for _, srv := range All() {
 		if text.Clean(srv.Name()) == name {
@@ -51,10 +51,9 @@ func All() []*Server {
 		return true
 	})
 
-	// Sort the servers by identifier for consistent ordering
+	// Sort the servers by identifier for consistent ordering.
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Identifier() < result[j].Identifier()
 	})
-
 	return result
 }

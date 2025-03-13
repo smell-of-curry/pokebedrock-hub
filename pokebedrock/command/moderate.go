@@ -8,7 +8,8 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
 
-// Moderate ...
+// Moderate represents a moderation command that can be executed by players with sufficient rank.
+// It includes a target player to apply moderation actions to, as well as the rank requirement.
 type Moderate struct {
 	Target string `name:"target"`
 

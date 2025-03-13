@@ -18,12 +18,13 @@ import (
 // globalService ...
 var globalService *Service
 
-// GlobalService ...
+// GlobalService returns the global instance of the Service.
 func GlobalService() *Service {
 	return globalService
 }
 
-// Service ...
+// Service is responsible for interacting with the service that provides player roles.
+// It contains configuration details like the service URL, HTTP client, and a logger for debugging.
 type Service struct {
 	url string
 
@@ -31,7 +32,8 @@ type Service struct {
 	log    *slog.Logger
 }
 
-// NewService ...
+// NewService initializes a new global service instance with the given logger and service URL.
+// This function sets up the service configuration, including the HTTP client and logger.
 func NewService(log *slog.Logger, url string) {
 	globalService = &Service{
 		url: url,
@@ -54,12 +56,15 @@ var (
 	ServerError  = fmt.Errorf("server error")
 )
 
-// RolesOfPlayer ...
+// RolesOfPlayer retrieves the roles associated with the given player.
+// This function delegates the request to the RolesOfXUID function using the player's XUID.
 func (s *Service) RolesOfPlayer(p *player.Player) ([]string, error) {
 	return s.RolesOfXUID(p.XUID())
 }
 
-// RolesOfXUID ...
+// RolesOfXUID retrieves the roles associated with the specified XUID.
+// It sends a request to the service's API and processes the response.
+// The function retries on certain errors such as timeouts or temporary network issues.
 func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 	var roles []string
 	var lastErr error
@@ -120,7 +125,8 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 	return nil, lastErr
 }
 
-// isTemporaryError ...
+// isTemporaryError determines whether the given error is a temporary error that can be retried.
+// This function checks for context deadline exceeded errors and network-related errors like timeouts.
 func isTemporaryError(err error) bool {
 	// Check for context deadline exceeded errors
 	if errors.Is(err, context.DeadlineExceeded) {

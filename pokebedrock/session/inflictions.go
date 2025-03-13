@@ -7,14 +7,14 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 )
 
-// Inflictions ...
+// Inflictions represents a player's inflictions like being muted or frozen.
 type Inflictions struct {
 	muted        atomic.Bool
 	muteDuration atomic.Value[int64]
 	frozen       atomic.Bool
 }
 
-// NewInflictions ...
+// NewInflictions creates a new Inflictions object with default values.
 func NewInflictions() *Inflictions {
 	i := &Inflictions{}
 	i.muted.Store(false)
@@ -23,7 +23,7 @@ func NewInflictions() *Inflictions {
 	return i
 }
 
-// Load ...
+// Load loads the player's inflictions from the moderation service.
 func (i *Inflictions) Load(handle *world.EntityHandle) {
 	handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
 		p := e.(*player.Player)
@@ -49,39 +49,39 @@ func (i *Inflictions) Load(handle *world.EntityHandle) {
 	})
 }
 
-// handleActiveInflictions ...
+// handleActiveInflictions applies the effects of active inflictions on the player.
 func (i *Inflictions) handleActiveInflictions(p *player.Player) {
 	if i.Frozen() {
 		p.SetImmobile()
 	}
 }
 
-// SetMuted ...
+// SetMuted sets whether the player is muted or not.
 func (i *Inflictions) SetMuted(muted bool) {
 	i.muted.Store(muted)
 }
 
-// Muted ...
+// Muted returns whether the player is muted or not.
 func (i *Inflictions) Muted() bool {
 	return i.muted.Load()
 }
 
-// SetMuteDuration ...
+// SetMuteDuration sets the mute duration for the player.
 func (i *Inflictions) SetMuteDuration(duration int64) {
 	i.muteDuration.Store(duration)
 }
 
-// MuteDuration ...
+// MuteDuration returns the current mute duration.
 func (i *Inflictions) MuteDuration() int64 {
 	return i.muteDuration.Load()
 }
 
-// SetFrozen ...
+// SetFrozen sets whether the player is frozen or not.
 func (i *Inflictions) SetFrozen(frozen bool) {
 	i.frozen.Store(frozen)
 }
 
-// Frozen ...
+// Frozen returns whether the player is frozen or not.
 func (i *Inflictions) Frozen() bool {
 	return i.frozen.Load()
 }

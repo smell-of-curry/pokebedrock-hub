@@ -19,12 +19,13 @@ import (
 // globalService ...
 var globalService *Service
 
-// GlobalService ...
+// GlobalService returns the global service instance.
 func GlobalService() *Service {
 	return globalService
 }
 
-// Service ...
+// Service represents a service for interacting with a moderation API.
+// It holds the configuration for the service such as the URL, key, HTTP client, and logger.
 type Service struct {
 	url string
 	key string
@@ -33,7 +34,8 @@ type Service struct {
 	log    *slog.Logger
 }
 
-// NewService ...
+// NewService initializes a new global service instance with the provided logger, URL, and authorization key.
+// This function configures the HTTP client and sets up the service.
 func NewService(log *slog.Logger, url, key string) {
 	globalService = &Service{
 		url: url,
@@ -51,22 +53,26 @@ const (
 	requestTimeout = 5 * time.Second
 )
 
-// InflictionOfPlayer ...
+// InflictionOfPlayer retrieves the inflictions for a given player by their XUID.
+// This function internally calls `InflictionOfXUID` with the player's XUID.
 func (s *Service) InflictionOfPlayer(p *player.Player) (*ModelResponse, error) {
 	return s.InflictionOfXUID(p.XUID())
 }
 
-// InflictionOfXUID ...
+// InflictionOfXUID retrieves the inflictions for a specific XUID.
+// This function makes a request to the service and returns the player's current and past inflictions.
 func (s *Service) InflictionOfXUID(xuid string) (*ModelResponse, error) {
 	return s.InflictionOf(ModelRequest{XUID: xuid})
 }
 
-// InflictionOfName ...
+// InflictionOfName retrieves the inflictions for a player based on their name.
+// This function makes a request to the service and returns the player's current and past inflictions.
 func (s *Service) InflictionOfName(name string) (*ModelResponse, error) {
 	return s.InflictionOf(ModelRequest{Name: name})
 }
 
-// InflictionOf ...
+// InflictionOf makes a request to the service to retrieve the inflictions based on a given request model.
+// It handles retries, timeouts, and different server response codes, including parsing the response.
 func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 	rawRequest, err := json.Marshal(req)
 	if err != nil {
@@ -121,7 +127,8 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 	return nil, lastErr
 }
 
-// AddInfliction ...
+// AddInfliction adds a new infliction (e.g., ban, mute) to the player.
+// It sends a request to the service and retries in case of temporary errors.
 func (s *Service) AddInfliction(req ModelRequest) error {
 	rawRequest, err := json.Marshal(req)
 	if err != nil {
@@ -166,7 +173,8 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 	return lastErr
 }
 
-// RemoveInfliction ...
+// RemoveInfliction removes an existing infliction (e.g., unban, unmute) from a player.
+// It sends a request to the service to remove the infliction and retries on temporary errors.
 func (s *Service) RemoveInfliction(req ModelRequest) error {
 	rawRequest, err := json.Marshal(req)
 	if err != nil {
@@ -210,7 +218,8 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 	return lastErr
 }
 
-// SendDetailsOf ...
+// SendDetailsOf sends the details of a player (name, XUID, IP address) to the service.
+// This function sends a request with the player's information to be processed by the moderation system.
 func (s *Service) SendDetailsOf(p *player.Player) {
 	req := PlayerDetails{
 		Name: p.Name(),
@@ -242,7 +251,8 @@ func (s *Service) SendDetailsOf(p *player.Player) {
 	s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
 }
 
-// isTemporaryError ...
+// isTemporaryError checks if an error is temporary and can be retried.
+// It checks for context deadline exceeded errors and network-related errors (e.g., timeout, temporary issues).
 func isTemporaryError(err error) bool {
 	// Check for context deadline exceeded errors
 	if errors.Is(err, context.DeadlineExceeded) {

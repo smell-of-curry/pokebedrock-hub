@@ -7,13 +7,15 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 )
 
-// Kit ...
+// Kit defines the structure for a kit of items and actions that can be applied to a player.
+// It includes methods to retrieve the items for the kit and apply additional functions to the player.
 type Kit interface {
 	Items(*player.Player) (items [36]item.Stack)
 	ApplyFunc(*player.Player)
 }
 
-// Apply ...
+// Apply applies a kit to a player. It clears the player's inventory, armour, and other attributes,
+// and then applies the items and effects defined in the provided kit.
 func Apply(k Kit, p *player.Player) {
 	p.Inventory().Clear()
 	p.Armour().Clear()

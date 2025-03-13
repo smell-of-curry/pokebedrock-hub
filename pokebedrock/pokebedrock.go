@@ -22,7 +22,8 @@ import (
 	"golang.org/x/text/language"
 )
 
-// PokeBedrock ...
+// PokeBedrock represents the main server struct.
+// It holds configuration, logging, and manages various server components.
 type PokeBedrock struct {
 	log  *slog.Logger
 	conf Config
@@ -33,7 +34,7 @@ type PokeBedrock struct {
 	c chan struct{}
 }
 
-// NewPokeBedrock ...
+// NewPokeBedrock creates a new instance of PokeBedrock.
 func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	// Initialize resource pack manager and check for updates.
 	resManager := resources.NewManager(log, conf.UserConfig.Resources.Folder)
@@ -77,7 +78,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	return poke, nil
 }
 
-// Start ...
+// Start starts the server.
 func (poke *PokeBedrock) Start() {
 	poke.srv.Listen()
 	poke.handleWorld()
@@ -89,7 +90,7 @@ func (poke *PokeBedrock) Start() {
 	close(poke.c)
 }
 
-// handleWorld ...
+// handleWorld initialises and configures the world settings.
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
@@ -106,7 +107,7 @@ func (poke *PokeBedrock) handleWorld() {
 	go poke.startTicking()
 }
 
-// loadTranslations ...
+// loadTranslations loads all the translation used in dragonfly.
 func (poke *PokeBedrock) loadTranslations(c *server.Config) {
 	conf := poke.conf
 	c.JoinMessage = translation.MessageJoin(conf.Translation.MessageJoin)
@@ -114,7 +115,7 @@ func (poke *PokeBedrock) loadTranslations(c *server.Config) {
 	c.ShutdownMessage = translation.MessageServerDisconnect(conf.Translation.MessageServerDisconnect)
 }
 
-// loadLocales ...
+// loadLocales registers all the locales active on the server.
 func (poke *PokeBedrock) loadLocales() error {
 	path := poke.conf.PokeBedrock.LocalePath
 	locales := []language.Tag{
@@ -128,18 +129,18 @@ func (poke *PokeBedrock) loadLocales() error {
 	return nil
 }
 
-// loadCommands ...
+// loadCommands registers all the commands on the server.
 func (poke *PokeBedrock) loadCommands() {
 	cmd.Register(command.NewModerate(rank.Moderator))
 }
 
-// loadServices ...
+// loadServices loads all the services.
 func (poke *PokeBedrock) loadServices() {
 	rank.NewService(poke.log, poke.conf.Service.RolesURL)
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
 }
 
-// loadServers ...
+// loadServers loads all the servers from the config.
 func (poke *PokeBedrock) loadServers() {
 	cfgs, err := srv.ReadAll(poke.conf.PokeBedrock.ServerPath)
 	if err != nil {
@@ -155,7 +156,7 @@ func (poke *PokeBedrock) loadServers() {
 	srv.UpdateAll()
 }
 
-// loadSlappers ...
+// loadSlappers loads all the npc slappers from the config.
 func (poke *PokeBedrock) loadSlappers() {
 	w := poke.World()
 	cfgs, err := slapper.ReadAll(poke.conf.PokeBedrock.SlapperPath)
@@ -168,7 +169,8 @@ func (poke *PokeBedrock) loadSlappers() {
 	})
 }
 
-// startTicking ...
+// startTicking begins the periodic ticking process for the server.
+// It executes server updates, manages queues, and periodically triggers specific actions.
 func (poke *PokeBedrock) startTicking() {
 	w := poke.World()
 	t := time.NewTicker(time.Second * 1)
@@ -210,7 +212,7 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 	h.HandleJoin(p, poke.World())
 }
 
-// World ...
+// World returns the default world.
 func (poke *PokeBedrock) World() *world.World {
 	return poke.srv.World()
 }

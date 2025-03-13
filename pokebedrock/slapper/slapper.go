@@ -15,7 +15,8 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
-// Slapper ...
+// Slapper represents an NPC that displays status information about a Minecraft server.
+// It includes configuration, skin, and methods to spawn and update the slapper in the world.
 type Slapper struct {
 	log        *slog.Logger
 	conf       *Config
@@ -24,7 +25,8 @@ type Slapper struct {
 	handle     *world.EntityHandle
 }
 
-// NewSlapper ...
+// NewSlapper creates and returns a new Slapper instance with the provided configuration and resource manager.
+// It also preloads the skin for the slapper.
 func NewSlapper(log *slog.Logger, conf *Config, resManager *resources.Manager) *Slapper {
 	s := &Slapper{
 		log:        log,
@@ -35,7 +37,7 @@ func NewSlapper(log *slog.Logger, conf *Config, resManager *resources.Manager) *
 	return s
 }
 
-// preloadSkin ...
+// preloadSkin loads the skin texture and model from file paths based on the slapper's configuration.
 func (s *Slapper) preloadSkin() {
 	// Convert paths to full filesystem paths
 	unpackedPath := s.resManager.UnpackedPath()
@@ -48,7 +50,7 @@ func (s *Slapper) preloadSkin() {
 	)
 }
 
-// Spawn ...
+// Spawn creates the slapper NPC in the world with its configured properties and assigns an interaction handler.
 func (s *Slapper) Spawn(tx *world.Tx) {
 	n := npc.Create(
 		npc.Settings{
@@ -74,7 +76,8 @@ func (s *Slapper) Spawn(tx *world.Tx) {
 	s.handle = n.H()
 }
 
-// update ...
+// update refreshes the slapper's name tag based on the server's status.
+// It displays the server's online status and player count.
 func (s *Slapper) update(tx *world.Tx) {
 	ent, ok := s.handle.Entity(tx)
 	if !ok {
@@ -97,7 +100,7 @@ func (s *Slapper) update(tx *world.Tx) {
 	p.SetNameTag(fmt.Sprintf("%s\n%s", s.conf.Name, status))
 }
 
-// Server ...
+// Server retrieves the server associated with the slapper based on its configured server identifier.
 func (s *Slapper) Server() *srv.Server {
 	return srv.FromIdentifier(s.conf.ServerIdentifier)
 }

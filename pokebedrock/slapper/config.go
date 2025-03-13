@@ -8,7 +8,8 @@ import (
 	"path/filepath"
 )
 
-// Config ...
+// Config represents the configuration for a slapper, including its name, identifier,
+// associated server, position, and rotation.
 type Config struct {
 	Name       string `json:"name"`
 	Identifier string `json:"identifier"`
@@ -26,7 +27,8 @@ type Config struct {
 	} `json:"position"`
 }
 
-// ReadAll ...
+// ReadAll reads all JSON slapper configuration files from the specified path
+// and returns a slice of Config. It walks through the directory and parses each valid JSON file.
 func ReadAll(path string) ([]Config, error) {
 	var configs []Config
 	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
@@ -48,7 +50,8 @@ func ReadAll(path string) ([]Config, error) {
 	return configs, nil
 }
 
-// parseConfig ...
+// parseConfig reads a JSON file and unmarshals its contents into a Config structure.
+// Returns an error if reading or parsing fails.
 func parseConfig(file string) (Config, error) {
 	var cfg Config
 	data, err := os.ReadFile(file)

@@ -8,7 +8,8 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv/ping"
 )
 
-// Server ...
+// Server represents a Minecraft server with configuration, retries, and online status.
+// It provides methods for interacting with server properties and monitoring its status.
 type Server struct {
 	log *slog.Logger
 
@@ -17,7 +18,7 @@ type Server struct {
 	status  atomic.Value[Status]
 }
 
-// NewServer ...
+// NewServer creates and returns a new Server instance with the provided logger and configuration.
 func NewServer(log *slog.Logger, conf Config) *Server {
 	srv := &Server{
 		log: log,
@@ -26,7 +27,8 @@ func NewServer(log *slog.Logger, conf Config) *Server {
 	return srv
 }
 
-// pingServer ...
+// pingServer pings the server to check if it's online and updates the status accordingly.
+// If the ping fails repeatedly, the server is assumed offline.
 func (s *Server) pingServer() {
 	response, err := ping.Ping(s.Address())
 	if err != nil {
@@ -53,7 +55,7 @@ func (s *Server) pingServer() {
 	s.status.Store(st)
 }
 
-// assumeOffline ...
+// assumeOffline marks the server as offline in its status.
 func (s *Server) assumeOffline() {
 	st := Status{
 		Online: false,
@@ -61,37 +63,37 @@ func (s *Server) assumeOffline() {
 	s.status.Store(st)
 }
 
-// Name ...
+// Name returns the server's name from its configuration.
 func (s *Server) Name() string {
 	return s.Config().Name
 }
 
-// Identifier ...
+// Identifier returns the server's unique identifier from its configuration.
 func (s *Server) Identifier() string {
 	return s.Config().Identifier
 }
 
-// Icon ...
+// Icon returns the server's icon (e.g., URL or base64 data) from its configuration.
 func (s *Server) Icon() string {
 	return s.Config().Icon
 }
 
-// Address ...
+// Address returns the server's address from its configuration.
 func (s *Server) Address() string {
 	return s.Config().Address
 }
 
-// Retries ...
+// Retries returns the current number of retries for the server ping.
 func (s *Server) Retries() int32 {
 	return s.retries.Load()
 }
 
-// Config ...
+// Config returns the server's configuration.
 func (s *Server) Config() Config {
 	return s.conf.Load()
 }
 
-// Status ...
+// Status returns the server's current status.
 func (s *Server) Status() Status {
 	return s.status.Load()
 }

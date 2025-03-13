@@ -6,7 +6,8 @@ import (
 	"github.com/sandertv/go-raknet"
 )
 
-// RakNetResponse ...
+// RakNetResponse represents the response data for a RakNet ping.
+// It contains information about the server's game type, player count, and other details.
 type RakNetResponse struct {
 	GameType         string
 	MessageOfTheDay  string
@@ -19,7 +20,8 @@ type RakNetResponse struct {
 	ServerGameMode   string
 }
 
-// Ping ...
+// Ping sends a ping to the specified server address and returns a RakNetResponse with the server's details.
+// It returns an error if the ping or data parsing fails.
 func Ping(address string) (RakNetResponse, error) {
 	raw, err := raknet.Ping(address)
 	if err != nil {
@@ -42,7 +44,8 @@ func Ping(address string) (RakNetResponse, error) {
 	}, nil
 }
 
-// splitPong ...
+// splitPong splits the raw pong string into individual tokens.
+// It also handles escape sequences and semicolons as token separators.
 func splitPong(s string) []string {
 	var runes []rune
 	var tokens []string

@@ -111,7 +111,7 @@ func rankWorker() {
 	}
 }
 
-// Ranks ...
+// Ranks represents a struct to manage player ranks and rank fetching times.
 type Ranks struct {
 	rankMu sync.Mutex
 	ranks  []rank.Rank
@@ -119,7 +119,7 @@ type Ranks struct {
 	lastRankFetch atomic.Value[time.Time]
 }
 
-// NewRanks ...
+// NewRanks initialises and returns a new instance of Ranks.
 func NewRanks() *Ranks {
 	r := &Ranks{
 		ranks: make([]rank.Rank, 0),
@@ -247,12 +247,12 @@ func (r *Ranks) sortRanks() {
 	})
 }
 
-// LastRankFetch ...
+// LastRankFetch returns the last time the rank was fetched.
 func (r *Ranks) LastRankFetch() time.Time {
 	return r.lastRankFetch.Load()
 }
 
-// SetLastRankFetch ...
+// SetLastRankFetch sets the last time the rank was fetched.
 func (r *Ranks) SetLastRankFetch(t time.Time) {
 	r.lastRankFetch.Store(t)
 }

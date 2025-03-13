@@ -1,6 +1,6 @@
 package srv
 
-// Status ...
+// Status represents the current state of a server.
 type Status struct {
 	Online         bool
 	PlayerCount    int

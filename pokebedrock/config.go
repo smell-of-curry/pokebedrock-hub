@@ -8,7 +8,7 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/text"
 )
 
-// Config ...
+// Config holds the server configuration, including paths, translations, and service-related settings.
 type Config struct {
 	PokeBedrock struct {
 		ServerPath  string
@@ -28,7 +28,7 @@ type Config struct {
 	server.UserConfig
 }
 
-// DefaultConfig ...
+// DefaultConfig returns a config with prefilled default values.
 func DefaultConfig() Config {
 	c := Config{}
 
