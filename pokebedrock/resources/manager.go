@@ -229,7 +229,6 @@ func (m *Manager) downloadResourcePack(release *GithubRelease) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
 
 	// Download the file
 	if _, err = io.Copy(out, resp.Body); err != nil {
@@ -240,6 +239,8 @@ func (m *Manager) downloadResourcePack(release *GithubRelease) error {
 	if err = m.unzipResourcePack(packPath); err != nil {
 		return err
 	}
+
+	out.Close()
 
 	// Delete the .mcpack file after successful unpacking
 	if err = os.Remove(packPath); err != nil {
