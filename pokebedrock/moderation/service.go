@@ -135,6 +135,7 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/addInfliction", bytes.NewBuffer(rawRequest))
+		s.log.Debug(fmt.Sprintf("Adding infliction for url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
 		if err != nil {
 			cancel()
 			return fmt.Errorf("failed to create request: %w", err)
