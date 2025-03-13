@@ -132,16 +132,17 @@ func isTemporaryError(err error) bool {
 	return false
 }
 
-// RolesError ...
-func RolesError(log *slog.Logger, xuid string, err error) {
+// RolesError parses a role error to be sent to a player.
+func RolesError(err error) string {
+	// TODO: Convert these to locale
 	switch {
 	case errors.Is(err, UserNotFound):
-		log.Info("no roles found for player", "xuid", xuid)
+		return "Your account is not linked to the server."
 	case errors.Is(err, TimeoutError):
-		log.Warn("timeout while fetching roles", "xuid", xuid)
+		return "Timeout while fetching roles"
 	case errors.Is(err, ServerError):
-		log.Error("server error while fetching roles", "xuid", xuid)
+		return "Server error while fetching roles"
 	default:
-		log.Error("failed to fetch roles", "xuid", xuid, "error", err)
+		return fmt.Sprintf("Failed to fetch roles %s", err)
 	}
 }
