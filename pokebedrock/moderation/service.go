@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
@@ -135,7 +136,7 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/addInfliction", bytes.NewBuffer(rawRequest))
-		s.log.Debug(fmt.Sprintf("Adding infliction for url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
+		s.log.Debug(fmt.Sprintf("Adding infliction on url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
 		if err != nil {
 			cancel()
 			return fmt.Errorf("failed to create request: %w", err)
@@ -207,6 +208,38 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 		return fmt.Errorf("failed to remove infliction: %s", string(body))
 	}
 	return lastErr
+}
+
+// SendDetailsOf ...
+func (s *Service) SendDetailsOf(p *player.Player) {
+	req := PlayerDetails{
+		Name: p.Name(),
+		XUID: p.XUID(),
+		IPs:  strings.Split(p.Addr().String(), ":")[0],
+	}
+	rawRequest, err := json.Marshal(req)
+	if err != nil {
+		s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))
+		return
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
+	s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
+	if err != nil {
+		s.log.Error(fmt.Sprintf("failed to create new request: %v", err))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("authorization", s.key)
+
+	resp, err := s.client.Do(httpReq)
+	if err != nil {
+		s.log.Error(fmt.Sprintf("request failed: %v", err))
+		return
+	}
+	defer resp.Body.Close()
+
+	s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
 }
 
 // isTemporaryError ...

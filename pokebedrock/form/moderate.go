@@ -121,12 +121,10 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 			}
 
 			err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
-				// TODO: Add a way to get the XUID of the target
 				Name:             c.target,
 				InflictionStatus: moderation.InflictionStatusCurrent,
 				Infliction:       infliction,
 			})
-
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s' %s.</red>", c.target, err.Error()))
 				return
@@ -145,6 +143,10 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 				}
 				switch infliction.Type {
 				case moderation.InflictionMuted:
+					exp := infliction.ExpiryDate
+					if exp != nil && *exp != 0 {
+						handler.Inflictions().SetMuteDuration(*exp)
+					}
 					handler.Inflictions().SetMuted(true)
 				case moderation.InflictionFrozen:
 					handler.Inflictions().SetFrozen(true)

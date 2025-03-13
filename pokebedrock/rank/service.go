@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 )
 
 // globalService ...
@@ -134,14 +135,13 @@ func isTemporaryError(err error) bool {
 
 // RolesError parses a role error to be sent to a player.
 func RolesError(err error) string {
-	// TODO: Convert these to locale
 	switch {
 	case errors.Is(err, UserNotFound):
-		return "Your account is not linked to the server."
+		return locale.Translate("error.account_not_linked")
 	case errors.Is(err, TimeoutError):
-		return "Timeout while fetching roles"
+		return locale.Translate("error.timeout_fetching_roles")
 	case errors.Is(err, ServerError):
-		return "Server error while fetching roles"
+		return locale.Translate("error.server_error_fetching_roles")
 	default:
 		return fmt.Sprintf("Failed to fetch roles %s", err)
 	}

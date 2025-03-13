@@ -206,6 +206,7 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 	h := handler.NewPlayerHandler(p)
 	p.Handle(h)
 
+	go moderation.GlobalService().SendDetailsOf(p)
 	h.HandleJoin(p, poke.World())
 }
 

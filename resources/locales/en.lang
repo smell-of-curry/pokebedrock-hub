@@ -20,3 +20,7 @@ queue.destination.invalid=<red>Your queue destination no longer exists.</red>
 connection.connecting=<green>Connecting you to %1...</green>
 connection.failed=<red>Connection failed: %1. You've been placed back in queue.</red>
 queue.position=<white>Queue position: #%1 - %2</white>
+
+error.account_not_linked=Your account is not linked to the server.
+error.timeout_fetching_roles=Timeout while fetching roles.
+error.server_error_fetching_roles=Server error while fetching roles.

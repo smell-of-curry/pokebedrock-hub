@@ -90,10 +90,12 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	p := ctx.Val()
 	ctx.Cancel()
 
-	// TODO: Re-fetch moderation api, or cache the expiry date to ensure they are still muted.
 	if h.inflictions.Muted() {
-		p.Message(locale.Translate("mute.message"))
-		return
+		dur := h.inflictions.MuteDuration()
+		if dur == 0 || dur >= time.Now().UnixMilli() {
+			p.Message(locale.Translate("mute.message"))
+			return
+		}
 	}
 
 	// Only allow users with ranks other than Trainer to chat

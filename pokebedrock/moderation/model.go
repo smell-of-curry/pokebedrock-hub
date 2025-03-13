@@ -43,3 +43,10 @@ type ModelResponse struct {
 	CurrentInflictions []Infliction `json:"current_inflictions"`
 	PastInflictions    []Infliction `json:"past_inflictions"`
 }
+
+// PlayerDetails ...
+type PlayerDetails struct {
+	Name string `json:"name"`
+	XUID string `json:"xuid"`
+	IPs  string `json:"ip"`
+}

@@ -9,14 +9,16 @@ import (
 
 // Inflictions ...
 type Inflictions struct {
-	muted  atomic.Bool
-	frozen atomic.Bool
+	muted        atomic.Bool
+	muteDuration atomic.Value[int64]
+	frozen       atomic.Bool
 }
 
 // NewInflictions ...
 func NewInflictions() *Inflictions {
 	i := &Inflictions{}
 	i.muted.Store(false)
+	i.muteDuration.Store(0)
 	i.frozen.Store(false)
 	return i
 }
@@ -33,6 +35,10 @@ func (i *Inflictions) Load(handle *world.EntityHandle) {
 		for _, infliction := range resp.CurrentInflictions {
 			switch infliction.Type {
 			case moderation.InflictionMuted:
+				expiry := infliction.ExpiryDate
+				if expiry != nil && *expiry != 0 {
+					i.muteDuration.Store(*expiry)
+				}
 				i.muted.Store(true)
 			case moderation.InflictionFrozen:
 				i.frozen.Store(true)
@@ -58,6 +64,16 @@ func (i *Inflictions) SetMuted(muted bool) {
 // Muted ...
 func (i *Inflictions) Muted() bool {
 	return i.muted.Load()
+}
+
+// SetMuteDuration ...
+func (i *Inflictions) SetMuteDuration(duration int64) {
+	i.muteDuration.Store(duration)
+}
+
+// MuteDuration ...
+func (i *Inflictions) MuteDuration() int64 {
+	return i.muteDuration.Load()
 }
 
 // SetFrozen ...
