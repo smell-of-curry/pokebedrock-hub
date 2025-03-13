@@ -116,6 +116,10 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 	go func() {
 		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
 			prosecutor = e.(*player.Player)
+			if prosecutor == nil {
+				return
+			}
+
 			err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
 				Name:             c.target,
 				InflictionStatus: moderation.InflictionStatusCurrent,
