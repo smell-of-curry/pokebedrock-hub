@@ -1,7 +1,7 @@
 error.inflictions.load=<yellow>There was an error whilst loading your inflictions. Please try relogging and contact support if the issue persists.</yellow>
 error.ban.message=<red>You're banned! Reason: %1, Expiry Date: %2, Prosecutor: %3</red>
 
-welcome.hub=<white>Welcome to the PokeBedrock Hub!</white><new-line><grey>If you have priority queue, or want to sync your rank, ensure your Discord is linked.</grey><new-line><grey>Use /link in the Discord to link your roles.</grey>
+welcome.hub=<white>Welcome to the <aqua>PokeBedrock Hub!</aqua></white><new-line><grey>If you have priority queue, or want to sync your rank, ensure your Discord is linked.</grey><new-line><grey>Use <aqua>/link</aqua> in the Discord to link your roles.</grey>
 rank.fetching=<grey>Fetching your rank...</grey>
 rank.refetch.wait=<yellow>Please wait %1 seconds before refetching your rank.</yellow>
 mute.message=<red>You're muted.</red>
