@@ -126,7 +126,7 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 				Infliction:       infliction,
 			})
 			if err != nil {
-				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s'.</red>", c.target))
+				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s' %s.</red>", c.target, err.Error()))
 				return
 			}
 			prosecutor.Message(text.Colourf("<green>Added infliction on '%s'.</green>", c.target))
