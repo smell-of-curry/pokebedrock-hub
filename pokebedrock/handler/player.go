@@ -52,7 +52,7 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 	kit.Apply(kit.Lobby, p)
 
 	msg := locale.Translate("welcome.hub")
-	for _, l := range strings.Split(msg, "<new-line>") {
+	for l := range strings.SplitSeq(msg, "<new-line>") {
 		p.Message(l)
 	}
 }
