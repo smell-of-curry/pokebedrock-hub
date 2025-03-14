@@ -199,8 +199,13 @@ func NewRemoveInfliction(target string) form.Menu {
 }
 
 // Submit ...
-func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, tx *world.Tx) {
+func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	prosecutor := sub.(*player.Player)
+
+	if b.Text == "No inflictions found" {
+		return
+	}
+
 	infliction, ok := r.inflictionMap[b.Text]
 	if !ok {
 		prosecutor.Message(text.Colourf("<red>Infliction not found within map.</red>"))
