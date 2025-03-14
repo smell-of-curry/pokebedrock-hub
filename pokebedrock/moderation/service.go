@@ -119,7 +119,6 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 			}
 
 			s.log.Debug(fmt.Sprintf("Fetched inflictions of xuid=%s,name=%s and response=%+v", req.XUID, req.Name, response))
-
 			return &response, nil
 		case http.StatusTooManyRequests:
 			lastErr = fmt.Errorf("rate limited")

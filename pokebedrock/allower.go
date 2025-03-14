@@ -1,6 +1,7 @@
 package pokebedrock
 
 import (
+	"log/slog"
 	"net"
 
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
@@ -16,6 +17,7 @@ func (Allower) Allow(_ net.Addr, d login.IdentityData, _ login.ClientData) (stri
 	resp, err := moderation.GlobalService().InflictionOfXUID(d.XUID)
 	if err != nil {
 		// TODO: Change this back to disabled once fixed.
+		slog.Default().Error("error whilst loading inflictions", "xuid", d.XUID, "error", err)
 		return locale.Translate("error.inflictions.load"), true
 	}
 	for _, i := range resp.CurrentInflictions {
