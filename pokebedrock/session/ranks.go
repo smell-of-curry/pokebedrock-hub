@@ -19,6 +19,11 @@ var (
 	rankUpdateCh = make(chan rankUpdate, 100)
 )
 
+// StopRankChannel closes the rank update channel.
+func StopRankChannel() {
+	close(rankUpdateCh)
+}
+
 // rankUpdate represents a rank update request for a player
 type rankUpdate struct {
 	xuid string
@@ -58,56 +63,64 @@ func updatePlayer(update rankUpdate, message string, color string) {
 
 // rankWorker processes rank updates in the background
 func rankWorker() {
-	for update := range rankUpdateCh {
-		// Check if the update timed out
+	for {
 		select {
-		case <-update.ch:
-			continue
-		default:
-		}
-
-		// Ensure the player is still online
-		if update.handle == nil {
-			continue
-		}
-
-		// Fetch the player's roles
-		roles, err := rank.GlobalService().RolesOfXUID(update.xuid)
-		if err != nil {
-			update.ranks.SetRanks([]rank.Rank{rank.UnLinked})
-			updatePlayer(update, rank.RolesError(err), "red")
-			continue
-		}
-
-		// API request successful, map roles to ranks
-		ranks := rank.RolesToRanks(roles)
-		if len(ranks) == 0 {
-			// Player has no valid roles that map to ranks, shouldn't be possible so we will just map to Trainer
-			ranks = []rank.Rank{rank.Trainer}
-		}
-
-		// Ensure the player is still online
-		if update.handle == nil {
-			continue
-		}
-
-		// Update the player's ranks
-		update.ranks.SetRanks(ranks)
-
-		highestRank := update.ranks.HighestRank()
-		rankUpdateMessage := locale.Translate("rank.synced", highestRank.Name())
-		updatePlayer(update, rankUpdateMessage, "green")
-
-		// Update the player's nametag
-		update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-			p, ok := e.(*player.Player)
+		case update, ok := <-rankUpdateCh:
 			if !ok {
+				// Channel is closed, worker can exit.
 				return
 			}
 
-			nameTag := highestRank.NameTag(p.Name())
-			p.SetNameTag(nameTag)
-		})
+			// Check if the update timed out
+			select {
+			case <-update.ch:
+				continue
+			default:
+			}
+
+			// Ensure the player is still online
+			if update.handle == nil {
+				continue
+			}
+
+			// Fetch the player's roles
+			roles, err := rank.GlobalService().RolesOfXUID(update.xuid)
+			if err != nil {
+				update.ranks.SetRanks([]rank.Rank{rank.UnLinked})
+				updatePlayer(update, rank.RolesError(err), "red")
+				continue
+			}
+
+			// API request successful, map roles to ranks
+			ranks := rank.RolesToRanks(roles)
+			if len(ranks) == 0 {
+				// Player has no valid roles that map to ranks, shouldn't be possible so we will just map to Trainer
+				ranks = []rank.Rank{rank.Trainer}
+			}
+
+			// Ensure the player is still online
+			if update.handle == nil {
+				continue
+			}
+
+			// Update the player's ranks
+			update.ranks.SetRanks(ranks)
+
+			highestRank := update.ranks.HighestRank()
+			rankUpdateMessage := locale.Translate("rank.synced", highestRank.Name())
+			updatePlayer(update, rankUpdateMessage, "green")
+
+			// Update the player's nametag
+			update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+				p, ok := e.(*player.Player)
+				if !ok {
+					return
+				}
+
+				nameTag := highestRank.NameTag(p.Name())
+				p.SetNameTag(nameTag)
+			})
+		}
 	}
 }
 

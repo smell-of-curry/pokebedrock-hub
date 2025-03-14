@@ -15,6 +15,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
@@ -87,7 +88,7 @@ func (poke *PokeBedrock) Start() {
 		poke.accept(pl)
 	}
 
-	close(poke.c)
+	poke.Close()
 }
 
 // handleWorld initialises and configures the world settings.
@@ -210,6 +211,15 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 
 	go moderation.GlobalService().SendDetailsOf(p)
 	h.HandleJoin(p, poke.World())
+}
+
+// Close closes the server.
+func (poke *PokeBedrock) Close() {
+	moderation.GlobalService().Stop()
+	rank.GlobalService().Stop()
+
+	session.StopRankChannel()
+	close(poke.c)
 }
 
 // World returns the default world.

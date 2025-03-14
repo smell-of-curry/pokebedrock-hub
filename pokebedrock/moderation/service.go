@@ -27,8 +27,9 @@ func GlobalService() *Service {
 // Service represents a service for interacting with a moderation API.
 // It holds the configuration for the service such as the URL, key, HTTP client, and logger.
 type Service struct {
-	url string
-	key string
+	url    string
+	key    string
+	closed bool
 
 	client *http.Client
 	log    *slog.Logger
@@ -38,8 +39,9 @@ type Service struct {
 // This function configures the HTTP client and sets up the service.
 func NewService(log *slog.Logger, url, key string) {
 	globalService = &Service{
-		url: url,
-		key: key,
+		url:    url,
+		key:    key,
+		closed: false,
 		client: &http.Client{
 			Timeout: requestTimeout,
 		},
@@ -81,6 +83,10 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if s.closed {
+			break
+		}
+
 		if attempt > 0 {
 			time.Sleep(retryDelay)
 		}
@@ -137,6 +143,10 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if s.closed {
+			break
+		}
+
 		if attempt > 0 {
 			time.Sleep(retryDelay)
 		}
@@ -183,6 +193,10 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if s.closed {
+			break
+		}
+
 		if attempt > 0 {
 			time.Sleep(retryDelay)
 		}
@@ -221,6 +235,10 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 // SendDetailsOf sends the details of a player (name, XUID, IP address) to the service.
 // This function sends a request with the player's information to be processed by the moderation system.
 func (s *Service) SendDetailsOf(p *player.Player) {
+	if s.closed {
+		return
+	}
+
 	req := PlayerDetails{
 		Name: p.Name(),
 		XUID: p.XUID(),
@@ -249,6 +267,11 @@ func (s *Service) SendDetailsOf(p *player.Player) {
 	defer resp.Body.Close()
 
 	s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
+}
+
+// Stop stops the service.
+func (s *Service) Stop() {
+	s.closed = true
 }
 
 // isTemporaryError checks if an error is temporary and can be retried.

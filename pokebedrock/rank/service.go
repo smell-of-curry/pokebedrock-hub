@@ -26,7 +26,8 @@ func GlobalService() *Service {
 // Service is responsible for interacting with the service that provides player roles.
 // It contains configuration details like the service URL, HTTP client, and a logger for debugging.
 type Service struct {
-	url string
+	url    string
+	closed bool
 
 	client *http.Client
 	log    *slog.Logger
@@ -36,7 +37,8 @@ type Service struct {
 // This function sets up the service configuration, including the HTTP client and logger.
 func NewService(log *slog.Logger, url string) {
 	globalService = &Service{
-		url: url,
+		url:    url,
+		closed: false,
 		client: &http.Client{
 			Timeout: requestTimeout,
 		},
@@ -70,6 +72,10 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 	var lastErr error
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if s.closed {
+			break
+		}
+
 		if attempt > 0 {
 			time.Sleep(retryDelay)
 		}
@@ -123,6 +129,11 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 		}
 	}
 	return nil, lastErr
+}
+
+// Stop stops the service.
+func (s *Service) Stop() {
+	s.closed = true
 }
 
 // isTemporaryError determines whether the given error is a temporary error that can be retried.
