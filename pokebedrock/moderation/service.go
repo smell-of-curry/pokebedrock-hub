@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
@@ -223,7 +224,7 @@ func (s *Service) SendDetailsOf(p *player.Player) {
 	req := PlayerDetails{
 		Name: p.Name(),
 		XUID: p.XUID(),
-		IP:   p.Addr().String(),
+		IP:   strings.Split(p.Addr().String(), ":")[0],
 	}
 	rawRequest, err := json.Marshal(req)
 	if err != nil {
