@@ -54,5 +54,5 @@ type ModelResponse struct {
 type PlayerDetails struct {
 	Name string `json:"name"`
 	XUID string `json:"xuid"`
-	IPs  string `json:"ip"`
+	IP   string `json:"ip"`
 }
