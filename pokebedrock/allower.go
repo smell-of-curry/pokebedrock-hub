@@ -15,7 +15,8 @@ type Allower struct{}
 func (Allower) Allow(_ net.Addr, d login.IdentityData, _ login.ClientData) (string, bool) {
 	resp, err := moderation.GlobalService().InflictionOfXUID(d.XUID)
 	if err != nil {
-		return locale.Translate("error.inflictions.load"), false
+		// TODO: Change this back to disabled once fixed.
+		return locale.Translate("error.inflictions.load"), true
 	}
 	for _, i := range resp.CurrentInflictions {
 		if i.Type == moderation.InflictionBanned {

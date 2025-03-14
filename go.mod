@@ -45,4 +45,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/sandertv/go-raknet => github.com/smell-of-curry/go-raknet v0.0.0-20250302123416-ae992ea65021
+replace github.com/sandertv/go-raknet => github.com/smell-of-curry/go-raknet v0.0.0-20250314172126-71bb156b6413
