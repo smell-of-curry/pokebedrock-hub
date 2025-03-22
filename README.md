@@ -1,95 +1,87 @@
-# PokeBedrock Server Hub
+# PokeBedrock Server Hub 🎮🌐
 
-The PokeBedrock Server Hub is a powerful, high-performance central lobby system built with [Dragonfly](https://github.com/df-mc/dragonfly). It serves as the entry point for players into the PokeBedrock network, managing server connections, player queues, and providing a seamless experience for navigating between the main servers.
+The **PokeBedrock Server Hub** is a robust, high-performance central lobby system built with [Dragonfly](https://github.com/df-mc/dragonfly). It serves as the gateway into the expansive PokeBedrock network—seamlessly managing server connections, player queues, and navigation between the main servers.
 
-## Features
+## Features 🛠️
 
-### NPC Slapper System
+### 🤖 NPC Slapper System
+Interactive NPCs throughout the world let players quickly join various servers across the network.
 
-The hub employs interactive NPCs throughout the world that allow players to connect to various servers in the network.
+- **Dynamic Nametags 🔥**
+  - **Real-Time Updates:** Display current online player counts.
+  - **Status Indicators:** Visual cues for online/offline status and server capacity.
+  
+- **Smart Interaction 🤝**
+  - **Seamless Transfers:** Players can tap on NPCs to initiate server transfers.
+  - **Confirmation Dialogs:** Prevent accidental transfers.
+  - **Automatic Queueing:** Get placed in line if a server is full.
 
-- **Dynamic Nametags**:
-  - Real-time updates showing current online player counts
-  - Server status indicators (online/offline)
-  - Visual indicators of server capacity
+### ⏳ Priority Queue System
+Manage high-traffic periods with a sophisticated priority queue system that ensures smooth and fair player transfers.
 
-- **Smart Interaction**:
-  - Players can interact with NPCs to initiate server transfer
-  - Confirmation dialog prevents accidental transfers
-  - Automatic queue placement when servers are at capacity
+- **Visual Queue Display 👀**
+  - **Boss Bar:** Shows your current queue position, estimated wait time, and destination.
+  - **Real-Time Updates:** Queue positions adjust dynamically based on priority algorithms.
+  
+- **Priority Rankings 🥇**
+  - **Ranked Order:** Players are sorted by rank (ex. Admin > Moderator > Premium > Trainer).
+  - **Fairness:** Within the same rank, join time determines order (first come, first served).
+  - **Clear Communication:** Queue positions are always clearly indicated.
+  
+- **Intelligent Transfer 🚀**
+  - **Auto-Transfer:** Players are moved automatically as soon as space is available.
+  - **Graceful Handling:** Failed transfers trigger automatic re-entry into the queue.
+  - **Admin Bypass:** Staff can bypass queues to access near-capacity servers.
 
-### Priority Queue System
+### 🧭 Compass Navigator
+Equip players with a special compass that simplifies server navigation.
 
-The hub features a sophisticated priority queue system that manages player transfers efficiently, especially during high-traffic periods.
+- **Interactive Interface:**
+  - **Compass Menu:** Opens a form displaying all available servers.
+  - **Live Status:** Shows server status and current player counts.
+  - **Direct Queue Access:** Join the queue just like interacting with NPCs.
 
-- **Visual Queue Display**:
-  - Boss bar shows accurate queue position, waiting time, and destination
-  - Position updates in real-time based on priority algorithms
-  - Clear indication of estimated wait time
+### 👑 Rank System Integration
+Seamlessly integrate with Discord roles to enhance the rank system across the hub.
 
-- **Priority Rankings**:
-  - Players are sorted based on their rank (Admin > Moderator > Premium > Trainer)
-  - Within the same rank, players are ordered by join time (first come, first served)
-  - Queue position is clearly communicated to players
+- **Asynchronous Rank Loading ⚡**
+  - **Non-Blocking API:** Load player ranks in the background without affecting performance.
+  - **Instant Recognition:** Cached ranks ensure returning players are quickly recognized.
+  - **Background Refresh:** Ranks are updated continually to stay current.
 
-- **Intelligent Transfer**:
-  - Players are transferred automatically when space becomes available
-  - Failed transfers are handled gracefully with automatic queue re-entry
-  - Admin bypass allows staff to join near-capacity servers
+- **Visual Rank Display 🎨**
+  - **Custom Nametags:** Player names showcase their rank with unique styles.
+  - **Formatted Chat:** Chat messages reflect rank-specific formatting.
+  - **Distinct Styling:** Different colors and fonts for Admins, Moderators, Premium members, etc.
 
-### Compass Navigator
-  - Players receive a special compass in their inventory
-  - Compass opens a form showing all available servers
-  - Server status and player counts are displayed in the navigation interface
-  - Allows players to enter into the queue for the server like the npcs.
+### 🎨 Resource Pack Management
+Ensure the hub always uses the latest version of the [PokeBedrock Resource Pack](https://github.com/smell-of-curry/pokebedrock-res) for a consistent experience.
 
-### Rank System Integration
+- **Version Checking 🔍**
+  - **Automatic Updates:** Detects and applies new resource pack versions from GitHub releases.
+  - **Integrity Verification:** Ensures the resource pack is current and valid.
+  
+- **Asset Management 📦**
+  - **Dynamic Organization:** Unpacks and organizes assets on the fly.
+  - **Custom Support:** Fully supports textures, models, and sounds.
+  - **Efficient Loading:** Loads only the necessary resources for optimal performance.
 
-The hub integrates with Discord roles to provide a comprehensive rank system.
-
-- **Asynchronous Rank Loading**:
-  - Player ranks are loaded from the API without blocking server performance
-  - Cached ranks provide instant recognition for returning players
-  - Background refresh ensures ranks stay current
-
-- **Visual Rank Display**:
-  - Custom formatted nametags show player ranks
-  - Chat messages are formatted according to player rank
-  - Distinct colors and styles for different ranks (Admin, Moderator, Premium, etc.)
-
-### Resource Pack Management
-
-Since the PokeBedrock Hub requires the use of the [PokeBedrock Resource Pack](https://github.com/smell-of-curry/pokebedrock-res) it must always make sure that it is using the current, up to date, version.
-
-- **Version Checking**:
-  - Automatic detection of new resource pack versions
-  - Seamless updates from GitHub releases
-  - Verification of pack integrity
-
-- **Asset Management**:
-  - Dynamic unpacking and organization of resource assets
-  - Support for custom textures, models, and sounds
-  - Efficient loading of only necessary resources
-
-## 4. Moderation Integration
+### 🔒 Moderation Integration
 
 **Purpose:**  
-Enable the hub to interact with the external moderation system on `pokebedrock.com`.
+Enable seamless interaction with the external moderation system on `pokebedrock.com`.
 
-**Requirements:**
+- **API Communication 🔗**
+  - **Data Sync:** Send and receive moderation data (bans, mutes, freezes, warnings) via the API.
+  
+- **Operator Commands 💬**
+  - **Custom Commands:** Implement commands like ban, mute, and kick to update user statuses through the API.
 
-- **API Communication:**
-  - The hub must be able to send and receive data from the moderation system via its API.
-  - The API provides moderation details such as bans, mutes, freezes, and warnings.
+For further details, see the [Moderation System documentation](./docs/ModerationSystem.md).
 
-- **Operator Commands:**
-  - Implement custom commands (e.g., ban, mute, kick) that communicate with the moderation API to update user statuses.
+## Additional Notes 📝
 
-The Moderation system details can be found [here](./docs/ModerationSystem.md)
-
-## Additional Notes
-
-- **Player Data**: The hub only persists data for staff members and players with special ranks
-- **Server Count Display**: The hub displays a combined player count across all network servers
-- **World Limitations**: The world is finite with custom boundaries to prevent chunk generation
-- **Localization**: All player-facing text uses resource pack translations for multi-language support
+- **Player Data:** Only staff and players with special ranks have persistent data.
+- **Server Count Display:** A combined player count across all network servers is showcased.
+- **World Boundaries:** The hub world is finite with custom limits to prevent endless chunk generation.
+- **Localization:** All player-facing text is translated via the resource pack to support multiple languages.
