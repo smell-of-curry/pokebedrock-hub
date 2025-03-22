@@ -91,7 +91,7 @@ func (poke *PokeBedrock) Start() {
 	poke.Close()
 }
 
-// handleWorld initialises and configures the world settings.
+// handleWorld initializes and configures the world settings.
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
@@ -215,10 +215,13 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 
 // Close closes the server.
 func (poke *PokeBedrock) Close() {
+	poke.log.Debug("Closing Moderation Service...")
 	moderation.GlobalService().Stop()
+	poke.log.Debug("Closing Rank Service...")
 	rank.GlobalService().Stop()
-
+	poke.log.Debug("Stopping Rank Channel...")
 	session.StopRankChannel()
+	poke.log.Debug("Stopping Queue Manager...")
 	close(poke.c)
 }
 
