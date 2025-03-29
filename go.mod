@@ -45,6 +45,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/sandertv/gophertunnel => github.com/smell-of-curry/gophertunnel v0.0.0-20250325212231-7bb1e528779e
+replace github.com/sandertv/gophertunnel => github.com/smell-of-curry/gophertunnel v0.0.0-20250328154502-5b42dc861018
 
 replace github.com/sandertv/go-raknet => github.com/smell-of-curry/go-raknet v0.0.0-20250314172126-71bb156b6413
