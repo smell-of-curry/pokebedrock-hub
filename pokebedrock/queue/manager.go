@@ -263,7 +263,6 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 
 		bar := bossbar.New(locale.Translate("queue.position", position, waitMsg))
 		p.SendBossBar(bar)
-		position++
 	}
 }
 
