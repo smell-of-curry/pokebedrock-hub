@@ -21,7 +21,7 @@ func NewServerNavigator() form.Menu {
 	var btns []form.Button
 	for _, s := range srv.All() {
 		st := s.Status()
-		statusName := "Unknown"
+		var statusName string
 		if st.Online {
 			statusName = "<green>Online</green>"
 		} else {
