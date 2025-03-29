@@ -134,7 +134,7 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 
 			for ent := range tx.Players() {
 				victim := ent.(*player.Player)
-				if strings.ToLower(victim.Name()) != strings.ToLower(c.target) {
+				if !strings.EqualFold(victim.Name(), c.target) {
 					continue
 				}
 				handler, ok := victim.Handler().(inflictionHandler)
@@ -229,7 +229,7 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 
 			for ent := range tx.Players() {
 				victim := ent.(*player.Player)
-				if strings.ToLower(victim.Name()) != strings.ToLower(r.target) {
+				if !strings.EqualFold(victim.Name(), r.target) {
 					continue
 				}
 				handler, ok := victim.Handler().(inflictionHandler)
