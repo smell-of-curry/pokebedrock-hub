@@ -63,13 +63,13 @@ func DefaultConfig() Config {
 // ReadConfig ...
 func ReadConfig() (Config, error) {
 	g := gophig.NewGophig[Config]("./config.toml", gophig.TOMLMarshaler{}, os.ModePerm)
-	c, err := g.LoadConf()
+	_, err := g.LoadConf()
 	if os.IsNotExist(err) {
 		err = g.SaveConf(DefaultConfig())
 		if err != nil {
 			return Config{}, err
 		}
 	}
-	c, err = g.LoadConf()
+	c, err := g.LoadConf()
 	return c, err
 }
