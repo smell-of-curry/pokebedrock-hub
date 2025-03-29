@@ -55,7 +55,7 @@ func Register(lang language.Tag, filePath string) error {
 // Translate translates a key to the default language (English) and formats it with the provided arguments.
 // It uses the TranslateL function internally for the English translation.
 func Translate(key string, args ...any) string {
-	return text.Colourf(TranslateL(language.English, key, args...))
+	return text.Colourf("%s", TranslateL(language.English, key, args...))
 }
 
 // TranslateL translates a key to a specified language and formats it with the provided arguments.

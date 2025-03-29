@@ -97,7 +97,7 @@ func (m *Manager) RemovePlayer(p *player.Player) {
 	for i, entry := range m.Queue() {
 		if entry.handle == p.H() {
 			m.RemoveFromQueue(i)
-			p.Messagef(locale.Translate("queue.removed", entry.srv.Name()))
+			p.Messagef("%s", locale.Translate("queue.removed", entry.srv.Name()))
 			break
 		}
 	}

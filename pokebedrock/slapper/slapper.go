@@ -54,7 +54,7 @@ func (s *Slapper) preloadSkin() {
 func (s *Slapper) Spawn(tx *world.Tx) {
 	n := npc.Create(
 		npc.Settings{
-			Name: text.Colourf(s.conf.Name),
+			Name: text.Colourf("%s", s.conf.Name),
 
 			Scale: s.conf.Scale,
 			Yaw:   s.conf.Yaw,

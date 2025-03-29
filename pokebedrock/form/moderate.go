@@ -36,7 +36,7 @@ func (m Moderate) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	case "create an infliction":
 		p.SendForm(NewCreateInfliction(m.target))
 	case "remove an infliction":
-		p.Messagef(text.Colourf("<green>Processing inflictions for %s...</green>", m.target))
+		p.Messagef("%s", text.Colourf("<green>Processing inflictions for %s...</green>", m.target))
 		h := p.H()
 		go func() {
 			f := NewRemoveInfliction(m.target)
