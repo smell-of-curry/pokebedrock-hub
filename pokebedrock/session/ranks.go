@@ -132,7 +132,7 @@ type Ranks struct {
 	lastRankFetch atomic.Value[time.Time]
 }
 
-// NewRanks initialises and returns a new instance of Ranks.
+// NewRanks initializes and returns a new instance of Ranks.
 func NewRanks() *Ranks {
 	r := &Ranks{
 		ranks: make([]rank.Rank, 0),

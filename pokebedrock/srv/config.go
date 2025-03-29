@@ -41,7 +41,7 @@ func ReadAll(path string) ([]Config, error) {
 	return configs, nil
 }
 
-// parseConfig reads a file and unmarshals its JSON data into a Config structure.
+// parseConfig reads a file and unmarshal' its JSON data into a Config structure.
 // Returns an error if reading or parsing fails.
 func parseConfig(file string) (Config, error) {
 	var cfg Config

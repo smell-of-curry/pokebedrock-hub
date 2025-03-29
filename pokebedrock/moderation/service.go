@@ -182,7 +182,7 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 	return lastErr
 }
 
-// RemoveInfliction removes an existing infliction (e.g., unban, unmute) from a player.
+// RemoveInfliction removes an existing infliction (e.g., un-ban, un-mute) from a player.
 // It sends a request to the service to remove the infliction and retries on temporary errors.
 func (s *Service) RemoveInfliction(req ModelRequest) error {
 	rawRequest, err := json.Marshal(req)
