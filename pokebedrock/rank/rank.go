@@ -46,7 +46,7 @@ var rankInfos = map[Rank]RankInfo{
 	Premium:              {DisplayName: "Premium", Color: "green", Prefix: true, RoleID: "1096068279786815558"},
 	ContentCreator:       {DisplayName: "Content Creator", Color: "amethyst", Prefix: true, RoleID: "1084485790605787156"},
 	MonthlyTournamentMVP: {DisplayName: "Monthly Tournament MVP", Color: "aqua", Prefix: true, RoleID: "1281044331121217538"},
-	RetiredStaff:         {DisplayName: "Retired Staff", Color: "gray", Prefix: true, RoleID: "1179937172455952384"},
+	RetiredStaff:         {DisplayName: "Retired Staff", Color: "grey", Prefix: true, RoleID: "1179937172455952384"},
 	Helper:               {DisplayName: "Helper", Color: "yellow", Prefix: true, RoleID: "1088902437093523566"},
 	Team:                 {DisplayName: "Team", Color: "gold", Prefix: true, RoleID: "1067977855700574238"},
 	Translator:           {DisplayName: "Translator", Color: "dark-yellow", Prefix: true, RoleID: "1137751922217058365"},
