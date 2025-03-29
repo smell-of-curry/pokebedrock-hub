@@ -317,7 +317,9 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		}
 
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, 0755)
+			if err := os.MkdirAll(path, 0755); err != nil {
+				return fmt.Errorf("failed to create directory: %w", err)
+			}
 			continue
 		}
 
@@ -343,7 +345,9 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 			return fmt.Errorf("failed to copy file contents: %w", err)
 		}
 
-		bar.Add(1)
+		if err = bar.Add(1); err != nil {
+			m.log.Warn("failed to update progress bar", "error", err)
+		}
 	}
 
 	// Validate the unpacked resource pack
