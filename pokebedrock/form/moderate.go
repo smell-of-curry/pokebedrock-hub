@@ -14,12 +14,14 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 )
 
-// Moderate ...
+// Moderate represents a form for moderating a specific player by their name.
+// It displays options for creating or removing inflictions.
 type Moderate struct {
 	target string
 }
 
-// NewModerate ...
+// NewModerate creates a new moderation menu for the specified target player.
+// It returns a form.Menu with buttons for different moderation options.
 func NewModerate(target string) form.Menu {
 	f := form.NewMenu(Moderate{target: target}, text.Colourf("<yellow>Moderating '%s'</yellow>", target))
 	btns := []form.Button{
@@ -29,7 +31,8 @@ func NewModerate(target string) form.Menu {
 	return f.WithButtons(btns...)
 }
 
-// Submit ...
+// Submit handles the submission of the moderation form.
+// It processes the selected button and redirects to the appropriate action form.
 func (m Moderate) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	p := sub.(*player.Player)
 	switch strings.ToLower(text.Clean(b.Text)) {
@@ -48,7 +51,8 @@ func (m Moderate) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	}
 }
 
-// CreateInfliction ...
+// CreateInfliction represents a form for creating a new infliction on a player.
+// It contains fields for the type of infliction, expiry time, and reason.
 type CreateInfliction struct {
 	InflictionType form.Dropdown
 	Expiry         form.Input
@@ -57,7 +61,8 @@ type CreateInfliction struct {
 	target string
 }
 
-// NewCreateInfliction ...
+// NewCreateInfliction creates a new form for adding an infliction to the specified target player.
+// It initializes the form with dropdown options for infliction types and default input values.
 func NewCreateInfliction(target string) form.Custom {
 	inflictionTypes := []string{
 		string(moderation.InflictionBanned),
@@ -77,7 +82,8 @@ func NewCreateInfliction(target string) form.Custom {
 	return f
 }
 
-// Submit ...
+// Submit handles the submission of the create infliction form.
+// It processes the form data, creates the infliction, and applies it to the target player if they're online.
 func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 	prosecutor := sub.(*player.Player)
 
@@ -164,13 +170,15 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 	}()
 }
 
-// RemoveInfliction ...
+// RemoveInfliction represents a form for removing existing inflictions from a player.
+// It contains the target player name and a map of inflictions to their display labels.
 type RemoveInfliction struct {
 	target        string
 	inflictionMap map[string]moderation.Infliction
 }
 
-// NewRemoveInfliction ...
+// NewRemoveInfliction creates a new form for removing inflictions from the specified target player.
+// It fetches current inflictions and displays them as buttons.
 func NewRemoveInfliction(target string) form.Menu {
 	resp, err := moderation.GlobalService().InflictionOfName(target)
 	if err != nil {
@@ -198,7 +206,8 @@ func NewRemoveInfliction(target string) form.Menu {
 	return f.WithButtons(btns...)
 }
 
-// Submit ...
+// Submit handles the submission of the remove infliction form.
+// It processes the selected infliction and removes it from the target player.
 func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	prosecutor := sub.(*player.Player)
 
@@ -248,7 +257,8 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 	}()
 }
 
-// inflictionHandler ...
+// inflictionHandler defines the interface for handlers that can manage player inflictions.
+// It requires an Inflictions method that returns the player's infliction state container.
 type inflictionHandler interface {
 	Inflictions() *session.Inflictions
 }

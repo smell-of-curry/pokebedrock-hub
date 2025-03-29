@@ -79,7 +79,8 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	return poke, nil
 }
 
-// Start starts the server.
+// Start begins the server's main loop, accepting connections and handling players.
+// It blocks until the server is closed.
 func (poke *PokeBedrock) Start() {
 	poke.srv.Listen()
 	poke.handleWorld()
@@ -92,6 +93,7 @@ func (poke *PokeBedrock) Start() {
 }
 
 // handleWorld initializes and configures the world settings.
+// It sets up the environment and starts background processes.
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
@@ -141,7 +143,9 @@ func (poke *PokeBedrock) loadServices() {
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
 }
 
-// loadServers loads all the servers from the config.
+// loadServers loads all the server configurations from the specified path
+// and registers them with the server manager. It panics if server configurations
+// cannot be read.
 func (poke *PokeBedrock) loadServers() {
 	cfgs, err := srv.ReadAll(poke.conf.PokeBedrock.ServerPath)
 	if err != nil {
@@ -157,7 +161,9 @@ func (poke *PokeBedrock) loadServers() {
 	srv.UpdateAll()
 }
 
-// loadSlappers loads all the npc slappers from the config.
+// loadSlappers loads and spawns all NPC entities (slappers) from the configuration.
+// It reads slapper configurations from the specified path and summons them in the world.
+// Panics if slapper configurations cannot be read.
 func (poke *PokeBedrock) loadSlappers() {
 	w := poke.World()
 	cfgs, err := slapper.ReadAll(poke.conf.PokeBedrock.SlapperPath)

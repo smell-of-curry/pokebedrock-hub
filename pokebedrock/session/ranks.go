@@ -19,12 +19,14 @@ var (
 	rankUpdateCh = make(chan rankUpdate, 100)
 )
 
-// StopRankChannel closes the rank update channel.
+// StopRankChannel closes the rank update channel and ensures no more rank updates
+// will be processed. This should be called during server shutdown.
 func StopRankChannel() {
 	close(rankUpdateCh)
 }
 
-// rankUpdate represents a rank update request for a player
+// rankUpdate represents a rank update request for a player.
+// It contains all necessary data to process a rank update asynchronously.
 type rankUpdate struct {
 	xuid string
 
@@ -34,7 +36,8 @@ type rankUpdate struct {
 	ch chan struct{}
 }
 
-// init starts the background rank worker and cache cleanup
+// init starts the background rank worker and cache cleanup goroutines.
+// These goroutines handle rank updates and cleanup tasks in the background.
 func init() {
 	go rankWorker()
 }
@@ -205,7 +208,8 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 	}
 }
 
-// SetRanks updates the players ranks and sorts them.
+// SetRanks updates the player's ranks and sorts them in ascending order.
+// This ensures that the highest rank is always last in the slice.
 func (r *Ranks) SetRanks(ranks []rank.Rank) {
 	r.rankMu.Lock()
 	r.ranks = ranks

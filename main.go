@@ -7,13 +7,15 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock"
 )
 
-// init ...
+// init sets up basic logging until config is loaded
 func init() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	chat.Global.Subscribe(chat.StdoutSubscriber{})
 }
 
-// main ...
+// main is the entry point for the application. It initializes the configuration,
+// sets the appropriate log level, creates the PokeBedrock server instance,
+// and starts it.
 func main() {
 	log := slog.Default()
 	conf, err := pokebedrock.ReadConfig()
