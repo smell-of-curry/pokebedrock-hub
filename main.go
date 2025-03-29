@@ -9,6 +9,7 @@ import (
 
 // init sets up basic logging until config is loaded
 func init() {
+	// Default to debug during startup, will be reconfigured after config load
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	chat.Global.Subscribe(chat.StdoutSubscriber{})
 }
@@ -22,6 +23,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Set the log level based on configuration
+	logLevel, err := pokebedrock.ParseLogLevel(conf.PokeBedrock.LogLevel)
+	if err != nil {
+		log.Warn("Invalid log level in configuration", "error", err, "using", "info")
+		logLevel = slog.LevelInfo
+	}
+	slog.SetLogLoggerLevel(logLevel)
+	log.Info("Log level set", "level", logLevel.String())
 
 	poke, err := pokebedrock.NewPokeBedrock(log, conf)
 	if err != nil {

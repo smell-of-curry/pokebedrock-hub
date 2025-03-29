@@ -1,7 +1,10 @@
 package pokebedrock
 
 import (
+	"fmt"
 	"os"
+
+	"log/slog"
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/restartfu/gophig"
@@ -11,6 +14,7 @@ import (
 // Config holds the server configuration, including paths, translations, and service-related settings.
 type Config struct {
 	PokeBedrock struct {
+		LogLevel    string // Can be "debug", "info", "warn", "error"
 		ServerPath  string
 		SlapperPath string
 		LocalePath  string
@@ -32,6 +36,7 @@ type Config struct {
 func DefaultConfig() Config {
 	c := Config{}
 
+	c.PokeBedrock.LogLevel = "info" // Default to info level in production
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.SlapperPath = "resources/slapper"
 	c.PokeBedrock.LocalePath = "resources/locales"
@@ -60,7 +65,26 @@ func DefaultConfig() Config {
 	return c
 }
 
-// ReadConfig ...
+// ParseLogLevel returns the appropriate slog.Level based on string configuration.
+// Returns an error if the provided log level string is not recognized.
+func ParseLogLevel(level string) (slog.Level, error) {
+	switch level {
+	case "debug":
+		return slog.LevelDebug, nil
+	case "info":
+		return slog.LevelInfo, nil
+	case "warn":
+		return slog.LevelWarn, nil
+	case "error":
+		return slog.LevelError, nil
+	default:
+		return slog.LevelInfo, fmt.Errorf("unrecognized log level: %q", level)
+	}
+}
+
+// ReadConfig loads the server configuration from config.toml.
+// If the file doesn't exist, it creates a new one with default values.
+// Returns the loaded configuration and any error encountered.
 func ReadConfig() (Config, error) {
 	g := gophig.NewGophig[Config]("./config.toml", gophig.TOMLMarshaler{}, os.ModePerm)
 	_, err := g.LoadConf()
