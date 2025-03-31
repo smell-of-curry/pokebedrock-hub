@@ -78,7 +78,7 @@ func (r Rank) Name() string {
 
 // formatName formats a player's name according to their rank.
 // If the rank uses a prefix, the rank's title is prepended.
-func (r Rank) formatName(name string) string {
+func (r Rank) FormatName(name string) string {
 	if _, ok := rankInfos[r]; !ok {
 		return text.Colourf("<grey>%s</grey>", name)
 	}
@@ -91,10 +91,10 @@ func (r Rank) formatName(name string) string {
 
 // Chat formats a chat message with the rank's styled name.
 func (r Rank) Chat(name, message string) string {
-	return text.Colourf("%s: <grey>%s</grey>", r.formatName(name), message)
+	return text.Colourf("%s: <grey>%s</grey>", r.FormatName(name), message)
 }
 
 // NameTag returns the formatted name tag of the player.
 func (r Rank) NameTag(name string) string {
-	return r.formatName(name)
+	return r.FormatName(name)
 }
