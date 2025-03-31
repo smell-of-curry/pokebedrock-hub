@@ -136,6 +136,7 @@ func (poke *PokeBedrock) loadLocales() error {
 func (poke *PokeBedrock) loadCommands() {
 	cmd.Register(command.NewModerate(rank.Moderator))
 	cmd.Register(command.NewKick(rank.Moderator))
+	cmd.Register(command.NewList(rank.Trainer))
 }
 
 // loadServices loads all the services.
