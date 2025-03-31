@@ -135,6 +135,7 @@ func (poke *PokeBedrock) loadLocales() error {
 // loadCommands registers all the commands on the server.
 func (poke *PokeBedrock) loadCommands() {
 	cmd.Register(command.NewModerate(rank.Moderator))
+	cmd.Register(command.NewKick(rank.Moderator))
 }
 
 // loadServices loads all the services.
