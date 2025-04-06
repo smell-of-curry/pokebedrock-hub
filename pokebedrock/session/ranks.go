@@ -22,7 +22,12 @@ var (
 // StopRankChannel closes the rank update channel and ensures no more rank updates
 // will be processed. This should be called during server shutdown.
 func StopRankChannel() {
+	// Close the channel first to prevent new updates from being queued
 	close(rankUpdateCh)
+
+	// Allow time for any in-progress updates to complete
+	timeout := time.NewTimer(3 * time.Second)
+	<-timeout.C
 }
 
 // rankUpdate represents a rank update request for a player.
