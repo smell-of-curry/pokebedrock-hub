@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -33,10 +34,20 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 		inflictions: session.NewInflictions(),
 	}
 
-	go h.inflictions.Load(p.H())
+	// Add a small random delay to infliction loading to avoid all players
+	// loading their inflictions at the exact same time
 	go func() {
-		// Small delay to ensure player is fully initialized
-		time.Sleep(100 * time.Millisecond)
+		// Random delay between 100ms and 2000ms to space out requests
+		delay := time.Duration(100+rand.Intn(1900)) * time.Millisecond
+		time.Sleep(delay)
+		h.inflictions.Load(p.H())
+	}()
+
+	// Add another random delay to rank loading
+	go func() {
+		// Random delay between 500ms and 3000ms
+		delay := time.Duration(500+rand.Intn(2500)) * time.Millisecond
+		time.Sleep(delay)
 		h.Ranks().Load(p.XUID(), p.H())
 	}()
 
