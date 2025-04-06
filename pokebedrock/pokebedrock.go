@@ -217,11 +217,13 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 	h := handler.NewPlayerHandler(p)
 	p.Handle(h)
 
+	// Send player details asynchronously through the queue
 	go moderation.GlobalService().SendDetailsOf(p)
+
 	h.HandleJoin(p, poke.World())
 }
 
-// Close closes the server.
+// Close closes the server and all its associated services.
 func (poke *PokeBedrock) Close() {
 	poke.log.Debug("Closing Moderation Service...")
 	moderation.GlobalService().Stop()

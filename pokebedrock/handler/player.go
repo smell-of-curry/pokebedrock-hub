@@ -26,7 +26,7 @@ type PlayerHandler struct {
 	player.NopHandler
 }
 
-// NewPlayerHandler ...
+// NewPlayerHandler creates a new player handler with initialized ranks and inflictions.
 func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	h := &PlayerHandler{
 		ranks:       session.NewRanks(),
