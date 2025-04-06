@@ -38,12 +38,28 @@ type Service struct {
 // NewService initializes a new global service instance with the provided logger, URL, and authorization key.
 // This function configures the HTTP client and sets up the service.
 func NewService(log *slog.Logger, url, key string) {
+	// Create a custom HTTP transport with optimized connection pooling
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   3 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   3 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		MaxIdleConnsPerHost:   maxConcurrentRequests * 2, // Allow more idle connections per host
+		MaxConnsPerHost:       maxConcurrentRequests * 3, // Limit max connections per host
+	}
+
 	globalService = &Service{
 		url:    url,
 		key:    key,
 		closed: false,
 		client: &http.Client{
-			Timeout: requestTimeout,
+			Timeout:   requestTimeout,
+			Transport: transport,
 		},
 		log: log,
 	}
@@ -53,6 +69,9 @@ const (
 	maxRetries     = 3
 	retryDelay     = 300 * time.Millisecond
 	requestTimeout = 5 * time.Second
+
+	// Maximum number of concurrent API requests
+	maxConcurrentRequests = 5
 )
 
 // InflictionOfPlayer retrieves the inflictions for a given player by their XUID.
@@ -231,46 +250,132 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 	return lastErr
 }
 
-// SendDetailsOf sends the details of a player (name, XUID, IP address) to the service.
-// This function sends a request with the player's information to be processed by the moderation system.
+// SendDetailsOfQueue is a buffered channel for queueing player detail requests
+var SendDetailsOfQueue = make(chan playerDetailsRequest, 100)
+
+// Used to signal worker shutdown
+var detailsWorkerShutdown = make(chan struct{})
+
+// playerDetailsRequest represents a queued request to send player details
+type playerDetailsRequest struct {
+	player *player.Player
+}
+
+// init starts the background worker for processing player details requests
+func init() {
+	go playerDetailsWorker()
+}
+
+// playerDetailsWorker processes queued player detail requests with rate limiting
+func playerDetailsWorker() {
+	// Create a semaphore using a buffered channel to limit concurrent requests
+	semaphore := make(chan struct{}, maxConcurrentRequests)
+
+	// Track active requests to ensure we can shut down cleanly
+	activeRequests := make(chan struct{}, maxConcurrentRequests)
+
+	for {
+		select {
+		case <-detailsWorkerShutdown:
+			// Wait for all active requests to finish before exiting
+			for i := 0; i < len(activeRequests); i++ {
+				<-activeRequests
+			}
+			return
+		case req, ok := <-SendDetailsOfQueue:
+			if !ok {
+				// Channel closed, exit worker
+				return
+			}
+
+			// Acquire semaphore slot (blocks if maxConcurrentRequests are already running)
+			select {
+			case semaphore <- struct{}{}:
+				// Track active request
+				activeRequests <- struct{}{}
+
+				// Process request in a goroutine
+				go func(p *player.Player) {
+					defer func() {
+						// Release semaphore slot when done
+						<-semaphore
+						// Mark request as complete
+						<-activeRequests
+					}()
+
+					// Skip if service is closed
+					s := GlobalService()
+					if s == nil || s.closed {
+						return
+					}
+
+					req := PlayerDetails{
+						Name: p.Name(),
+						XUID: p.XUID(),
+						IP:   strings.Split(p.Addr().String(), ":")[0],
+					}
+					rawRequest, err := json.Marshal(req)
+					if err != nil {
+						s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))
+						return
+					}
+
+					ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+					defer cancel()
+
+					httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
+					s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", s.url+"/playerDetails", bytes.NewBuffer(rawRequest)))
+					if err != nil {
+						s.log.Error(fmt.Sprintf("failed to create new request: %v", err))
+						return
+					}
+					httpReq.Header.Set("Content-Type", "application/json")
+					httpReq.Header.Set("authorization", s.key)
+
+					resp, err := s.client.Do(httpReq)
+					if err != nil {
+						s.log.Error(fmt.Sprintf("request failed: %v", err))
+						return
+					}
+					defer resp.Body.Close()
+
+					s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
+				}(req.player)
+			case <-detailsWorkerShutdown:
+				// Worker is shutting down, don't start new requests
+				return
+			}
+		}
+	}
+}
+
+// SendDetailsOf queues a request to send player details to the API
 func (s *Service) SendDetailsOf(p *player.Player) {
 	if s.closed {
 		return
 	}
 
-	req := PlayerDetails{
-		Name: p.Name(),
-		XUID: p.XUID(),
-		IP:   strings.Split(p.Addr().String(), ":")[0],
+	// Queue the request instead of processing it immediately
+	select {
+	case SendDetailsOfQueue <- playerDetailsRequest{player: p}:
+		// Successfully queued
+	default:
+		// Queue is full, log warning
+		s.log.Error(fmt.Sprintf("Player details queue is full, skipping request for %s", p.Name()))
 	}
-	rawRequest, err := json.Marshal(req)
-	if err != nil {
-		s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))
-		return
-	}
-
-	httpReq, err := http.NewRequest(http.MethodPost, s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
-	s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
-	if err != nil {
-		s.log.Error(fmt.Sprintf("failed to create new request: %v", err))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("authorization", s.key)
-
-	resp, err := s.client.Do(httpReq)
-	if err != nil {
-		s.log.Error(fmt.Sprintf("request failed: %v", err))
-		return
-	}
-	defer resp.Body.Close()
-
-	s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
 }
 
-// Stop stops the service.
+// Stop stops the service and associated workers.
 func (s *Service) Stop() {
+	s.log.Debug("Stopping moderation service and workers...")
 	s.closed = true
+
+	// Signal the worker to shutdown
+	close(detailsWorkerShutdown)
+
+	// Give workers time to finish active requests (up to 3 seconds)
+	timeout := time.NewTimer(3 * time.Second)
+	<-timeout.C
 }
 
 // isTemporaryError checks if an error is temporary and can be retried.
