@@ -231,6 +231,10 @@ func (poke *PokeBedrock) Close() {
 	rank.GlobalService().Stop()
 	poke.log.Debug("Stopping Rank Channel...")
 	session.StopRankChannel()
+	poke.log.Debug("Stopping Rank Load Worker...")
+	session.StopRankLoadWorker()
+	poke.log.Debug("Stopping Infliction Worker...")
+	session.StopInflictionWorker()
 	poke.log.Debug("Stopping Queue Manager...")
 	close(poke.c)
 }
