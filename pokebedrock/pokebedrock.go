@@ -217,8 +217,8 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 	h := handler.NewPlayerHandler(p)
 	p.Handle(h)
 
-	// Send player details asynchronously through the queue
-	go moderation.GlobalService().SendDetailsOf(p)
+	// Send details of the player to the moderation service
+	moderation.GlobalService().SendDetailsOf(p)
 
 	h.HandleJoin(p, poke.World())
 }
