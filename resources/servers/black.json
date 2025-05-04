@@ -1,6 +1,7 @@
 {
   "name": "PokeBedrock §0Black §r(US)",
   "identifier": "black",
-  "address": "us.pokebedrock.com:19132",
-  "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/main/pack_icon.png"
+  "address": "40.160.19.215:19136",
+  "beta_lock": true,
+  "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/refs/heads/main/textures/ui/server_logos/black.png"
 }
