@@ -17,6 +17,10 @@ import (
 // Channel for async rank updates and shutdown
 var (
 	rankUpdateCh = make(chan rankUpdate, 100)
+	// rankLoadQueue is a buffered channel for loading player ranks
+	rankLoadQueue = make(chan rankLoadRequest, 50)
+	// Used to signal worker shutdown
+	rankLoadWorkerShutdown = make(chan struct{})
 )
 
 // StopRankChannel closes the rank update channel and ensures no more rank updates
@@ -41,10 +45,18 @@ type rankUpdate struct {
 	ch chan struct{}
 }
 
+// rankLoadRequest represents a queued request to load player ranks
+type rankLoadRequest struct {
+	xuid   string
+	handle *world.EntityHandle
+	ranks  *Ranks
+}
+
 // init starts the background rank worker and cache cleanup goroutines.
 // These goroutines handle rank updates and cleanup tasks in the background.
 func init() {
 	go rankWorker()
+	go rankLoadWorker()
 }
 
 // updatePlayer sends a colored message to the player, sets their ranks, and closes the update's done channel.
@@ -121,6 +133,36 @@ func rankWorker() {
 			nameTag := highestRank.NameTag(p.Name())
 			p.SetNameTag(nameTag)
 		})
+	}
+}
+
+// rankLoadWorker processes rank loading requests with rate limiting
+func rankLoadWorker() {
+	// Create a semaphore to limit concurrent API requests
+	semaphore := make(chan struct{}, 3) // Allow 3 concurrent requests
+
+	for {
+		select {
+		case <-rankLoadWorkerShutdown:
+			return
+		case req, ok := <-rankLoadQueue:
+			if !ok {
+				return
+			}
+
+			// Acquire semaphore slot
+			semaphore <- struct{}{}
+
+			go func(req rankLoadRequest) {
+				defer func() {
+					// Release semaphore slot when done
+					<-semaphore
+				}()
+
+				// Use the original Load method to load ranks
+				req.ranks.Load(req.xuid, req.handle)
+			}(req)
+		}
 	}
 }
 
@@ -269,4 +311,42 @@ func (r *Ranks) LastRankFetch() time.Time {
 // SetLastRankFetch sets the last time the rank was fetched.
 func (r *Ranks) SetLastRankFetch(t time.Time) {
 	r.lastRankFetch.Store(t)
+}
+
+// QueueLoad adds a rank loading request to the queue
+func (r *Ranks) QueueLoad(xuid string, handle *world.EntityHandle) {
+	// Avoid blocking if queue is full
+	select {
+	case rankLoadQueue <- rankLoadRequest{
+		xuid:   xuid,
+		handle: handle,
+		ranks:  r,
+	}:
+		// Successfully queued
+		if handle != nil {
+			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+				p, ok := e.(*player.Player)
+				if !ok {
+					return
+				}
+				p.SendTip(locale.Translate("rank.queue.added"))
+			})
+		}
+	default:
+		// Queue is full
+		if handle != nil {
+			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+				p, ok := e.(*player.Player)
+				if !ok {
+					return
+				}
+				p.SendTip(locale.Translate("rank.update.queue.full"))
+			})
+		}
+	}
+}
+
+// StopRankLoadWorker stops the rank loading worker
+func StopRankLoadWorker() {
+	close(rankLoadWorkerShutdown)
 }

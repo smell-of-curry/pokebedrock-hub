@@ -40,17 +40,32 @@ type inflictionRequest struct {
 	inflictions *Inflictions
 }
 
-// init starts the background worker for processing infliction requests
-func init() {
-	go inflictionWorker()
+var (
+	// inflictionQueue is a buffered channel for loading player inflictions
+	inflictionLoadQueue = make(chan inflictionLoadRequest, 50)
+	// Used to signal worker shutdown
+	inflictionLoadWorkerShutdown = make(chan struct{})
+)
+
+// inflictionLoadRequest represents a queued request to load player inflictions
+type inflictionLoadRequest struct {
+	handle *world.EntityHandle
+	inf    *Inflictions
 }
 
-// StopInflictionWorker stops the infliction worker goroutine gracefully
-func StopInflictionWorker() {
-	// Signal worker to shutdown
-	close(inflictionWorkerShutdown)
+// init starts the background workers for processing infliction requests
+func init() {
+	go inflictionWorker()
+	go inflictionLoadWorker()
+}
 
-	// Give workers time to finish active requests (up to 3 seconds)
+// StopInflictionWorker stops all infliction workers gracefully
+func StopInflictionWorker() {
+	// Signal workers to shutdown
+	close(inflictionWorkerShutdown)
+	close(inflictionLoadWorkerShutdown)
+
+	// Give workers time to finish active requests
 	timeout := time.NewTimer(3 * time.Second)
 	<-timeout.C
 }
@@ -181,4 +196,51 @@ func (i *Inflictions) SetFrozen(frozen bool) {
 // Frozen returns whether the player is frozen or not.
 func (i *Inflictions) Frozen() bool {
 	return i.frozen.Load()
+}
+
+// inflictionLoadWorker processes infliction load requests with rate limiting
+func inflictionLoadWorker() {
+	// Create a semaphore to limit concurrent API requests
+	// Set a smaller number to reduce server load
+	semaphore := make(chan struct{}, 3)
+
+	for {
+		select {
+		case <-inflictionLoadWorkerShutdown:
+			return
+		case req, ok := <-inflictionLoadQueue:
+			if !ok {
+				return
+			}
+
+			// Acquire semaphore slot (blocks if max concurrent are already running)
+			semaphore <- struct{}{}
+
+			go func(handle *world.EntityHandle, inf *Inflictions) {
+				defer func() {
+					// Release semaphore slot when done
+					<-semaphore
+				}()
+
+				// Skip if the entity doesn't exist anymore
+				if handle == nil {
+					return
+				}
+
+				// Use the original Load method directly
+				inf.Load(handle)
+			}(req.handle, req.inf)
+		}
+	}
+}
+
+// QueueLoad adds the player's handle to the infliction loading queue
+func (i *Inflictions) QueueLoad(handle *world.EntityHandle) {
+	// Avoid blocking the caller if the queue is full
+	select {
+	case inflictionLoadQueue <- inflictionLoadRequest{handle: handle, inf: i}:
+		// Successfully queued
+	default:
+		// Queue is full, log this somewhere if needed
+	}
 }
