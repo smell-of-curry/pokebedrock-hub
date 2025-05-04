@@ -24,3 +24,5 @@ queue.position=<white>Queue position: #%1 - %2</white>
 error.account_not_linked=Your account is not linked to the server.
 error.timeout_fetching_roles=Timeout while fetching roles.
 error.server_error_fetching_roles=Server error while fetching roles.
+
+queue.beta.lock=<red>Beta lock is enabled for this server. Only Supporters and Staff can join.</red>

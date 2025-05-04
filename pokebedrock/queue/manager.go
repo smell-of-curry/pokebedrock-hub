@@ -54,6 +54,12 @@ func NewManager() *Manager {
 // ahead of players with lower ranks (e.g., Trainer), regardless of how long
 // the lower-ranked players have been waiting.
 func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
+	// Check if beta lock is enabled, if so, only Supporters and staff can join
+	if srv.Config().BetaLock && !(r == rank.Supporter || r >= rank.Moderator) {
+		p.Message(locale.Translate("queue.beta.lock"))
+		return
+	}
+
 	// First check if player is already in queue
 	m.RemovePlayer(p)
 

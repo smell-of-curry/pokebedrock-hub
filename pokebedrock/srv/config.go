@@ -14,6 +14,7 @@ type Config struct {
 	Name       string `json:"name"`
 	Identifier string `json:"identifier"`
 	Icon       string `json:"icon"`
+	BetaLock   bool   `json:"beta_lock"`
 
 	Address string `json:"address"`
 }
