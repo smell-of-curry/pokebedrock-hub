@@ -278,7 +278,7 @@ func playerDetailsWorker() {
 		select {
 		case <-detailsWorkerShutdown:
 			// Wait for all active requests to finish before exiting
-			for i := 0; i < len(activeRequests); i++ {
+			for range len(activeRequests) {
 				<-activeRequests
 			}
 			return
