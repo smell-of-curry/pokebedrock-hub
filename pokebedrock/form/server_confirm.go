@@ -7,7 +7,9 @@ import (
 	"github.com/df-mc/dragonfly/server/player/form"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
@@ -40,7 +42,16 @@ func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 		return
 	}
 
-	queue.QueueManager.AddPlayer(p, h.Ranks().HighestRank(), f.srv)
+	cfg := f.srv.Config()
+
+	// Check if beta lock is enabled, if so, only Supporters and staff can join
+	highestRank := h.Ranks().HighestRank()
+	if cfg.BetaLock && !(h.Ranks().HasRank(rank.Supporter) || highestRank >= rank.Moderator) {
+		p.Message(locale.Translate("queue.beta.lock"))
+		return
+	}
+
+	queue.QueueManager.AddPlayer(p, highestRank, f.srv)
 }
 
 // rankHandler ...
