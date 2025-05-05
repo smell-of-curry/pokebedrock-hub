@@ -16,7 +16,7 @@ type serverNavigator struct{}
 // NewServerNavigator ...
 func NewServerNavigator() form.Menu {
 	f := form.NewMenu(serverNavigator{},
-		text.Colourf("<purple>Server Navigator</purple>"))
+		text.Colourf("Server Navigator"))
 
 	var btns []form.Button
 	for _, s := range srv.All() {
