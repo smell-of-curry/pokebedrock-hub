@@ -60,7 +60,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		c:          make(chan struct{}),
 		resManager: resManager,
 	}
-	poke.setupGin()
+	go poke.setupGin()
 
 	// TODO: Enable when these get fixed.
 	// poke.loadTranslations(&c)
@@ -146,6 +146,8 @@ func (poke *PokeBedrock) setupGin() {
 			"xuid": req.XUID,
 		})
 	})
+
+	_ = router.Run(poke.conf.Service.IdentityURL)
 }
 
 // loadTranslations loads all the translation used in dragonfly.
