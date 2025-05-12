@@ -2,14 +2,17 @@ package pokebedrock
 
 import (
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/gin-gonic/gin"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/identity"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
@@ -57,11 +60,14 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		c:          make(chan struct{}),
 		resManager: resManager,
 	}
+	poke.setupGin()
+
 	// TODO: Enable when these get fixed.
 	// poke.loadTranslations(&c)
 	if err = poke.loadLocales(); err != nil {
 		return nil, err
 	}
+
 	poke.loadCommands()
 
 	c.ReadOnlyWorld = true
@@ -108,6 +114,39 @@ func (poke *PokeBedrock) handleWorld() {
 	poke.loadServers()
 	poke.loadSlappers()
 	go poke.startTicking()
+}
+
+// setupGin sets up gin for the gobds proxy.
+func (poke *PokeBedrock) setupGin() {
+	gin.SetMode(gin.ReleaseMode)
+
+	router := gin.Default()
+	router.Use(func(c *gin.Context) {
+		if c.GetHeader("authorization") != poke.conf.Service.IdentityKey {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		c.Next()
+	})
+	router.GET("/identity/:name", func(c *gin.Context) {
+		name := c.Param("name")
+		req, exists := identity.GlobalFactory().Of(name)
+		if !exists {
+			c.JSON(http.StatusNotFound, gin.H{"reason": "no player found"})
+			return
+		}
+
+		if time.Now().After(req.Expiration) {
+			identity.GlobalFactory().Remove(name)
+
+			c.JSON(http.StatusNotFound, gin.H{"reason": "request expired"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"xuid": req.XUID,
+		})
+	})
 }
 
 // loadTranslations loads all the translation used in dragonfly.
