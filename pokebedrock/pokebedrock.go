@@ -138,8 +138,7 @@ func (poke *PokeBedrock) setupGin() {
 
 		if time.Now().After(req.Expiration) {
 			identity.GlobalFactory().Remove(name)
-
-			c.JSON(http.StatusNotFound, gin.H{"reason": "request expired"})
+			c.JSON(http.StatusGone, gin.H{"reason": "request expired"})
 			return
 		}
 
