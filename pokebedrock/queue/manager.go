@@ -9,6 +9,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/identity"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
@@ -200,14 +201,19 @@ func (m *Manager) Update(tx *world.Tx) {
 
 	// Third pass: process transfers
 	for _, transfer := range playersToTransfer {
+		p, server := transfer.player, transfer.server
+
 		// Notify the player they're being transferred
-		transfer.player.Message(locale.Translate("connection.connecting", transfer.server.Name()))
+		p.Message(locale.Translate("connection.connecting", server.Name()))
 
 		// Transfer the player
-		if err := transfer.player.Transfer(transfer.server.Address()); err != nil {
+		if err := p.Transfer(server.Address()); err != nil {
 			// If transfer fails, add player back to queue
-			transfer.player.Message(locale.Translate("connection.failed", err))
+			p.Message(locale.Translate("connection.failed", err))
 			m.AddToQueue(transfer.entry)
+		} else {
+			// Transfer was successful, send player data to identity factory.
+			identity.GlobalFactory().Set(p.Name(), p.XUID(), time.Minute*5)
 		}
 	}
 

@@ -2,9 +2,8 @@ package pokebedrock
 
 import (
 	"fmt"
-	"os"
-
 	"log/slog"
+	"os"
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/restartfu/gophig"
@@ -28,6 +27,8 @@ type Config struct {
 		RolesURL      string
 		ModerationURL string
 		ModerationKey string
+		IdentityURL   string
+		IdentityKey   string
 	}
 	server.UserConfig
 }
@@ -48,6 +49,8 @@ func DefaultConfig() Config {
 	c.Service.RolesURL = "http://127.0.0.1:4000/api/roles"
 	c.Service.ModerationURL = "http://127.0.0.1:4000/api/moderation"
 	c.Service.ModerationKey = "secret-key"
+	c.Service.IdentityURL = "127.0.0.1:4100"
+	c.Service.IdentityKey = "secret-key"
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
