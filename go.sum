@@ -87,8 +87,8 @@ github.com/schollz/progressbar/v3 v3.18.0 h1:uXdoHABRFmNIjUfte/Ex7WtuyVslrw2wVPQ
 github.com/schollz/progressbar/v3 v3.18.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
 github.com/segmentio/fasthash v1.0.3 h1:EI9+KE1EwvMLBWwjpRDc+fEM+prwxDYbslddQGtrmhM=
 github.com/segmentio/fasthash v1.0.3/go.mod h1:waKX8l2N8yckOgmSsXJi7x1ZfdKZ4x7KRMzBtS3oedY=
-github.com/smell-of-curry/go-raknet v0.0.0-20250514165831-c239166e7047 h1:gbNbsKZ4QQpGcCnNFJw4051zvd0265S6czPTz3uqVXM=
-github.com/smell-of-curry/go-raknet v0.0.0-20250514165831-c239166e7047/go.mod h1:/yysjwfCXm2+2OY8mBazLzcxJ3irnylKCyG3FLgUPVU=
+github.com/smell-of-curry/go-raknet v0.0.0-20250525222440-f01e8a792036 h1:8NTd6/5rSpfinl3lbKTTbudM7f1etBqNFXYa8t38z+o=
+github.com/smell-of-curry/go-raknet v0.0.0-20250525222440-f01e8a792036/go.mod h1:/yysjwfCXm2+2OY8mBazLzcxJ3irnylKCyG3FLgUPVU=
 github.com/smell-of-curry/gophertunnel v1.46.1-0.20250514165854-eb00f4647fb8 h1:FODteKxJJB7I5hMBpDEgrf2T5gSuE67HCbj+IfRFdpo=
 github.com/smell-of-curry/gophertunnel v1.46.1-0.20250514165854-eb00f4647fb8/go.mod h1:lvzOdyb2fkoo3uySe++hy4UKq0I649oUFJKkro2ZHpY=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
