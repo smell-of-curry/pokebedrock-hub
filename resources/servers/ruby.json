@@ -2,6 +2,6 @@
   "name": "PokeBedrock §cRuby §r(EU)",
   "identifier": "ruby",
   "address": "79.137.98.209:19132",
-  "beta_lock": true,
+  "beta_lock": false,
   "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/refs/heads/main/textures/ui/server_logos/ruby.png"
 }

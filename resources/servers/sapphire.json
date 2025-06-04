@@ -2,6 +2,6 @@
   "name": "PokeBedrock §bSapphire §r(EU)",
   "identifier": "sapphire",
   "address": "79.137.98.209:19136",
-  "beta_lock": true,
+  "beta_lock": false,
   "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/refs/heads/main/textures/ui/server_logos/sapphire.png"
 }

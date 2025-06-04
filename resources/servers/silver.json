@@ -2,6 +2,6 @@
   "name": "PokeBedrock §7Silver §r(US)",
   "identifier": "silver",
   "address": "40.160.19.240:19132",
-  "beta_lock": true,
+  "beta_lock": false,
   "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/refs/heads/main/textures/ui/server_logos/silver.png"
 }
