@@ -17,7 +17,7 @@ func init() {
 	globalFactory = &Factory{
 		data: make(map[string]PlayerIdentity),
 	}
-	globalFactory.startCleanup(time.Minute * 5)
+	go globalFactory.startCleanup(time.Minute * 5)
 }
 
 // Factory provides a thread-safe storage for player identities.
@@ -31,19 +31,18 @@ type Factory struct {
 // startCleanup begins a periodic cleanup routine that removes expired identities.
 // The interval parameter determines how often cleanup occurs.
 func (f *Factory) startCleanup(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	go func() {
-		for range ticker.C {
-			f.mu.Lock()
-			now := time.Now()
-			for name, identity := range f.data {
-				if now.After(identity.Expiration) {
-					delete(f.data, name)
-				}
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for range t.C {
+		f.mu.Lock()
+		now := time.Now()
+		for xuid, identity := range f.data {
+			if now.After(identity.Expiration) {
+				delete(f.data, xuid)
 			}
-			f.mu.Unlock()
 		}
-	}()
+		f.mu.Unlock()
+	}
 }
 
 // Set ...
