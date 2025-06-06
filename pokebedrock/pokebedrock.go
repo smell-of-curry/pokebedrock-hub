@@ -2,12 +2,15 @@ package pokebedrock
 
 import (
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/gin-gonic/gin"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
@@ -57,6 +60,12 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		c:          make(chan struct{}),
 		resManager: resManager,
 	}
+	go func() {
+		if err = poke.setupGin(); err != nil {
+			poke.log.Error("failed to start authentication service", "error", err)
+		}
+	}()
+
 	// TODO: Enable when these get fixed.
 	// poke.loadTranslations(&c)
 	if err = poke.loadLocales(); err != nil {
@@ -108,6 +117,39 @@ func (poke *PokeBedrock) handleWorld() {
 	poke.loadServers()
 	poke.loadSlappers()
 	go poke.startTicking()
+}
+
+// setupGin sets up gin for the gobds proxy.
+func (poke *PokeBedrock) setupGin() error {
+	gin.SetMode(gin.ReleaseMode)
+
+	router := gin.Default()
+	router.Use(func(c *gin.Context) {
+		if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		c.Next()
+	})
+	router.GET("/authentication/:xuid", func(c *gin.Context) {
+		xuid := c.Param("xuid")
+		req, exists := authentication.GlobalFactory().Of(xuid)
+		if !exists {
+			c.JSON(http.StatusNotFound, gin.H{"reason": "no player found"})
+			return
+		}
+
+		if time.Now().After(req.Expiration) {
+			authentication.GlobalFactory().Remove(xuid)
+			c.JSON(http.StatusGone, gin.H{"reason": "request expired"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"allowed": true,
+		})
+	})
+	return router.Run(poke.conf.Service.AuthenticationURL)
 }
 
 // loadTranslations loads all the translation used in dragonfly.
