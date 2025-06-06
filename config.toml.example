@@ -1,0 +1,32 @@
+[PokeBedrock]
+ServerPath = 'resources/servers'
+SlapperPath = 'resources/slapper'
+LocalePath = 'resources/locales'
+
+[Network]
+Address = ':19132'
+
+[Server]
+Name = '§r§cPoke§r§bBedrock§r'
+AuthEnabled = true
+DisableJoinQuitMessages = true
+
+[World]
+SaveData = true
+Folder = 'resources/world'
+
+[Players]
+MaxCount = 50
+MaximumChunkRadius = 16
+SaveData = false
+Folder = 'resources/player_data'
+
+[Resources]
+AutoBuildPack = false
+Folder = 'resources/resource_pack'
+Required = true
+
+[Service]
+RolesURL = 'http://11.111.11.11:4000'
+ModerationUrl = 'https://pokebedrock.com/api/moderation'
+ModerationKey = 'xxxxxx-xxxxx-xxxxxx-xxxxx' 
