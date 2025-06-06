@@ -2,9 +2,8 @@ package pokebedrock
 
 import (
 	"fmt"
-	"os"
-
 	"log/slog"
+	"os"
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/restartfu/gophig"
@@ -25,9 +24,14 @@ type Config struct {
 		MessageServerDisconnect string
 	}
 	Service struct {
+		GinAddress string
+
 		RolesURL      string
 		ModerationURL string
 		ModerationKey string
+
+		AuthenticationPrefix string
+		AuthenticationKey    string
 	}
 	server.UserConfig
 }
@@ -45,9 +49,14 @@ func DefaultConfig() Config {
 	c.Translation.MessageLeave = "<yellow>%v left the game</yellow>"
 	c.Translation.MessageServerDisconnect = "<yellow>Disconnected by Server</yellow>"
 
+	c.Service.GinAddress = ":8080"
+
 	c.Service.RolesURL = "http://127.0.0.1:4000/api/roles"
 	c.Service.ModerationURL = "http://127.0.0.1:4000/api/moderation"
 	c.Service.ModerationKey = "secret-key"
+
+	c.Service.AuthenticationPrefix = "authentication"
+	c.Service.AuthenticationKey = "secret-key"
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
