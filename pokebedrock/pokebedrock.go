@@ -1,6 +1,7 @@
 package pokebedrock
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -124,14 +125,12 @@ func (poke *PokeBedrock) setupGin() error {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
-	router.Use(func(c *gin.Context) {
+	router.GET(fmt.Sprintf("/%s/:xuid", poke.conf.Service.AuthenticationPrefix), func(c *gin.Context) {
 		if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
-		c.Next()
-	})
-	router.GET("/authentication/:xuid", func(c *gin.Context) {
+
 		xuid := c.Param("xuid")
 		req, exists := authentication.GlobalFactory().Of(xuid)
 		if !exists {
@@ -145,11 +144,9 @@ func (poke *PokeBedrock) setupGin() error {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"allowed": true,
-		})
+		c.JSON(http.StatusOK, gin.H{"allowed": true})
 	})
-	return router.Run(poke.conf.Service.AuthenticationURL)
+	return router.Run(poke.conf.Service.GinAddress)
 }
 
 // loadTranslations loads all the translation used in dragonfly.
