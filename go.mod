@@ -7,6 +7,7 @@ require (
 	github.com/df-mc/atomic v1.10.0
 	github.com/df-mc/dragonfly v0.10.4-0.20250514154505-83d0edfe1fb3
 	github.com/df-mc/npc v1.0.5
+	github.com/gin-gonic/gin v1.10.1
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.0.2
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
@@ -21,12 +22,10 @@ require (
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
-	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/df-mc/goleveldb v1.1.9 // indirect
 	github.com/df-mc/worldupgrader v1.0.19 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
-	github.com/gin-gonic/gin v1.10.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
