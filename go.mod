@@ -5,12 +5,13 @@ go 1.24.0
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.4-0.20250514154505-83d0edfe1fb3
+	github.com/df-mc/dragonfly v0.10.4
 	github.com/df-mc/npc v1.0.5
+	github.com/getsentry/sentry-go v0.33.0
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.0.2
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
-	github.com/sandertv/gophertunnel v1.46.0
+	github.com/sandertv/gophertunnel v1.47.2
 	github.com/schollz/progressbar/v3 v3.18.0
 	golang.org/x/text v0.26.0
 )
@@ -44,6 +45,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/sandertv/gophertunnel => github.com/smell-of-curry/gophertunnel v1.46.1-0.20250528213944-60478972e9d0
+replace github.com/sandertv/gophertunnel => github.com/smell-of-curry/gophertunnel v1.46.1-0.20250619134746-4e3dc6957f2f
 
 replace github.com/sandertv/go-raknet => github.com/smell-of-curry/go-raknet v0.0.0-20250525005230-991ee492a907
