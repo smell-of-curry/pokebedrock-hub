@@ -1,4 +1,5 @@
 [PokeBedrock]
+SentryDsn = ''
 ServerPath = 'resources/servers'
 SlapperPath = 'resources/slapper'
 LocalePath = 'resources/locales'

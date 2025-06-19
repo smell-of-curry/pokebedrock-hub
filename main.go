@@ -2,8 +2,10 @@ package main
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/df-mc/dragonfly/server/player/chat"
+	"github.com/getsentry/sentry-go"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock"
 )
 
@@ -23,6 +25,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = sentry.Init(sentry.ClientOptions{
+		Dsn: conf.PokeBedrock.SentryDsn,
+	})
+	if err != nil {
+		log.Error("sentry.Init", "error", err)
+		panic(err)
+	}
+
+	// Flush buffered events before the program terminates.
+	defer sentry.Flush(2 * time.Second)
 
 	// Set the log level based on configuration
 	logLevel, err := pokebedrock.ParseLogLevel(conf.PokeBedrock.LogLevel)
