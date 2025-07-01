@@ -24,6 +24,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/translation"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
 	"golang.org/x/text/language"
 )
 
@@ -182,6 +183,7 @@ func (poke *PokeBedrock) loadCommands() {
 func (poke *PokeBedrock) loadServices() {
 	rank.NewService(poke.log, poke.conf.Service.RolesURL)
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
+	vpn.NewService(poke.log, poke.conf.Service.VpnURL)
 }
 
 // loadServers loads all the server configurations from the specified path
@@ -268,6 +270,8 @@ func (poke *PokeBedrock) Close() {
 	moderation.GlobalService().Stop()
 	poke.log.Debug("Closing Rank Service...")
 	rank.GlobalService().Stop()
+	poke.log.Debug("Closing Vpn Service...")
+	vpn.GlobalService().Stop()
 	poke.log.Debug("Stopping Rank Channel...")
 	session.StopRankChannel()
 	poke.log.Debug("Stopping Rank Load Worker...")

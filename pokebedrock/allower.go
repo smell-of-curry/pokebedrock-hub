@@ -3,17 +3,22 @@ package pokebedrock
 import (
 	"log/slog"
 	"net"
+	"net/netip"
 
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
 )
 
 // Allower ...
 type Allower struct{}
 
 // Allow ...
-func (Allower) Allow(_ net.Addr, d login.IdentityData, _ login.ClientData) (string, bool) {
+func (a Allower) Allow(addr net.Addr, d login.IdentityData, _ login.ClientData) (string, bool) {
+	if reason, allowed := a.handleVPN(addr); !allowed {
+		return reason, allowed
+	}
 	resp, err := moderation.GlobalService().InflictionOfXUID(d.XUID)
 	if err != nil {
 		// TODO: Change this back to disabled once fixed.
@@ -26,4 +31,22 @@ func (Allower) Allow(_ net.Addr, d login.IdentityData, _ login.ClientData) (stri
 		}
 	}
 	return "", true
+}
+
+// handleVPN checks if the given network address is using a VPN and returns the reason and whether it's allowed.
+func (Allower) handleVPN(netAddr net.Addr) (reason string, allowed bool) {
+	addr, _ := netip.ParseAddrPort(netAddr.String())
+	addrString := addr.Addr().String()
+	if addrString == "127.0.0.1" || addrString == "0.0.0.0" || addrString == "localhost" {
+		return "", true
+	}
+
+	m, err := vpn.GlobalService().CheckIP(addrString)
+	if err != nil {
+		return err.Error(), false
+	}
+	if m.Status != vpn.StatusSuccess {
+		return m.Message, false
+	}
+	return "VPN/Proxy connections are not allowed.", m.Proxy
 }
