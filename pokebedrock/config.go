@@ -29,6 +29,7 @@ type Config struct {
 		RolesURL      string
 		ModerationURL string
 		ModerationKey string
+		VpnURL        string
 
 		AuthenticationPrefix string
 		AuthenticationKey    string
@@ -54,6 +55,7 @@ func DefaultConfig() Config {
 	c.Service.RolesURL = "http://127.0.0.1:4000/api/roles"
 	c.Service.ModerationURL = "http://127.0.0.1:4000/api/moderation"
 	c.Service.ModerationKey = "secret-key"
+	c.Service.VpnURL = "http://ip-api.com/json"
 
 	c.Service.AuthenticationPrefix = "authentication"
 	c.Service.AuthenticationKey = "secret-key"
