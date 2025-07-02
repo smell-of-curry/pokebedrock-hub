@@ -68,7 +68,7 @@ func NewService(log *slog.Logger, url, key string) {
 const (
 	maxRetries     = 3
 	retryDelay     = 300 * time.Millisecond
-	requestTimeout = 5 * time.Second
+	requestTimeout = 10 * time.Second
 
 	// Maximum number of concurrent API requests
 	maxConcurrentRequests = 5
@@ -107,11 +107,11 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 		}
 
 		if attempt > 0 {
-			time.Sleep(retryDelay)
+			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, s.url+"/getInflictions", bytes.NewBuffer(rawRequest))
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/getInflictions", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()
 			return nil, fmt.Errorf("failed to create request: %w", err)
@@ -166,7 +166,7 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 		}
 
 		if attempt > 0 {
-			time.Sleep(retryDelay)
+			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
@@ -216,7 +216,7 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 		}
 
 		if attempt > 0 {
-			time.Sleep(retryDelay)
+			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)

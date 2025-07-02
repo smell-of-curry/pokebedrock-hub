@@ -13,6 +13,7 @@ import (
 // Config holds the server configuration, including paths, translations, and service-related settings.
 type Config struct {
 	PokeBedrock struct {
+		SentryDsn   string
 		LogLevel    string // Can be "debug", "info", "warn", "error"
 		ServerPath  string
 		SlapperPath string
@@ -41,6 +42,7 @@ type Config struct {
 func DefaultConfig() Config {
 	c := Config{}
 
+	c.PokeBedrock.SentryDsn = ""
 	c.PokeBedrock.LogLevel = "info" // Default to info level in production
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.SlapperPath = "resources/slapper"
