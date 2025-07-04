@@ -71,7 +71,7 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 			break
 		}
 		if attempt > 0 {
-			time.Sleep(retryDelay)
+			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
 		url := fmt.Sprintf("%s/%s?fields=status,message,proxy", s.url, ip)
