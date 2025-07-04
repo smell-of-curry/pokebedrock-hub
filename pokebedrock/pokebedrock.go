@@ -63,7 +63,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		resManager: resManager,
 	}
 	go func() {
-		if err = poke.setupGin(); err != nil {
+		if err := poke.setupGin(); err != nil {
 			poke.log.Error("failed to start authentication service", "error", err)
 		}
 	}()

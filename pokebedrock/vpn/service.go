@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-jose/go-jose/v4/json"
@@ -26,7 +27,7 @@ func GlobalService() *Service {
 // is on a vpn connection or not.
 type Service struct {
 	url    string
-	closed bool
+	closed atomic.Bool
 
 	client *http.Client
 	log    *slog.Logger
@@ -38,8 +39,7 @@ type Service struct {
 // NewService initializes a new global service instance with the provided logger, URL.
 func NewService(log *slog.Logger, url string) {
 	globalService = &Service{
-		url:    url,
-		closed: false,
+		url: url,
 		client: &http.Client{
 			Timeout: requestTimeout,
 		},
@@ -67,7 +67,7 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 
 	var lastErr error
 	for attempt := range maxRetries {
-		if s.closed {
+		if s.closed.Load() {
 			break
 		}
 		if attempt > 0 {
@@ -137,7 +137,7 @@ func (s *Service) handleRateLimitHeaders(header http.Header) {
 
 // Stop stops the service.
 func (s *Service) Stop() {
-	s.closed = true
+	s.closed.Store(true)
 }
 
 // ErrorIsTemporary determines whether the given error is a temporary error that can be retried.

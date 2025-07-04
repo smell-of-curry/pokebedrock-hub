@@ -53,5 +53,8 @@ func (Allower) handleVPN(netAddr net.Addr) (reason string, allowed bool) {
 	if m.Status != vpn.StatusSuccess {
 		return m.Message, false
 	}
-	return "VPN/Proxy connections are not allowed.", !m.Proxy
+	if m.Proxy {
+		return "VPN/Proxy connections are not allowed.", false
+	}
+	return "", true
 }
