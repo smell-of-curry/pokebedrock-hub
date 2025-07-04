@@ -200,7 +200,6 @@ func (m *Manager) Update(tx *world.Tx) {
 	}
 
 	// Third pass: process transfers
-	// Third pass: process transfers
 	for _, transfer := range playersToTransfer {
 		p, server := transfer.player, transfer.server
 
