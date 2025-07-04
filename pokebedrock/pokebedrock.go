@@ -267,8 +267,10 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 	moderation.GlobalService().SendDetailsOf(p)
 
 	// We must exec this in a world transaction to ensure HandleJoin is called in the correct world.
-	p.H().ExecWorld(func(tx *world.Tx, _ world.Entity) {
-		h.HandleJoin(p, tx.World())
+	p.H().ExecWorld(func(tx *world.Tx, e world.Entity) {
+		if p, ok := e.(*player.Player); ok {
+			h.HandleJoin(p, tx.World())
+		}
 	})
 }
 
