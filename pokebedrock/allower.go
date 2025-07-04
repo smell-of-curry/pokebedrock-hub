@@ -35,11 +35,16 @@ func (a Allower) Allow(addr net.Addr, d login.IdentityData, _ login.ClientData) 
 
 // handleVPN checks if the given network address is using a VPN and returns the reason and whether it's allowed.
 func (Allower) handleVPN(netAddr net.Addr) (reason string, allowed bool) {
-	addr, _ := netip.ParseAddrPort(netAddr.String())
-	addrString := addr.Addr().String()
-	if addrString == "127.0.0.1" || addrString == "0.0.0.0" || addrString == "localhost" {
+	addr, err := netip.ParseAddrPort(netAddr.String())
+	if err != nil {
+		slog.Default().Error("error whilst parsing address", "address", netAddr.String(), "error", err)
+		return "Invalid address format.", false
+	}
+	ip := addr.Addr()
+	if ip.IsLoopback() || ip.IsUnspecified() {
 		return "", true
 	}
+	addrString := ip.String()
 
 	m, err := vpn.GlobalService().CheckIP(addrString)
 	if err != nil {
@@ -48,5 +53,5 @@ func (Allower) handleVPN(netAddr net.Addr) (reason string, allowed bool) {
 	if m.Status != vpn.StatusSuccess {
 		return m.Message, false
 	}
-	return "VPN/Proxy connections are not allowed.", m.Proxy
+	return "VPN/Proxy connections are not allowed.", !m.Proxy
 }

@@ -55,6 +55,9 @@ const (
 
 // CheckIP determines whether the provided IP address is associated with a VPN connection.
 func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
+	if net.ParseIP(ip) == nil {
+		return nil, fmt.Errorf("invalid IP address: %s", ip)
+	}
 	s.mu.Lock()
 	if time.Now().Before(s.rateLimitReset) {
 		s.mu.Unlock()
@@ -63,7 +66,7 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 	s.mu.Unlock()
 
 	var lastErr error
-	for attempt := 0; attempt <= 1; attempt++ {
+	for attempt := range maxRetries {
 		if s.closed {
 			break
 		}
@@ -88,6 +91,7 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 			}
 			return nil, lastErr
 		}
+		defer response.Body.Close()
 
 		s.handleRateLimitHeaders(response.Header)
 
@@ -95,10 +99,8 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 		case http.StatusOK:
 			var responseModel ResponseModel
 			if err = json.NewDecoder(response.Body).Decode(&responseModel); err != nil {
-				response.Body.Close()
 				return nil, fmt.Errorf("failed to decode response body: %w", err)
 			}
-			response.Body.Close()
 			if responseModel.Status == "fail" {
 				return nil, fmt.Errorf("query failed: %s", responseModel.Message)
 			}
@@ -110,7 +112,6 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 		default:
 			lastErr = fmt.Errorf("unexpected status code: %d", response.StatusCode)
 		}
-		response.Body.Close()
 	}
 	return nil, lastErr
 }
