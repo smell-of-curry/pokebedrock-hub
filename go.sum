@@ -24,8 +24,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/df-mc/atomic v1.10.0 h1:0ZuxBKwR/hxcFGorKiHIp+hY7hgY+XBTzhCYD2NqSEg=
 github.com/df-mc/atomic v1.10.0/go.mod h1:Gw9rf+rPIbydMjA329Jn4yjd/O2c/qusw3iNp4tFGSc=
-github.com/df-mc/dragonfly v0.10.5 h1:vn3Mwh7vWPDtIdss4QEOP8vSZGHRAjyLvrOEM5mEUI0=
-github.com/df-mc/dragonfly v0.10.5/go.mod h1:/KjoqvIe5+ZxuFUPSRey9UzQS3GkTgAyTH0jTYFMs/g=
 github.com/df-mc/goleveldb v1.1.9 h1:ihdosZyy5jkQKrxucTQmN90jq/2lUwQnJZjIYIC/9YU=
 github.com/df-mc/goleveldb v1.1.9/go.mod h1:+NHCup03Sci5q84APIA21z3iPZCuk6m6ABtg4nANCSk=
 github.com/df-mc/npc v1.0.5 h1:dzh0Yce0sNxbY1waXK0qCNKOnaMJJjkB8nzlWC29EyQ=
@@ -128,6 +126,8 @@ github.com/schollz/progressbar/v3 v3.18.0 h1:uXdoHABRFmNIjUfte/Ex7WtuyVslrw2wVPQ
 github.com/schollz/progressbar/v3 v3.18.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
 github.com/segmentio/fasthash v1.0.3 h1:EI9+KE1EwvMLBWwjpRDc+fEM+prwxDYbslddQGtrmhM=
 github.com/segmentio/fasthash v1.0.3/go.mod h1:waKX8l2N8yckOgmSsXJi7x1ZfdKZ4x7KRMzBtS3oedY=
+github.com/smell-of-curry/dragonfly v0.0.0-20250704205554-352ccc8f6b63 h1:1jri+rRiSSEOrPk0M1XKRRSX/ybgm8AxOVs5zrCMbmM=
+github.com/smell-of-curry/dragonfly v0.0.0-20250704205554-352ccc8f6b63/go.mod h1:/KjoqvIe5+ZxuFUPSRey9UzQS3GkTgAyTH0jTYFMs/g=
 github.com/smell-of-curry/go-raknet v0.0.0-20250525005230-991ee492a907 h1:5nLl2TlAo5SxtHLCBVKgIdngDG0FWrB1k+nZ578AQ2c=
 github.com/smell-of-curry/go-raknet v0.0.0-20250525005230-991ee492a907/go.mod h1:/yysjwfCXm2+2OY8mBazLzcxJ3irnylKCyG3FLgUPVU=
 github.com/smell-of-curry/gophertunnel v1.46.1-0.20250704012025-8e86404b4050 h1:fMP0juqij29MKrZqo+ga2JdYbDAqX3OlJEaLXsXjeJg=
