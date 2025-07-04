@@ -108,6 +108,12 @@ func (poke *PokeBedrock) Start() {
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
+	l := world.NewLoader(10, w, world.NopViewer{})
+	w.Exec(func(tx *world.Tx) {
+		l.Move(tx, w.Spawn().Vec3Middle())
+		l.Load(tx, 9999999)
+	})
+
 	w.StopWeatherCycle()
 	w.StopRaining()
 	w.StopThundering()
