@@ -1,13 +1,17 @@
 package pokebedrock
 
 import (
+	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/gin-gonic/gin"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
@@ -20,6 +24,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/translation"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
 	"golang.org/x/text/language"
 )
 
@@ -57,6 +62,12 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		c:          make(chan struct{}),
 		resManager: resManager,
 	}
+	go func() {
+		if err := poke.setupGin(); err != nil {
+			poke.log.Error("failed to start authentication service", "error", err)
+		}
+	}()
+
 	// TODO: Enable when these get fixed.
 	// poke.loadTranslations(&c)
 	if err = poke.loadLocales(); err != nil {
@@ -110,6 +121,40 @@ func (poke *PokeBedrock) handleWorld() {
 	go poke.startTicking()
 }
 
+// setupGin sets up gin for the gobds proxy.
+func (poke *PokeBedrock) setupGin() error {
+	gin.SetMode(gin.ReleaseMode)
+
+	router := gin.Default()
+	router.GET(fmt.Sprintf("/%s/:xuid", poke.conf.Service.AuthenticationPrefix), func(c *gin.Context) {
+		if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		xuid := c.Param("xuid")
+		req, exists := authentication.GlobalFactory().Of(xuid)
+		if !exists {
+			c.JSON(http.StatusNotFound, gin.H{"reason": "no player found"})
+			return
+		}
+
+		if time.Now().After(req.Expiration) {
+			authentication.GlobalFactory().Remove(xuid)
+			c.JSON(http.StatusGone, gin.H{"reason": "request expired"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"allowed": true})
+	})
+	err := router.Run(poke.conf.Service.GinAddress)
+	if err != nil {
+		return err
+	}
+	poke.log.Info("Authentication service started on " + poke.conf.Service.GinAddress)
+	return nil
+}
+
 // loadTranslations loads all the translation used in dragonfly.
 func (poke *PokeBedrock) loadTranslations(c *server.Config) {
 	conf := poke.conf
@@ -143,6 +188,7 @@ func (poke *PokeBedrock) loadCommands() {
 func (poke *PokeBedrock) loadServices() {
 	rank.NewService(poke.log, poke.conf.Service.RolesURL)
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
+	vpn.NewService(poke.log, poke.conf.Service.VpnURL)
 }
 
 // loadServers loads all the server configurations from the specified path
@@ -229,6 +275,8 @@ func (poke *PokeBedrock) Close() {
 	moderation.GlobalService().Stop()
 	poke.log.Debug("Closing Rank Service...")
 	rank.GlobalService().Stop()
+	poke.log.Debug("Closing Vpn Service...")
+	vpn.GlobalService().Stop()
 	poke.log.Debug("Stopping Rank Channel...")
 	session.StopRankChannel()
 	poke.log.Debug("Stopping Rank Load Worker...")
