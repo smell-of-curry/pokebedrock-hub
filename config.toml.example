@@ -1,33 +1,37 @@
 [PokeBedrock]
-SentryDsn = ''
-ServerPath = 'resources/servers'
-SlapperPath = 'resources/slapper'
-LocalePath = 'resources/locales'
+SentryDsn = '' # DSN for Sentry.
+ServerPath = 'resources/servers' # Path to the servers folder.
+SlapperPath = 'resources/slapper' # Path to the slapper folder.
+LocalePath = 'resources/locales' # Path to the locales folder.
 
 [Network]
-Address = ':19132'
+Address = ':19132' # Address to bind to.
 
 [Server]
-Name = '§r§cPoke§r§bBedrock§r'
-AuthEnabled = true
-DisableJoinQuitMessages = true
+Name = '§r§cPoke§r§bBedrock§r' # Name of the server.
+AuthEnabled = true # Whether authentication is enabled.
+DisableJoinQuitMessages = true # Whether join/quit messages are disabled.
 
 [World]
-SaveData = true
-Folder = 'resources/world'
+SaveData = true # Whether to save the world data.
+Folder = 'resources/world' # Path to the world folder.
 
 [Players]
-MaxCount = 50
-MaximumChunkRadius = 16
-SaveData = false
-Folder = 'resources/player_data'
+MaxCount = 50 # Maximum number of players.
+MaximumChunkRadius = 16 # Maximum chunk radius.
+SaveData = false # Whether to save the player data.
+Folder = 'resources/player_data' # Path to the player data folder.
 
 [Resources]
-AutoBuildPack = false
-Folder = 'resources/resource_pack'
-Required = true
+AutoBuildPack = false # Whether to automatically build the resource pack.
+Folder = 'resources/resource_pack' # Path to the resource pack folder.
+Required = true # Whether the resource pack is required.
 
 [Service]
-RolesURL = 'http://11.111.11.11:4000'
-ModerationUrl = 'https://pokebedrock.com/api/moderation'
-ModerationKey = 'xxxxxx-xxxxx-xxxxxx-xxxxx' 
+GinAddress = ':8080' # Address to bind the gin api to.
+RolesURL = 'http://11.111.11.11:4000' # URL to the roles API.
+ModerationUrl = 'https://pokebedrock.com/api/moderation' # URL to the moderation API.
+ModerationKey = 'xxxxxx-xxxxx-xxxxxx-xxxxx' # Key for the moderation API.
+VpnURL = 'http://ip-api.com/json' # URL to the VPN API.
+AuthenticationPrefix = 'authentication' # Prefix for the authentication API.
+AuthenticationKey = 'secret-key' # Key for the authentication API.
