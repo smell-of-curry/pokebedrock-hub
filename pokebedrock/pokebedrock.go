@@ -147,7 +147,12 @@ func (poke *PokeBedrock) setupGin() error {
 
 		c.JSON(http.StatusOK, gin.H{"allowed": true})
 	})
-	return router.Run(poke.conf.Service.GinAddress)
+	err := router.Run(poke.conf.Service.GinAddress)
+	if err != nil {
+		return err
+	}
+	poke.log.Info("Authentication service started on " + poke.conf.Service.GinAddress)
+	return nil
 }
 
 // loadTranslations loads all the translation used in dragonfly.
