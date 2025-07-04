@@ -5,13 +5,13 @@ go 1.24.0
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.4
+	github.com/df-mc/dragonfly v0.10.5
 	github.com/df-mc/npc v1.0.5
 	github.com/getsentry/sentry-go v0.33.0
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.0.2
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
-	github.com/sandertv/gophertunnel v1.47.2
+	github.com/sandertv/gophertunnel v1.48.0
 	github.com/schollz/progressbar/v3 v3.18.0
 	golang.org/x/text v0.26.0
 )
