@@ -97,7 +97,7 @@ func (poke *PokeBedrock) Start() {
 	poke.handleWorld()
 
 	for pl := range poke.srv.Accept() {
-		poke.accept(pl)
+		go poke.accept(pl)
 	}
 
 	poke.Close()
@@ -266,7 +266,10 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 	// Send details of the player to the moderation service
 	moderation.GlobalService().SendDetailsOf(p)
 
-	h.HandleJoin(p, poke.World())
+	// We must exec this in a world transaction to ensure HandleJoin is called in the correct world.
+	p.H().ExecWorld(func(tx *world.Tx, _ world.Entity) {
+		h.HandleJoin(p, tx.World())
+	})
 }
 
 // Close closes the server and all its associated services.
