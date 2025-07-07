@@ -81,7 +81,7 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", s.url, xuid), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/discord/%s", s.url, xuid), nil)
 		if err != nil {
 			cancel()
 			return nil, fmt.Errorf("failed to create request: %w", err)

@@ -29,7 +29,7 @@ Required = true # Whether the resource pack is required.
 
 [Service]
 GinAddress = ':8080' # Address to bind the gin api to.
-RolesURL = 'http://11.111.11.11:4000' # URL to the roles API.
+RolesURL = 'http://localhost:4000' # URL to the roles API.
 ModerationUrl = 'https://pokebedrock.com/api/moderation' # URL to the moderation API.
 ModerationKey = 'xxxxxx-xxxxx-xxxxxx-xxxxx' # Key for the moderation API.
 VpnURL = 'http://ip-api.com/json' # URL to the VPN API.
