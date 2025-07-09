@@ -53,9 +53,9 @@ const (
 )
 
 var (
-	UserNotFound = fmt.Errorf("user not found")
-	TimeoutError = fmt.Errorf("request timed out")
-	ServerError  = fmt.Errorf("server error")
+	ErrorUserNotFound = fmt.Errorf("user not found")
+	ErrorTimeout      = fmt.Errorf("request timed out")
+	ErrorServer       = fmt.Errorf("server error")
 )
 
 // RolesOfPlayer retrieves the roles associated with the given player.
@@ -114,7 +114,7 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 
 			return roles, nil
 		case http.StatusNotFound:
-			return nil, UserNotFound
+			return nil, ErrorUserNotFound
 		case http.StatusTooManyRequests:
 			lastErr = fmt.Errorf("rate limited")
 			time.Sleep(time.Duration(attempt+1) * retryDelay)
@@ -125,7 +125,7 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 				continue
 			}
 
-			return nil, fmt.Errorf("server returned %d: %w", resp.StatusCode, ServerError)
+			return nil, fmt.Errorf("server returned %d: %w", resp.StatusCode, ErrorServer)
 		}
 	}
 	return nil, lastErr
@@ -153,11 +153,11 @@ func isTemporaryError(err error) bool {
 // RolesError parses a role error to be sent to a player.
 func RolesError(err error) string {
 	switch {
-	case errors.Is(err, UserNotFound):
+	case errors.Is(err, ErrorUserNotFound):
 		return locale.Translate("error.account_not_linked")
-	case errors.Is(err, TimeoutError):
+	case errors.Is(err, ErrorTimeout):
 		return locale.Translate("error.timeout_fetching_roles")
-	case errors.Is(err, ServerError):
+	case errors.Is(err, ErrorServer):
 		return locale.Translate("error.server_error_fetching_roles")
 	default:
 		return fmt.Sprintf("Failed to fetch roles %s", err)
