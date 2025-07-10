@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -101,8 +102,13 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 			if err = json.NewDecoder(response.Body).Decode(&responseModel); err != nil {
 				return nil, fmt.Errorf("failed to decode response body: %w", err)
 			}
-			if responseModel.Status == "fail" {
-				return nil, fmt.Errorf("query failed: %s", responseModel.Message)
+			if strings.EqualFold(responseModel.Status, "fail") {
+				failMessage := responseModel.Message
+				if strings.EqualFold(failMessage, "reserved range") {
+					responseModel.Proxy = false
+					return &responseModel, nil
+				}
+				return nil, fmt.Errorf("query failed: %s", failMessage)
 			}
 			return &responseModel, nil
 		case http.StatusTooManyRequests:
