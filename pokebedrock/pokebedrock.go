@@ -11,6 +11,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/gin-gonic/gin"
+	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
@@ -257,6 +258,8 @@ func (poke *PokeBedrock) startTicking() {
 					srv.UpdateAll()
 				case f(5):
 					slapper.UpdateAll(tx)
+				case f(1):
+					poke.doAFKCheck(tx)
 				}
 			})
 		}
@@ -301,4 +304,19 @@ func (poke *PokeBedrock) Close() {
 // World returns the default world.
 func (poke *PokeBedrock) World() *world.World {
 	return poke.srv.World()
+}
+
+// doAFKCheck ...
+func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
+	for ent := range tx.Players() {
+		p := ent.(*player.Player)
+		h, ok := p.Handler().(*handler.PlayerHandler)
+		if !ok {
+			continue
+		}
+		m := h.Movement()
+		if time.Since(m.LastMoveTime()) > time.Duration(poke.conf.PokeBedrock.AFKTimeout) {
+			p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))
+		}
+	}
 }

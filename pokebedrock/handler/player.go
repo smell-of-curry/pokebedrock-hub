@@ -23,6 +23,7 @@ import (
 type PlayerHandler struct {
 	ranks       *session.Ranks
 	inflictions *session.Inflictions
+	movement    *session.Movement
 
 	player.NopHandler
 }
@@ -32,6 +33,7 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	h := &PlayerHandler{
 		ranks:       session.NewRanks(),
 		inflictions: session.NewInflictions(),
+		movement:    session.NewMovement(),
 	}
 
 	// Add a small random delay to infliction loading to avoid all players
@@ -154,6 +156,20 @@ func (h *PlayerHandler) HandleItemDamage(ctx *player.Context, _ item.Stack, _ in
 	ctx.Cancel()
 }
 
+// HandleMove ...
+func (h *PlayerHandler) HandleMove(ctx *player.Context, pos mgl64.Vec3, rot cube.Rotation) {
+	p := ctx.Val()
+	delta := pos.Sub(p.Position())
+	if mgl64.FloatEqual(delta.X(), 0) && mgl64.FloatEqual(delta.Z(), 0) {
+		// No horizontal movement, just return.
+		return
+	}
+	movement := h.movement
+	movement.SetLastMoveTime(time.Now())
+	movement.SetLastPosition(pos)
+	movement.SetLastRotation(rot)
+}
+
 // Ranks ...
 func (h *PlayerHandler) Ranks() *session.Ranks {
 	return h.ranks
@@ -162,4 +178,9 @@ func (h *PlayerHandler) Ranks() *session.Ranks {
 // Inflictions ...
 func (h *PlayerHandler) Inflictions() *session.Inflictions {
 	return h.inflictions
+}
+
+// Movement ...
+func (h *PlayerHandler) Movement() *session.Movement {
+	return h.movement
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/df-mc/dragonfly/server"
 	"github.com/restartfu/gophig"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/util"
 )
 
 // Config holds the server configuration, including paths, translations, and service-related settings.
@@ -18,6 +19,7 @@ type Config struct {
 		ServerPath  string
 		SlapperPath string
 		LocalePath  string
+		AFKTimeout  util.Duration
 	}
 	Translation struct {
 		MessageJoin             string
