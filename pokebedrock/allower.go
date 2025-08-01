@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strings"
 
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
@@ -48,6 +49,11 @@ func (Allower) handleVPN(netAddr net.Addr) (reason string, allowed bool) {
 
 	m, err := vpn.GlobalService().CheckIP(addrString)
 	if err != nil {
+		// Allow players through when VPN service is rate limited
+		if strings.Contains(err.Error(), "rate limit active") {
+			slog.Default().Warn("VPN check skipped due to rate limit", "ip", addrString, "error", err)
+			return "", true
+		}
 		return err.Error(), false
 	}
 	if m.Status != vpn.StatusSuccess {
