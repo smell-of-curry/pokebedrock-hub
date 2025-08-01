@@ -126,12 +126,12 @@ github.com/schollz/progressbar/v3 v3.18.0 h1:uXdoHABRFmNIjUfte/Ex7WtuyVslrw2wVPQ
 github.com/schollz/progressbar/v3 v3.18.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
 github.com/segmentio/fasthash v1.0.3 h1:EI9+KE1EwvMLBWwjpRDc+fEM+prwxDYbslddQGtrmhM=
 github.com/segmentio/fasthash v1.0.3/go.mod h1:waKX8l2N8yckOgmSsXJi7x1ZfdKZ4x7KRMzBtS3oedY=
-github.com/smell-of-curry/dragonfly v0.0.0-20250704211816-56a42cbcd69f h1:hlritr3hC3Uu0keWSRIiuJ2E+/VZf19GSn9uGFE3LR4=
-github.com/smell-of-curry/dragonfly v0.0.0-20250704211816-56a42cbcd69f/go.mod h1:/KjoqvIe5+ZxuFUPSRey9UzQS3GkTgAyTH0jTYFMs/g=
+github.com/smell-of-curry/dragonfly v0.0.0-20250801140507-f480c69403d4 h1:HIGX8VfY5OK8/+SIIbBd3P/4gqMmB3hva7WaXaZvqhA=
+github.com/smell-of-curry/dragonfly v0.0.0-20250801140507-f480c69403d4/go.mod h1:v3u0LqIbIgVCkM76yUUalW3ZqB05LI9llXcSiBkSwOQ=
 github.com/smell-of-curry/go-raknet v0.0.0-20250525005230-991ee492a907 h1:5nLl2TlAo5SxtHLCBVKgIdngDG0FWrB1k+nZ578AQ2c=
 github.com/smell-of-curry/go-raknet v0.0.0-20250525005230-991ee492a907/go.mod h1:/yysjwfCXm2+2OY8mBazLzcxJ3irnylKCyG3FLgUPVU=
-github.com/smell-of-curry/gophertunnel v1.46.1-0.20250704012025-8e86404b4050 h1:fMP0juqij29MKrZqo+ga2JdYbDAqX3OlJEaLXsXjeJg=
-github.com/smell-of-curry/gophertunnel v1.46.1-0.20250704012025-8e86404b4050/go.mod h1:lmRarAmn25V/+QeiUbUDXeA26bEaNlX1wGEM/rj39ew=
+github.com/smell-of-curry/gophertunnel v1.46.1-0.20250801144504-6d8f93e5232f h1:RPChhV/2paC40J/MWriGCV2oVaM/aUS6ET019pTUmUI=
+github.com/smell-of-curry/gophertunnel v1.46.1-0.20250801144504-6d8f93e5232f/go.mod h1:lmRarAmn25V/+QeiUbUDXeA26bEaNlX1wGEM/rj39ew=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
 github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=

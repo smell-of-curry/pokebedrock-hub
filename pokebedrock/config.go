@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/restartfu/gophig"
@@ -49,6 +50,7 @@ func DefaultConfig() Config {
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.SlapperPath = "resources/slapper"
 	c.PokeBedrock.LocalePath = "resources/locales"
+	c.PokeBedrock.AFKTimeout = util.Duration(10 * time.Minute)
 
 	c.Translation.MessageJoin = "<yellow>%v joined the game</yellow>"
 	c.Translation.MessageLeave = "<yellow>%v left the game</yellow>"

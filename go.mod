@@ -13,7 +13,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.1
 	github.com/restartfu/gophig v0.0.2
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
-	github.com/sandertv/gophertunnel v1.48.0
+	github.com/sandertv/gophertunnel v1.48.1
 	github.com/schollz/progressbar/v3 v3.18.0
 	golang.org/x/text v0.27.0
 )
@@ -65,8 +65,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/df-mc/dragonfly => github.com/smell-of-curry/dragonfly v0.0.0-20250704211816-56a42cbcd69f
+replace github.com/df-mc/dragonfly => github.com/smell-of-curry/dragonfly v0.0.0-20250801140507-f480c69403d4
 
-replace github.com/sandertv/gophertunnel => github.com/smell-of-curry/gophertunnel v1.46.1-0.20250704012025-8e86404b4050
+replace github.com/sandertv/gophertunnel => github.com/smell-of-curry/gophertunnel v1.46.1-0.20250801144504-6d8f93e5232f
 
 replace github.com/sandertv/go-raknet => github.com/smell-of-curry/go-raknet v0.0.0-20250525005230-991ee492a907
