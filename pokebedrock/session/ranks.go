@@ -196,27 +196,22 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 		xuid:   xuid,
 		ch:     doneCh,
 	}:
-		// Move ExecWorld call outside of channel operation
-		go func() {
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-				p, ok := e.(*player.Player)
-				if !ok {
-					return
-				}
-				p.SendTip(locale.Translate("rank.fetching"))
-			})
-		}()
+		handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+			p.SendTip(locale.Translate("rank.fetching"))
+		})
 	default:
 		// Channel full, log warning but continue
-		go func() {
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-				p, ok := e.(*player.Player)
-				if !ok {
-					return
-				}
-				p.SendTip(locale.Translate("rank.update.queue.full"))
-			})
-		}()
+		handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+			p.SendTip(locale.Translate("rank.update.queue.full"))
+		})
 		return
 	}
 
@@ -247,16 +242,13 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 					return
 				}
 				doneCh <- struct{}{} // Close the channel to signal timeout
-				// Move ExecWorld call outside of channel/select context
-				go func() {
-					handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-						p, ok := e.(*player.Player)
-						if !ok {
-							return
-						}
-						p.SendTip(locale.Translate("rank.fetch.timeout"))
-					})
-				}()
+				handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+					p, ok := e.(*player.Player)
+					if !ok {
+						return
+					}
+					p.SendTip(locale.Translate("rank.fetch.timeout"))
+				})
 				return
 			}
 		}
