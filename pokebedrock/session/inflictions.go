@@ -107,37 +107,55 @@ func inflictionWorker() {
 						<-activeRequests
 					}()
 
-					handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-						p, ok := e.(*player.Player)
-						if !ok {
-							return
-						}
-
-						modSvc := moderation.GlobalService()
-						if modSvc == nil {
-							return
-						}
-
-						resp, err := modSvc.InflictionOfPlayer(p)
-						if err != nil {
-							return
-						}
-
-						for _, inf := range resp.CurrentInflictions {
-							switch inf.Type {
-							case moderation.InflictionMuted:
-								expiry := inf.ExpiryDate
-								if expiry != nil && *expiry != 0 {
-									inflictions.muteDuration.Store(*expiry)
+					// Move ExecWorld outside of semaphore critical section
+					// to prevent deadlock with condition variables
+					go func() {
+						// Add timeout to prevent infinite waiting
+						done := make(chan struct{}, 1)
+						go func() {
+							defer close(done)
+							handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+								p, ok := e.(*player.Player)
+								if !ok {
+									return
 								}
-								inflictions.muted.Store(true)
-							case moderation.InflictionFrozen:
-								inflictions.frozen.Store(true)
-							}
-						}
 
-						inflictions.handleActiveInflictions(p)
-					})
+								modSvc := moderation.GlobalService()
+								if modSvc == nil {
+									return
+								}
+
+								resp, err := modSvc.InflictionOfPlayer(p)
+								if err != nil {
+									return
+								}
+
+								for _, inf := range resp.CurrentInflictions {
+									switch inf.Type {
+									case moderation.InflictionMuted:
+										expiry := inf.ExpiryDate
+										if expiry != nil && *expiry != 0 {
+											inflictions.muteDuration.Store(*expiry)
+										}
+										inflictions.muted.Store(true)
+									case moderation.InflictionFrozen:
+										inflictions.frozen.Store(true)
+									}
+								}
+
+								inflictions.handleActiveInflictions(p)
+							})
+						}()
+
+						// Timeout after 30 seconds to prevent indefinite waiting
+						select {
+						case <-done:
+							// Completed successfully
+						case <-time.After(30 * time.Second):
+							// Timeout - log warning but don't block
+							// TODO: Add proper logging here
+						}
+					}()
 				}(req.handle, req.inflictions)
 			case <-inflictionWorkerShutdown:
 				// Worker is shutting down, don't start new requests
