@@ -24,19 +24,16 @@ type Config struct {
 		AFKTimeout  util.Duration
 	}
 	Service struct {
-		GinAddress string
+		GinAddress           string
+		GinAuthenticationKey string
 
 		RolesURL      string
 		ModerationURL string
 		ModerationKey string
 		VpnURL        string
-
-		AuthenticationPrefix string
-		AuthenticationKey    string
 	}
 	RestartManager struct {
 		MaxWaitTime     util.Duration
-		MaxFailures     int
 		BackoffInterval util.Duration
 		RestartCooldown util.Duration
 		QueueTimeout    util.Duration
@@ -61,11 +58,9 @@ func DefaultConfig() Config {
 	c.Service.ModerationKey = "secret-key"
 	c.Service.VpnURL = "http://ip-api.com/json"
 
-	c.Service.AuthenticationPrefix = "authentication"
-	c.Service.AuthenticationKey = "secret-key"
+	c.Service.GinAuthenticationKey = "secret-key"
 
 	c.RestartManager.MaxWaitTime = util.Duration(10 * time.Minute)
-	c.RestartManager.MaxFailures = 3
 	c.RestartManager.BackoffInterval = util.Duration(1 * time.Minute)
 	c.RestartManager.RestartCooldown = util.Duration(5 * time.Minute)
 	c.RestartManager.QueueTimeout = util.Duration(15 * time.Minute)

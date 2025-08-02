@@ -4,7 +4,6 @@
 package pokebedrock
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -136,8 +135,8 @@ func (poke *PokeBedrock) setupGin() error {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
-	router.GET(fmt.Sprintf("/%s/:xuid", poke.conf.Service.AuthenticationPrefix), func(c *gin.Context) {
-		if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+	router.GET("/authentication/:xuid", func(c *gin.Context) {
+		if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 
 			return
@@ -172,7 +171,7 @@ func (poke *PokeBedrock) setupGin() error {
 	{
 		// Request restart permission
 		restartGroup.POST("/request", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 
 				return
@@ -191,7 +190,7 @@ func (poke *PokeBedrock) setupGin() error {
 
 		// Notify restart completion
 		restartGroup.POST("/complete", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 
 				return
@@ -215,29 +214,26 @@ func (poke *PokeBedrock) setupGin() error {
 
 		// Notify unauthorized restart
 		restartGroup.POST("/unauthorized", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 
 				return
 			}
 
-			var req struct {
-				Host string `json:"host" binding:"required"` // ex. 40.160.19.215:19136
-			}
-
+			var req restart.Request
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
 
 				return
 			}
 
-			restart.GlobalService().NotifyUnauthorizedRestart(req.Host)
+			restart.GlobalService().NotifyUnauthorizedRestart(req.ServerName)
 			c.JSON(http.StatusOK, gin.H{"status": "acknowledged"})
 		})
 
 		// Get restart manager state (for monitoring/debugging)
 		restartGroup.GET("/state", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 
 				return
@@ -297,7 +293,6 @@ func (poke *PokeBedrock) loadServices() {
 	// Initialize restart manager service
 	restartConfig := restart.Config{
 		MaxWaitTime:     time.Duration(poke.conf.RestartManager.MaxWaitTime),
-		MaxFailures:     poke.conf.RestartManager.MaxFailures,
 		BackoffInterval: time.Duration(poke.conf.RestartManager.BackoffInterval),
 		RestartCooldown: time.Duration(poke.conf.RestartManager.RestartCooldown),
 		QueueTimeout:    time.Duration(poke.conf.RestartManager.QueueTimeout),

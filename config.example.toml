@@ -31,16 +31,14 @@ Required = true # Whether the resource pack is required.
 
 [Service]
 GinAddress = ':8080' # Address to bind the gin api to.
+GinAuthenticationKey = 'secret-key' # Key for the authentication API.
 RolesURL = 'http://localhost:4000' # URL to the roles API.
 ModerationUrl = 'https://pokebedrock.com/api/moderation' # URL to the moderation API.
 ModerationKey = 'xxxxxx-xxxxx-xxxxxx-xxxxx' # Key for the moderation API.
 VpnURL = 'http://ip-api.com/json' # URL to the VPN API.
-AuthenticationPrefix = 'authentication' # Prefix for the authentication API.
-AuthenticationKey = 'secret-key' # Key for the authentication API.
 
 [RestartManager]
 MaxWaitTime = "10m" # Maximum time a server will wait before force restart.
-MaxFailures = 3 # Maximum failures before force restart.
-BackoffInterval = "1m" # Backoff interval between retries.
+BackoffInterval = "3m" # Backoff interval between retries.
 RestartCooldown = "5m" # Minimum time between restarts for the same server.
-QueueTimeout = "15m" # Time after which queue entries expire.
+QueueTimeout = "30m" # Time after which queue entries expire.
