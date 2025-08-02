@@ -1,3 +1,4 @@
+// Package kit provides kits for the server.
 package kit
 
 import (
@@ -31,6 +32,7 @@ func Apply(k Kit, p *player.Player) {
 
 	p.Heal(20, entity.FoodHealingSource{})
 	p.SetFood(20)
+
 	for _, eff := range p.Effects() {
 		p.RemoveEffect(eff.Type())
 	}

@@ -1,3 +1,4 @@
+// Package util provides utility functions for the server.
 package util
 
 import (
@@ -12,11 +13,14 @@ type Duration time.Duration
 // UnmarshalText ...
 func (d *Duration) UnmarshalText(text []byte) error {
 	s := strings.TrimSpace(string(text))
+
 	dur, err := time.ParseDuration(s)
 	if err != nil {
 		return fmt.Errorf("duration: cannot parse %q: %w", s, err)
 	}
+
 	*d = Duration(dur)
+
 	return nil
 }
 

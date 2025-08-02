@@ -1,3 +1,4 @@
+// Package resources provides a manager for resource packs.
 package resources
 
 import (

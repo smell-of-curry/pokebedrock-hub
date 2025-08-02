@@ -7,6 +7,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player/form"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
@@ -18,10 +19,13 @@ func NewServerNavigator() form.Menu {
 	f := form.NewMenu(serverNavigator{},
 		text.Colourf("Server Navigator"))
 
-	var btns []form.Button
+	btns := make([]form.Button, 0, len(srv.All()))
+
 	for _, s := range srv.All() {
 		st := s.Status()
+
 		var statusName string
+
 		if st.Online {
 			statusName = "<green>Online</green>"
 		} else {
@@ -40,9 +44,12 @@ func (serverNavigator) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	p := sub.(*player.Player)
 	serverName := text.Clean(strings.Split(b.Text, "\n")[0])
 	server := srv.FromName(serverName)
+
 	if server == nil {
 		p.Message(text.Colourf("<dark-red>Failed to find server with name %s.</dark-red>", serverName))
+
 		return
 	}
+
 	p.SendForm(NewServerConfirm(server))
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 )
 
@@ -53,9 +54,9 @@ const (
 )
 
 var (
-	ErrorUserNotFound = fmt.Errorf("user not found")
-	ErrorTimeout      = fmt.Errorf("request timed out")
-	ErrorServer       = fmt.Errorf("server error")
+	ErrUserNotFound = fmt.Errorf("user not found")
+	ErrTimeout      = fmt.Errorf("request timed out")
+	ErrServer       = fmt.Errorf("server error")
 )
 
 // RolesOfPlayer retrieves the roles associated with the given player.
@@ -69,6 +70,7 @@ func (s *Service) RolesOfPlayer(p *player.Player) ([]string, error) {
 // The function retries on certain errors such as timeouts or temporary network issues.
 func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 	var roles []string
+
 	var lastErr error
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
@@ -81,21 +83,28 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/discord/%s", s.url, xuid), nil)
 		if err != nil {
 			cancel()
+
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
 		resp, err := s.client.Do(req)
+
 		cancel()
+
 		if err != nil {
-			lastErr = fmt.Errorf("request failed: %w", err)
 			if isTemporaryError(err) {
 				continue
 			}
+
+			lastErr = fmt.Errorf("request failed: %w", err)
+
 			return nil, lastErr
 		}
+
 		defer resp.Body.Close()
 
 		switch resp.StatusCode {
@@ -103,8 +112,10 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				lastErr = fmt.Errorf("failed to read response: %w", err)
+
 				continue
 			}
+
 			if err = json.Unmarshal(body, &roles); err != nil {
 				return nil, fmt.Errorf("failed to parse roles: %w", err)
 			}
@@ -114,20 +125,24 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 
 			return roles, nil
 		case http.StatusNotFound:
-			return nil, ErrorUserNotFound
+			return nil, ErrUserNotFound
 		case http.StatusTooManyRequests:
 			lastErr = fmt.Errorf("rate limited")
+
 			time.Sleep(time.Duration(attempt+1) * retryDelay)
+
 			continue
 		default:
 			lastErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+
 			if resp.StatusCode >= 500 {
 				continue
 			}
 
-			return nil, fmt.Errorf("server returned %d: %w", resp.StatusCode, ErrorServer)
+			return nil, fmt.Errorf("server returned %d: %w", resp.StatusCode, ErrServer)
 		}
 	}
+
 	return nil, lastErr
 }
 
@@ -143,21 +158,23 @@ func isTemporaryError(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
+
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
+
 	return false
 }
 
 // RolesError parses a role error to be sent to a player.
 func RolesError(err error) string {
 	switch {
-	case errors.Is(err, ErrorUserNotFound):
+	case errors.Is(err, ErrUserNotFound):
 		return locale.Translate("error.account_not_linked")
-	case errors.Is(err, ErrorTimeout):
+	case errors.Is(err, ErrTimeout):
 		return locale.Translate("error.timeout_fetching_roles")
-	case errors.Is(err, ErrorServer):
+	case errors.Is(err, ErrServer):
 		return locale.Translate("error.server_error_fetching_roles")
 	default:
 		return fmt.Sprintf("Failed to fetch roles %s", err)

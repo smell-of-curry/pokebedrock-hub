@@ -1,3 +1,4 @@
+// Package main is the entry point for the application.
 package main
 
 import (
@@ -6,6 +7,7 @@ import (
 
 	"github.com/df-mc/dragonfly/server/player/chat"
 	"github.com/getsentry/sentry-go"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock"
 )
 
@@ -21,6 +23,7 @@ func init() {
 // and starts it.
 func main() {
 	log := slog.Default()
+
 	conf, err := pokebedrock.ReadConfig()
 	if err != nil {
 		panic(err)
@@ -41,8 +44,10 @@ func main() {
 	logLevel, err := pokebedrock.ParseLogLevel(conf.PokeBedrock.LogLevel)
 	if err != nil {
 		log.Warn("Invalid log level in configuration", "error", err, "using", "info")
+
 		logLevel = slog.LevelInfo
 	}
+
 	slog.SetLogLoggerLevel(logLevel)
 	log.Info("Log level set", "level", logLevel.String())
 

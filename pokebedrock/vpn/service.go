@@ -2,6 +2,7 @@ package vpn
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,8 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/go-jose/go-jose/v4/json"
 )
 
 // globalService ...
@@ -59,18 +58,23 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 	if net.ParseIP(ip) == nil {
 		return nil, fmt.Errorf("invalid IP address: %s", ip)
 	}
+
 	s.mu.Lock()
+
 	if time.Now().Before(s.rateLimitReset) {
 		s.mu.Unlock()
+
 		return nil, fmt.Errorf("rate limit active, please wait until %v", s.rateLimitReset)
 	}
 	s.mu.Unlock()
 
 	var lastErr error
+
 	for attempt := range maxRetries {
 		if s.closed.Load() {
 			break
 		}
+
 		if attempt > 0 {
 			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
@@ -80,18 +84,23 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			cancel()
+
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
-		response, err := s.client.Do(request)
 		cancel()
+
+		response, err := s.client.Do(request)
 		if err != nil {
-			lastErr = fmt.Errorf("request failed: %w", err)
 			if ErrorIsTemporary(err) {
 				continue
 			}
+
+			lastErr = fmt.Errorf("request failed: %w", err)
+
 			return nil, lastErr
 		}
+
 		defer response.Body.Close()
 
 		s.handleRateLimitHeaders(response.Header)
@@ -102,23 +111,30 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 			if err = json.NewDecoder(response.Body).Decode(&responseModel); err != nil {
 				return nil, fmt.Errorf("failed to decode response body: %w", err)
 			}
+
 			if strings.EqualFold(responseModel.Status, "fail") {
 				failMessage := responseModel.Message
 				if strings.EqualFold(failMessage, "reserved range") {
 					responseModel.Proxy = false
+
 					return &responseModel, nil
 				}
+
 				return nil, fmt.Errorf("query failed: %s", failMessage)
 			}
+
 			return &responseModel, nil
 		case http.StatusTooManyRequests:
 			lastErr = fmt.Errorf("rate limited by api")
+
 			time.Sleep(time.Duration(attempt+1) * retryDelay)
+
 			continue
 		default:
 			lastErr = fmt.Errorf("unexpected status code: %d", response.StatusCode)
 		}
 	}
+
 	return nil, lastErr
 }
 
@@ -152,9 +168,12 @@ func ErrorIsTemporary(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
+
 	var netErr net.Error
+
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
+
 	return false
 }

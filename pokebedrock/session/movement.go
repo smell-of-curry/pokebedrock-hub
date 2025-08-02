@@ -30,6 +30,7 @@ func NewMovement() *Movement {
 func (m *Movement) LastMoveTime() time.Time {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return m.lastMoveTime
 }
 
@@ -44,6 +45,7 @@ func (m *Movement) SetLastMoveTime(t time.Time) {
 func (m *Movement) LastPosition() mgl64.Vec3 {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return m.lastPosition
 }
 
@@ -58,6 +60,7 @@ func (m *Movement) SetLastPosition(pos mgl64.Vec3) {
 func (m *Movement) LastRotation() cube.Rotation {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return m.lastRotation
 }
 

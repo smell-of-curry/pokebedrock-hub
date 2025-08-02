@@ -1,5 +1,6 @@
 [PokeBedrock]
 SentryDsn = '' # DSN for Sentry.
+LogLevel = 'debug' # Log level.
 ServerPath = 'resources/servers' # Path to the servers folder.
 SlapperPath = 'resources/slapper' # Path to the slapper folder.
 LocalePath = 'resources/locales' # Path to the locales folder.
@@ -36,3 +37,10 @@ ModerationKey = 'xxxxxx-xxxxx-xxxxxx-xxxxx' # Key for the moderation API.
 VpnURL = 'http://ip-api.com/json' # URL to the VPN API.
 AuthenticationPrefix = 'authentication' # Prefix for the authentication API.
 AuthenticationKey = 'secret-key' # Key for the authentication API.
+
+[RestartManager]
+MaxWaitTime = "10m" # Maximum time a server will wait before force restart.
+MaxFailures = 3 # Maximum failures before force restart.
+BackoffInterval = "1m" # Backoff interval between retries.
+RestartCooldown = "5m" # Minimum time between restarts for the same server.
+QueueTimeout = "15m" # Time after which queue entries expire.

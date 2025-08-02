@@ -5,6 +5,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
 
@@ -19,10 +20,10 @@ func NewList(r rank.Rank) cmd.Command {
 }
 
 // Run executes the list command.
-func (l List) Run(src cmd.Source, o *cmd.Output, tx *world.Tx) {
-	var players []*player.Player
-
+func (l List) Run(_ cmd.Source, o *cmd.Output, tx *world.Tx) {
 	// Collect all players in the world
+	players := make([]*player.Player, 0)
+
 	for ent := range tx.Players() {
 		p := ent.(*player.Player)
 		players = append(players, p)
@@ -31,6 +32,7 @@ func (l List) Run(src cmd.Source, o *cmd.Output, tx *world.Tx) {
 	count := len(players)
 	if count == 0 {
 		o.Print("There are 0 players online")
+
 		return
 	}
 

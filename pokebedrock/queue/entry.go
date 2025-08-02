@@ -1,3 +1,4 @@
+// Package queue provides a queue for the server.
 package queue
 
 import (
@@ -5,6 +6,7 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server/world"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )

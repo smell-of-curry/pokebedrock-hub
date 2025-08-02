@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/df-mc/atomic"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv/ping"
 )
 
@@ -24,6 +25,7 @@ func NewServer(log *slog.Logger, conf Config) *Server {
 		log: log,
 	}
 	srv.conf.Store(conf)
+
 	return srv
 }
 
@@ -33,11 +35,13 @@ func (s *Server) pingServer() {
 	response, err := ping.Ping(s.Address())
 	if err != nil {
 		s.retries.Inc()
+
 		if s.Retries() > 5 {
 			s.assumeOffline()
 			s.log.Debug("server assumed offline after multiple failures", "name", s.Name(), "address", s.Address())
 			s.retries.Store(0)
 		}
+
 		return
 	}
 
@@ -45,10 +49,12 @@ func (s *Server) pingServer() {
 		Online: true,
 		PlayerCount: func() int {
 			count, _ := strconv.Atoi(response.PlayerCount)
+
 			return count
 		}(),
 		MaxPlayerCount: func() int {
 			count, _ := strconv.Atoi(response.MaxPlayerCount)
+
 			return count
 		}(),
 	}

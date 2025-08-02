@@ -101,6 +101,7 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 	}
 
 	var lastErr error
+
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if s.closed {
 			break
@@ -114,20 +115,27 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/getInflictions", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()
+
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
+
 		httpReq.Header.Set("authorization", s.key)
 		httpReq.Header.Set("Content-Type", "application/json")
 
 		resp, err := s.client.Do(httpReq)
+
 		cancel()
+
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
+
 			if isTemporaryError(err) {
 				continue
 			}
+
 			return nil, lastErr
 		}
+
 		defer resp.Body.Close()
 
 		switch resp.StatusCode {
@@ -138,16 +146,21 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 			}
 
 			s.log.Debug(fmt.Sprintf("Fetched inflictions of xuid=%s,name=%s and response=%+v", req.XUID, req.Name, response))
+
 			return &response, nil
 		case http.StatusTooManyRequests:
 			lastErr = fmt.Errorf("rate limited")
+
 			time.Sleep(time.Duration(attempt+1) * retryDelay)
+
 			continue
 		default:
 			body, _ := io.ReadAll(resp.Body)
+
 			return nil, fmt.Errorf("failed to get inflictions: %s", string(body))
 		}
 	}
+
 	return nil, lastErr
 }
 
@@ -160,6 +173,7 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 	}
 
 	var lastErr error
+
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if s.closed {
 			break
@@ -172,32 +186,43 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/addInfliction", bytes.NewBuffer(rawRequest))
 		s.log.Debug(fmt.Sprintf("Adding infliction on url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
+
 		if err != nil {
 			cancel()
+
 			return fmt.Errorf("failed to create request: %w", err)
 		}
+
 		httpReq.Header.Set("authorization", s.key)
 		httpReq.Header.Set("Content-Type", "application/json")
 
 		resp, err := s.client.Do(httpReq)
+
 		cancel()
+
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
+
 			if isTemporaryError(err) {
 				continue
 			}
+
 			return lastErr
 		}
+
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNoContent {
 			s.log.Debug(fmt.Sprintf("Successfully added or updated infliction for xuid=%s,name=%s", req.XUID, req.Name))
+
 			return nil
 		}
 
 		body, _ := io.ReadAll(resp.Body)
+
 		return fmt.Errorf("failed to add infliction: %s", string(body))
 	}
+
 	return lastErr
 }
 
@@ -210,6 +235,7 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 	}
 
 	var lastErr error
+
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if s.closed {
 			break
@@ -223,30 +249,40 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, s.url+"/removeInfliction", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()
+
 			return fmt.Errorf("failed to create request: %w", err)
 		}
+
 		httpReq.Header.Set("authorization", s.key)
 		httpReq.Header.Set("Content-Type", "application/json")
 
 		resp, err := s.client.Do(httpReq)
+
 		cancel()
+
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
+
 			if isTemporaryError(err) {
 				continue
 			}
+
 			return lastErr
 		}
+
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNoContent {
 			s.log.Debug(fmt.Sprintf("Successfully removed infliction for xuid=%s,name=%s", req.XUID, req.Name))
+
 			return nil
 		}
 
 		body, _ := io.ReadAll(resp.Body)
+
 		return fmt.Errorf("failed to remove infliction: %s", string(body))
 	}
+
 	return lastErr
 }
 
@@ -281,6 +317,7 @@ func playerDetailsWorker() {
 			for range len(activeRequests) {
 				<-activeRequests
 			}
+
 			return
 		case req, ok := <-SendDetailsOfQueue:
 			if !ok {
@@ -317,6 +354,7 @@ func playerDetailsWorker() {
 					rawRequest, err := json.Marshal(req)
 					if err != nil {
 						s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))
+
 						return
 					}
 
@@ -325,16 +363,20 @@ func playerDetailsWorker() {
 
 					httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
 					s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", s.url+"/playerDetails", bytes.NewBuffer(rawRequest)))
+
 					if err != nil {
 						s.log.Error(fmt.Sprintf("failed to create new request: %v", err))
+
 						return
 					}
+
 					httpReq.Header.Set("Content-Type", "application/json")
 					httpReq.Header.Set("authorization", s.key)
 
 					resp, err := s.client.Do(httpReq)
 					if err != nil {
 						s.log.Error(fmt.Sprintf("request failed: %v", err))
+
 						return
 					}
 					defer resp.Body.Close()
@@ -390,5 +432,6 @@ func isTemporaryError(err error) bool {
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
+
 	return false
 }

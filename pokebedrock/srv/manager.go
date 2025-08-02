@@ -21,6 +21,7 @@ func UpdateAll() {
 		if srv, ok := value.(*Server); ok {
 			go srv.pingServer()
 		}
+
 		return true
 	})
 }
@@ -30,6 +31,7 @@ func FromIdentifier(identifier string) *Server {
 	if srv, ok := servers.Load(identifier); ok {
 		return srv.(*Server)
 	}
+
 	return nil
 }
 
@@ -40,14 +42,17 @@ func FromName(name string) *Server {
 			return srv
 		}
 	}
+
 	return nil
 }
 
 // All returns a slice of all registered servers sorted by their identifier.
 func All() []*Server {
 	var result []*Server
-	servers.Range(func(key, value any) bool {
+
+	servers.Range(func(_, value any) bool {
 		result = append(result, value.(*Server))
+
 		return true
 	})
 
@@ -55,5 +60,6 @@ func All() []*Server {
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Identifier() < result[j].Identifier()
 	})
+
 	return result
 }

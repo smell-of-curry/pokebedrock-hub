@@ -10,6 +10,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
@@ -60,18 +61,19 @@ func init() {
 }
 
 // updatePlayer sends a colored message to the player, sets their ranks, and closes the update's done channel.
-func updatePlayer(update rankUpdate, message string, color string) {
+func updatePlayer(update rankUpdate, message, color string) {
 	// Ensure the player is still online
 	if update.handle == nil {
 		return
 	}
 
 	// Get execute permission
-	update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+	update.handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 		p, ok := e.(*player.Player)
 		if !ok {
 			return
 		}
+
 		msg := text.Colourf("<%s>%s</%s>", color, message, color)
 		p.SendTip(msg)
 		p.Message(msg)
@@ -101,6 +103,7 @@ func rankWorker() {
 		if err != nil {
 			update.ranks.SetRanks([]rank.Rank{rank.UnLinked})
 			updatePlayer(update, rank.RolesError(err), "red")
+
 			continue
 		}
 
@@ -124,7 +127,7 @@ func rankWorker() {
 		updatePlayer(update, rankUpdateMessage, "green")
 
 		// Update the player's nametag
-		update.handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+		update.handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 			p, ok := e.(*player.Player)
 			if !ok {
 				return
@@ -180,6 +183,7 @@ func NewRanks() *Ranks {
 		ranks: make([]rank.Rank, 0),
 	}
 	r.lastRankFetch.Store(time.Time{})
+
 	return r
 }
 
@@ -198,29 +202,33 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 	}:
 		// Move ExecWorld call outside of channel operation
 		go func() {
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 				p, ok := e.(*player.Player)
 				if !ok {
 					return
 				}
+
 				p.SendTip(locale.Translate("rank.fetching"))
 			})
 		}()
 	default:
 		// Channel full, log warning but continue
 		go func() {
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 				p, ok := e.(*player.Player)
 				if !ok {
 					return
 				}
+
 				p.SendTip(locale.Translate("rank.update.queue.full"))
 			})
 		}()
+
 		return
 	}
 
 	timeout := time.After(5 * time.Second)
+
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -235,6 +243,7 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 			default:
 				if handle == nil {
 					ticker.Stop()
+
 					return
 				}
 			}
@@ -249,14 +258,16 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 				doneCh <- struct{}{} // Close the channel to signal timeout
 				// Move ExecWorld call outside of channel/select context
 				go func() {
-					handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+					handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 						p, ok := e.(*player.Player)
 						if !ok {
 							return
 						}
+
 						p.SendTip(locale.Translate("rank.fetch.timeout"))
 					})
 				}()
+
 				return
 			}
 		}
@@ -276,9 +287,11 @@ func (r *Ranks) SetRanks(ranks []rank.Rank) {
 func (r *Ranks) HighestRank() rank.Rank {
 	r.rankMu.Lock()
 	defer r.rankMu.Unlock()
+
 	if len(r.ranks) == 0 {
 		return rank.UnLinked
 	}
+
 	return r.ranks[len(r.ranks)-1]
 }
 
@@ -287,6 +300,7 @@ func (r *Ranks) Ranks() []rank.Rank {
 	r.rankMu.Lock()
 	defer r.rankMu.Unlock()
 	ranksCopy := slices.Clone(r.ranks)
+
 	return ranksCopy
 }
 
@@ -294,6 +308,7 @@ func (r *Ranks) Ranks() []rank.Rank {
 func (r *Ranks) HasRank(ra rank.Rank) bool {
 	r.rankMu.Lock()
 	defer r.rankMu.Unlock()
+
 	return slices.Contains(r.ranks, ra)
 }
 
@@ -332,22 +347,24 @@ func (r *Ranks) QueueLoad(xuid string, handle *world.EntityHandle) {
 	}:
 		// Successfully queued
 		if handle != nil {
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 				p, ok := e.(*player.Player)
 				if !ok {
 					return
 				}
+
 				p.SendTip(locale.Translate("rank.queue.added"))
 			})
 		}
 	default:
 		// Queue is full
 		if handle != nil {
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 				p, ok := e.(*player.Player)
 				if !ok {
 					return
 				}
+
 				p.SendTip(locale.Translate("rank.update.queue.full"))
 			})
 		}

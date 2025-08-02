@@ -9,6 +9,7 @@ import (
 	"github.com/df-mc/dragonfly/server"
 	"github.com/restartfu/gophig"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/util"
 )
 
@@ -22,11 +23,6 @@ type Config struct {
 		LocalePath  string
 		AFKTimeout  util.Duration
 	}
-	Translation struct {
-		MessageJoin             string
-		MessageLeave            string
-		MessageServerDisconnect string
-	}
 	Service struct {
 		GinAddress string
 
@@ -37,6 +33,13 @@ type Config struct {
 
 		AuthenticationPrefix string
 		AuthenticationKey    string
+	}
+	RestartManager struct {
+		MaxWaitTime     util.Duration
+		MaxFailures     int
+		BackoffInterval util.Duration
+		RestartCooldown util.Duration
+		QueueTimeout    util.Duration
 	}
 	server.UserConfig
 }
@@ -49,12 +52,7 @@ func DefaultConfig() Config {
 	c.PokeBedrock.LogLevel = "info" // Default to info level in production
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.SlapperPath = "resources/slapper"
-	c.PokeBedrock.LocalePath = "resources/locales"
 	c.PokeBedrock.AFKTimeout = util.Duration(10 * time.Minute)
-
-	c.Translation.MessageJoin = "<yellow>%v joined the game</yellow>"
-	c.Translation.MessageLeave = "<yellow>%v left the game</yellow>"
-	c.Translation.MessageServerDisconnect = "<yellow>Disconnected by Server</yellow>"
 
 	c.Service.GinAddress = ":8080"
 
@@ -65,6 +63,12 @@ func DefaultConfig() Config {
 
 	c.Service.AuthenticationPrefix = "authentication"
 	c.Service.AuthenticationKey = "secret-key"
+
+	c.RestartManager.MaxWaitTime = util.Duration(10 * time.Minute)
+	c.RestartManager.MaxFailures = 3
+	c.RestartManager.BackoffInterval = util.Duration(1 * time.Minute)
+	c.RestartManager.RestartCooldown = util.Duration(5 * time.Minute)
+	c.RestartManager.QueueTimeout = util.Duration(15 * time.Minute)
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
@@ -104,6 +108,7 @@ func ParseLogLevel(level string) (slog.Level, error) {
 // Returns the loaded configuration and any error encountered.
 func ReadConfig() (Config, error) {
 	g := gophig.NewGophig[Config]("./config.toml", gophig.TOMLMarshaler{}, os.ModePerm)
+
 	_, err := g.LoadConf()
 	if os.IsNotExist(err) {
 		err = g.SaveConf(DefaultConfig())
@@ -111,6 +116,6 @@ func ReadConfig() (Config, error) {
 			return Config{}, err
 		}
 	}
-	c, err := g.LoadConf()
-	return c, err
+
+	return g.LoadConf()
 }

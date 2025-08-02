@@ -23,6 +23,7 @@ func (pq PriorityQueue) Less(i, j int) bool {
 	if pq[i].rank == pq[j].rank {
 		return pq[i].joinTime.Before(pq[j].joinTime)
 	}
+
 	return pq[i].rank > pq[j].rank // Higher rank (numerically) has priority
 }
 
@@ -39,6 +40,7 @@ func (pq *PriorityQueue) Push(x any) {
 	if !ok {
 		panic("priority queue can only push *Entry")
 	}
+
 	entry.index = len(*pq)
 	*pq = append(*pq, entry)
 }
@@ -47,14 +49,17 @@ func (pq *PriorityQueue) Push(x any) {
 // The highest-priority entry is the one with highest rank or earliest join time.
 func (pq *PriorityQueue) Pop() any {
 	old := *pq
+
 	n := len(old)
 	if n == 0 {
 		return nil
 	}
+
 	entry := old[n-1]
 	old[n-1] = nil   // Avoid memory leak
 	entry.index = -1 // Mark as removed
 	*pq = old[0 : n-1]
+
 	return entry
 }
 
@@ -65,14 +70,19 @@ func (pq PriorityQueue) String() string {
 	}
 
 	var b strings.Builder
+
 	b.WriteString(fmt.Sprintf("Queue{len: %d, entries: [", len(pq)))
+
 	for i, entry := range pq {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+
 		b.WriteString(entry.String())
 	}
+
 	b.WriteString("]}")
+
 	return b.String()
 }
 

@@ -1,3 +1,4 @@
+// Package session provides a session for the server.
 package session
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/df-mc/atomic"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 )
 
@@ -22,6 +24,7 @@ func NewInflictions() *Inflictions {
 	i.muted.Store(false)
 	i.muteDuration.Store(0)
 	i.frozen.Store(false)
+
 	return i
 }
 
@@ -85,6 +88,7 @@ func inflictionWorker() {
 			for i := 0; i < len(activeRequests); i++ {
 				<-activeRequests
 			}
+
 			return
 		case req, ok := <-InflictionQueue:
 			if !ok {
@@ -137,6 +141,7 @@ func inflictionWorker() {
 										if expiry != nil && *expiry != 0 {
 											inflictions.muteDuration.Store(*expiry)
 										}
+
 										inflictions.muted.Store(true)
 									case moderation.InflictionFrozen:
 										inflictions.frozen.Store(true)

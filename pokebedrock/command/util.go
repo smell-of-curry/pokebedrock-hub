@@ -3,6 +3,7 @@ package command
 import (
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/player"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 )
@@ -20,10 +21,12 @@ func (r rankAllower) Allow(s cmd.Source) bool {
 	if !ok {
 		return false
 	}
+
 	h, ok := p.Handler().(rankHandler)
 	if !ok {
 		return false
 	}
+
 	return h.Ranks().HighestRank() >= r.rank
 }
 

@@ -1,3 +1,4 @@
+// Package authentication provides a thread-safe storage for player identities.
 package authentication
 
 import (
@@ -33,9 +34,11 @@ type Factory struct {
 func (f *Factory) startCleanup(interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
+
 	for range t.C {
 		f.mu.Lock()
 		now := time.Now()
+
 		for xuid, identity := range f.data {
 			if now.After(identity.Expiration) {
 				delete(f.data, xuid)
@@ -46,7 +49,7 @@ func (f *Factory) startCleanup(interval time.Duration) {
 }
 
 // Set ...
-func (f *Factory) Set(name string, xuid string, duration time.Duration) {
+func (f *Factory) Set(name, xuid string, duration time.Duration) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.data[xuid] = PlayerIdentity{
@@ -61,6 +64,7 @@ func (f *Factory) Of(xuid string) (PlayerIdentity, bool) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	req, exists := f.data[xuid]
+
 	return req, exists
 }
 

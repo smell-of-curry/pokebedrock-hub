@@ -1,3 +1,4 @@
+// Package vpn provides a model for the VPN service.
 package vpn
 
 const (

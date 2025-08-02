@@ -1,13 +1,9 @@
-/.idea/
-/.git/
-/tests/
+# Config file
+config.toml
 
-# Resource Management
+# Resource files
 /resources/*
 !/resources/
 !/resources/slapper/
 !/resources/servers/
 !/resources/locales/
-
-*.toml
-*.exe

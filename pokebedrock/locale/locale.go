@@ -1,3 +1,4 @@
+// Package locale provides translations for the server.
 package locale
 
 import (
@@ -29,6 +30,7 @@ func Register(lang language.Tag, filePath string) error {
 
 	data := make(localeData)
 	scanner := bufio.NewScanner(file)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if len(line) == 0 || line[0] == '#' {
@@ -44,11 +46,13 @@ func Register(lang language.Tag, filePath string) error {
 		value := strings.TrimSpace(parts[1])
 		data[key] = value
 	}
+
 	if err = scanner.Err(); err != nil {
 		return fmt.Errorf("error reading lang file: %w", err)
 	}
 
 	locales[lang] = data
+
 	return nil
 }
 
@@ -76,5 +80,6 @@ func TranslateL(lang language.Tag, key string, args ...any) string {
 		placeholder := fmt.Sprintf("%%%d", i+1)
 		translation = strings.ReplaceAll(translation, placeholder, fmt.Sprintf("%v", arg))
 	}
+
 	return translation
 }

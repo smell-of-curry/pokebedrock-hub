@@ -1,3 +1,4 @@
+// Package moderation provides moderation actions for the server.
 package moderation
 
 // InflictionType represents the type of infliction that a player may face (e.g., banned, muted, etc.).

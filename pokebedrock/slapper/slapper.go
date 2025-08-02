@@ -2,7 +2,6 @@ package slapper
 
 import (
 	"fmt"
-	"log/slog"
 	"path/filepath"
 
 	"github.com/df-mc/dragonfly/server/player"
@@ -11,6 +10,7 @@ import (
 	"github.com/df-mc/npc"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
@@ -18,7 +18,6 @@ import (
 // Slapper represents an NPC that displays status information about a Minecraft server.
 // It includes configuration, skin, and methods to spawn and update the slapper in the world.
 type Slapper struct {
-	log        *slog.Logger
 	conf       *Config
 	resManager *resources.Manager
 	skin       skin.Skin
@@ -27,13 +26,13 @@ type Slapper struct {
 
 // NewSlapper creates and returns a new Slapper instance with the provided configuration and resource manager.
 // It also preloads the skin for the slapper.
-func NewSlapper(log *slog.Logger, conf *Config, resManager *resources.Manager) *Slapper {
+func NewSlapper(conf *Config, resManager *resources.Manager) *Slapper {
 	s := &Slapper{
-		log:        log,
 		conf:       conf,
 		resManager: resManager,
 	}
 	s.preloadSkin()
+
 	return s
 }
 

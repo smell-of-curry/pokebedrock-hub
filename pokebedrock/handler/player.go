@@ -12,6 +12,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player/chat"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/form"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
@@ -74,6 +75,7 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 	p := ctx.Val()
 	it, _ := p.HeldItems()
+
 	if id, ok := it.Value("lobby"); ok {
 		switch id {
 		case 0:
@@ -86,11 +88,13 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 			if time.Since(lastFetch) < time.Second*5 {
 				remaining := time.Second*5 - time.Since(lastFetch)
 				p.SendTip(locale.Translate("rank.refetch.wait", fmt.Sprintf("%.1f", remaining.Seconds())))
+
 				return
 			}
 
 			h.ranks.SetLastRankFetch(time.Now())
 			p.SendTip(locale.Translate("rank.fetching"))
+
 			go func() {
 				h.Ranks().Load(p.XUID(), p.H())
 			}()
@@ -107,6 +111,7 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 		dur := h.inflictions.MuteDuration()
 		if dur == 0 || dur >= time.Now().UnixMilli() {
 			p.Message(locale.Translate("mute.message"))
+
 			return
 		}
 	}
@@ -114,6 +119,7 @@ func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
 	// Only allow users with ranks other than Trainer to chat
 	if h.Ranks().HighestRank() == rank.UnLinked {
 		p.Message(locale.Translate("chat.discord.linked"))
+
 		return
 	}
 
@@ -159,11 +165,13 @@ func (h *PlayerHandler) HandleItemDamage(ctx *player.Context, _ item.Stack, _ in
 // HandleMove ...
 func (h *PlayerHandler) HandleMove(ctx *player.Context, pos mgl64.Vec3, rot cube.Rotation) {
 	p := ctx.Val()
+
 	delta := pos.Sub(p.Position())
 	if mgl64.FloatEqual(delta.X(), 0) && mgl64.FloatEqual(delta.Z(), 0) {
 		// No horizontal movement, just return.
 		return
 	}
+
 	movement := h.movement
 	movement.SetLastMoveTime(time.Now())
 	movement.SetLastPosition(pos)

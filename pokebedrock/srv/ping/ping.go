@@ -1,3 +1,4 @@
+// Package ping provides a ping service for the server.
 package ping
 
 import (
@@ -27,10 +28,12 @@ func Ping(address string) (RakNetResponse, error) {
 	if err != nil {
 		return RakNetResponse{}, err
 	}
+
 	frag := splitPong(string(raw))
 	if len(frag) < 7 {
 		return RakNetResponse{}, fmt.Errorf("invalid pong data")
 	}
+
 	return RakNetResponse{
 		GameType:         frag[0],
 		MessageOfTheDay:  frag[1],
@@ -48,8 +51,11 @@ func Ping(address string) (RakNetResponse, error) {
 // It also handles escape sequences and semicolons as token separators.
 func splitPong(s string) []string {
 	var runes []rune
+
 	var tokens []string
+
 	inEscape := false
+
 	for _, r := range s {
 		switch {
 		case r == '\\':
@@ -59,10 +65,12 @@ func splitPong(s string) []string {
 			runes = runes[:0]
 		case inEscape:
 			inEscape = false
+
 			fallthrough
 		default:
 			runes = append(runes, r)
 		}
 	}
+
 	return append(tokens, string(runes))
 }

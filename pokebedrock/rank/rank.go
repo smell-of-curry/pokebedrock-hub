@@ -29,16 +29,16 @@ const (
 	Owner
 )
 
-// RankInfo centralizes all details for each rank.
-type RankInfo struct {
+// Info centralizes all details for each rank.
+type Info struct {
 	DisplayName string // Human-readable name of the rank.
-	Color       string // Colour to be used (must follow the colour guidelines).
+	Color       string // Color to be used (must follow the color guidelines).
 	Prefix      bool   // If true, the rank's title is prepended to the player's name.
 	RoleID      string // External role identifier.
 }
 
 // rankInfos holds the rank details in the same order as the Rank constants.
-var rankInfos = map[Rank]RankInfo{
+var rankInfos = map[Rank]Info{
 	UnLinked:             {DisplayName: "UnLinked", Color: "grey", Prefix: false},
 	Trainer:              {DisplayName: "Trainer", Color: "white", Prefix: true, RoleID: "1068581342159306782"},
 	ServerBooster:        {DisplayName: "Server Booster", Color: "diamond", Prefix: true, RoleID: "1068578576951160952"},
@@ -73,19 +73,22 @@ func (r Rank) Name() string {
 	if int(r) < 0 || int(r) >= len(rankInfos) {
 		return "Unknown"
 	}
+
 	return rankInfos[r].DisplayName
 }
 
-// formatName formats a player's name according to their rank.
+// FormatName formats a player's name according to their rank.
 // If the rank uses a prefix, the rank's title is prepended.
 func (r Rank) FormatName(name string) string {
 	if _, ok := rankInfos[r]; !ok {
 		return text.Colourf("<grey>%s</grey>", name)
 	}
+
 	info := rankInfos[r]
 	if info.Prefix {
 		return text.Colourf("<%s>%s %s</%s>", info.Color, info.DisplayName, name, info.Color)
 	}
+
 	return text.Colourf("<%s>%s</%s>", info.Color, name, info.Color)
 }
 

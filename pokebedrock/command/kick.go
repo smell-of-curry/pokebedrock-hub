@@ -1,3 +1,4 @@
+// Package command provides commands for the server.
 package command
 
 import (
@@ -7,6 +8,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
@@ -26,7 +28,7 @@ func NewKick(r rank.Rank) cmd.Command {
 }
 
 // Run executes the kick command.
-func (k Kick) Run(src cmd.Source, o *cmd.Output, tx *world.Tx) {
+func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
 	p := src.(*player.Player)
 
 	reason := k.Reason
@@ -51,7 +53,6 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, tx *world.Tx) {
 			InflictionStatus: moderation.InflictionStatusCurrent,
 			Infliction:       infliction,
 		})
-
 		if err != nil {
 			o.Error("Error while syncing kick globally", "error", err)
 		}
@@ -60,5 +61,4 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, tx *world.Tx) {
 		victim.Disconnect(text.Colourf("<red>You've been kicked. Reason: %s</red>", reason))
 		o.Print("Successfully kicked from world", "target", k.Target, "reason", reason)
 	}
-
 }

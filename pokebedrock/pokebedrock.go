@@ -1,3 +1,6 @@
+// Package pokebedrock provides a Minecraft Bedrock Edition server hub implementation.
+// It manages player queues, server navigation, NPC entities, authentication,
+// moderation, and rank systems for the PokeBedrock network.
 package pokebedrock
 
 import (
@@ -12,6 +15,8 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/gin-gonic/gin"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"golang.org/x/text/language"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
@@ -20,13 +25,12 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/restart"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/translation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
-	"golang.org/x/text/language"
 )
 
 // PokeBedrock represents the main server struct.
@@ -64,20 +68,17 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		resManager: resManager,
 	}
 	go func() {
-		if err := poke.setupGin(); err != nil {
-			poke.log.Error("failed to start authentication service", "error", err)
+		if setupErr := poke.setupGin(); setupErr != nil {
+			poke.log.Error("failed to start authentication service", "error", setupErr)
 		}
 	}()
 
-	// TODO: Enable when these get fixed.
-	// poke.loadTranslations(&c)
 	if err = poke.loadLocales(); err != nil {
 		return nil, err
 	}
-	poke.loadCommands()
 
 	c.ReadOnlyWorld = true
-	c.Generator = func(dim world.Dimension) world.Generator { // ensures that no new chunks are generated.
+	c.Generator = func(_ world.Dimension) world.Generator { // ensures that no new chunks are generated.
 		return world.NopGenerator{}
 	}
 	c.StatusProvider = status.NewProvider(c.Name, c.Name) // ensures synchronized server count display.
@@ -86,6 +87,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	poke.srv = c.New()
 	poke.srv.CloseOnProgramEnd()
 
+	poke.loadCommands()
 	poke.loadServices()
 
 	return poke, nil
@@ -125,6 +127,7 @@ func (poke *PokeBedrock) handleWorld() {
 
 	poke.loadServers()
 	poke.loadSlappers()
+
 	go poke.startTicking()
 }
 
@@ -136,43 +139,136 @@ func (poke *PokeBedrock) setupGin() error {
 	router.GET(fmt.Sprintf("/%s/:xuid", poke.conf.Service.AuthenticationPrefix), func(c *gin.Context) {
 		if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+
 			return
 		}
 
 		xuid := c.Param("xuid")
+		if xuid == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "xuid is required"})
+
+			return
+		}
+
 		req, exists := authentication.GlobalFactory().Of(xuid)
 		if !exists {
 			c.JSON(http.StatusNotFound, gin.H{"reason": "no player found"})
+
 			return
 		}
 
 		if time.Now().After(req.Expiration) {
 			authentication.GlobalFactory().Remove(xuid)
 			c.JSON(http.StatusGone, gin.H{"reason": "request expired"})
+
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{"allowed": true})
 	})
+
+	// Restart Manager endpoints
+	restartGroup := router.Group("/restart")
+	{
+		// Request restart permission
+		restartGroup.POST("/request", func(c *gin.Context) {
+			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+
+				return
+			}
+
+			var req restart.RestartRequest
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
+
+				return
+			}
+
+			response := restart.GlobalService().RequestRestart(req)
+			c.JSON(http.StatusOK, response)
+		})
+
+		// Notify restart completion
+		restartGroup.POST("/complete", func(c *gin.Context) {
+			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+
+				return
+			}
+
+			var notification restart.RestartNotification
+			if err := c.ShouldBindJSON(&notification); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification format", "details": err.Error()})
+
+				return
+			}
+
+			if err := restart.GlobalService().NotifyRestartComplete(notification); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{"status": "acknowledged"})
+		})
+
+		// Notify unauthorized restart
+		restartGroup.POST("/unauthorized", func(c *gin.Context) {
+			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+
+				return
+			}
+
+			var req struct {
+				Host string `json:"host" binding:"required"` // ex. 40.160.19.215:19136
+			}
+
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
+
+				return
+			}
+
+			restart.GlobalService().NotifyUnauthorizedRestart(req.Host)
+			c.JSON(http.StatusOK, gin.H{"status": "acknowledged"})
+		})
+
+		// Get restart manager state (for monitoring/debugging)
+		restartGroup.GET("/state", func(c *gin.Context) {
+			if c.GetHeader("authorization") != poke.conf.Service.AuthenticationKey {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+
+				return
+			}
+
+			stateJSON, err := restart.GlobalService().GetStateJSON()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get state", "details": err.Error()})
+
+				return
+			}
+
+			c.Header("Content-Type", "application/json")
+			c.String(http.StatusOK, string(stateJSON))
+		})
+	}
+
 	err := router.Run(poke.conf.Service.GinAddress)
 	if err != nil {
 		return err
 	}
-	poke.log.Info("Authentication service started on " + poke.conf.Service.GinAddress)
-	return nil
-}
 
-// loadTranslations loads all the translation used in dragonfly.
-func (poke *PokeBedrock) loadTranslations(c *server.Config) {
-	conf := poke.conf
-	c.JoinMessage = translation.MessageJoin(conf.Translation.MessageJoin)
-	c.QuitMessage = translation.MessageQuit(conf.Translation.MessageLeave)
-	c.ShutdownMessage = translation.MessageServerDisconnect(conf.Translation.MessageServerDisconnect)
+	poke.log.Info("Authentication service started on " + poke.conf.Service.GinAddress)
+
+	return nil
 }
 
 // loadLocales registers all the locales active on the server.
 func (poke *PokeBedrock) loadLocales() error {
 	path := poke.conf.PokeBedrock.LocalePath
+
 	locales := []language.Tag{
 		language.English,
 	}
@@ -181,6 +277,7 @@ func (poke *PokeBedrock) loadLocales() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -196,6 +293,16 @@ func (poke *PokeBedrock) loadServices() {
 	rank.NewService(poke.log, poke.conf.Service.RolesURL)
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
 	vpn.NewService(poke.log, poke.conf.Service.VpnURL)
+
+	// Initialize restart manager service
+	restartConfig := restart.Config{
+		MaxWaitTime:     time.Duration(poke.conf.RestartManager.MaxWaitTime),
+		MaxFailures:     poke.conf.RestartManager.MaxFailures,
+		BackoffInterval: time.Duration(poke.conf.RestartManager.BackoffInterval),
+		RestartCooldown: time.Duration(poke.conf.RestartManager.RestartCooldown),
+		QueueTimeout:    time.Duration(poke.conf.RestartManager.QueueTimeout),
+	}
+	restart.NewService(poke.log, restartConfig)
 }
 
 // loadServers loads all the server configurations from the specified path
@@ -221,13 +328,14 @@ func (poke *PokeBedrock) loadServers() {
 // Panics if slapper configurations cannot be read.
 func (poke *PokeBedrock) loadSlappers() {
 	w := poke.World()
+
 	cfgs, err := slapper.ReadAll(poke.conf.PokeBedrock.SlapperPath)
 	if err != nil {
 		panic(err)
 	}
 
 	<-w.Exec(func(tx *world.Tx) {
-		slapper.SummonAll(poke.log, cfgs, tx, poke.resManager)
+		slapper.SummonAll(cfgs, tx, poke.resManager)
 	})
 }
 
@@ -235,10 +343,12 @@ func (poke *PokeBedrock) loadSlappers() {
 // It executes server updates, manages queues, and periodically triggers specific actions.
 func (poke *PokeBedrock) startTicking() {
 	w := poke.World()
+
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
 
 	var counter int
+
 	f := func(n int) bool {
 		return counter%n == 0
 	}
@@ -253,7 +363,7 @@ func (poke *PokeBedrock) startTicking() {
 
 				queue.QueueManager.Update(tx)
 
-				switch true {
+				switch {
 				case f(10):
 					srv.UpdateAll()
 				case f(5):
@@ -286,18 +396,33 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 // Close closes the server and all its associated services.
 func (poke *PokeBedrock) Close() {
 	poke.log.Debug("Closing Moderation Service...")
-	moderation.GlobalService().Stop()
+
+	go moderation.GlobalService().Stop()
+
 	poke.log.Debug("Closing Rank Service...")
-	rank.GlobalService().Stop()
+
+	go rank.GlobalService().Stop()
+
 	poke.log.Debug("Closing Vpn Service...")
-	vpn.GlobalService().Stop()
+
+	go vpn.GlobalService().Stop()
+
+	poke.log.Debug("Closing Restart Manager Service...")
+
+	go restart.GlobalService().Stop()
+
 	poke.log.Debug("Stopping Rank Channel...")
-	session.StopRankChannel()
+
+	go session.StopRankChannel()
+
 	poke.log.Debug("Stopping Rank Load Worker...")
-	session.StopRankLoadWorker()
+
+	go session.StopRankLoadWorker()
+
 	poke.log.Debug("Stopping Infliction Worker...")
-	session.StopInflictionWorker()
-	poke.log.Debug("Stopping Queue Manager...")
+
+	go session.StopInflictionWorker()
+
 	close(poke.c)
 }
 
@@ -310,10 +435,12 @@ func (poke *PokeBedrock) World() *world.World {
 func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
 	for ent := range tx.Players() {
 		p := ent.(*player.Player)
+
 		h, ok := p.Handler().(*handler.PlayerHandler)
 		if !ok {
 			continue
 		}
+
 		m := h.Movement()
 		if time.Since(m.LastMoveTime()) > time.Duration(poke.conf.PokeBedrock.AFKTimeout) {
 			p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))

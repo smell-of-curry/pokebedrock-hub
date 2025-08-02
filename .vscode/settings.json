@@ -1,18 +1,57 @@
 {
-    "cSpell.words": [
-        "Allower",
-        "bossbar",
-        "cfgs",
-        "Colourf",
-        "cooldown",
-        "gophig",
-        "mcpack",
-        "Messagef",
-        "nametag",
-        "npcs",
-        "pokebedrock",
-        "progressbar",
-        "raknet",
-        "xuid"
-    ]
+  "cSpell.words": [
+    "Allower",
+    "bossbar",
+    "cfgs",
+    "Colourf",
+    "cooldown",
+    "gophig",
+    "mcpack",
+    "Messagef",
+    "nametag",
+    "npcs",
+    "pokebedrock",
+    "progressbar",
+    "raknet",
+    "xuid"
+  ],
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--fast"],
+  "go.useLanguageServer": true,
+  "gopls": {
+    "ui.completion.usePlaceholders": true,
+    "ui.diagnostic.staticcheck": true,
+    "ui.diagnostic.analyses": {
+      "fieldalignment": false,
+      "shadow": true,
+      "unusedparams": true
+    }
+  },
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.insertSpaces": false,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false
+  },
+  "[go.mod]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[go.sum]": {
+    "editor.formatOnSave": false
+  },
+  "go.toolsManagement.autoUpdate": true,
+  "go.coverOnSave": false,
+  "go.coverOnSingleTest": true,
+  "go.coverShowCounts": true,
+  "go.diagnostic.vulncheck": "Imports",
+  "go.survey.prompt": false,
+  "editor.rulers": [80, 120],
+  "editor.wordWrap": "wordWrapColumn",
+  "editor.wordWrapColumn": 120
 }

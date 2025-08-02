@@ -1,10 +1,10 @@
 package slapper
 
 import (
-	"log/slog"
 	"sync"
 
 	"github.com/df-mc/dragonfly/server/world"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 )
 
@@ -13,9 +13,9 @@ var slappers sync.Map
 
 // SummonAll spawns slappers based on the provided configurations and stores them in the slappers map.
 // Each slapper is spawned and initialized with the provided transaction and resource manager.
-func SummonAll(log *slog.Logger, cfgs []Config, tx *world.Tx, resManager *resources.Manager) {
+func SummonAll(cfgs []Config, tx *world.Tx, resManager *resources.Manager) {
 	for _, c := range cfgs {
-		s := NewSlapper(log, &c, resManager)
+		s := NewSlapper(&c, resManager)
 		s.Spawn(tx)
 		slappers.Store(c.Identifier, s)
 	}
@@ -28,6 +28,7 @@ func UpdateAll(tx *world.Tx) {
 		if s, ok := value.(*Slapper); ok {
 			s.update(tx)
 		}
+
 		return true
 	})
 }
@@ -43,6 +44,7 @@ func FromIdentifier(identifier string) *Slapper {
 	if s, ok := slappers.Load(identifier); ok {
 		return s.(*Slapper)
 	}
+
 	return nil
 }
 
@@ -50,9 +52,12 @@ func FromIdentifier(identifier string) *Slapper {
 // value is the corresponding slapper.
 func All() map[string]*Slapper {
 	result := make(map[string]*Slapper)
+
 	slappers.Range(func(key, value any) bool {
 		result[key.(string)] = value.(*Slapper)
+
 		return true
 	})
+
 	return result
 }

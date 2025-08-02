@@ -7,6 +7,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player/form"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
@@ -27,6 +28,7 @@ func NewServerConfirm(srv *srv.Server) form.Modal {
 	f := form.NewModal(ServerConfirm{srv, form.YesButton(), form.NoButton()},
 		text.Colourf("<purple>Server Navigator</purple>")).
 		WithBody(fmt.Sprintf("Are you sure you want to join %s?", srv.Name()))
+
 	return f
 }
 
@@ -38,6 +40,7 @@ func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 
 	p := sub.(*player.Player)
 	h, ok := p.Handler().(rankHandler)
+
 	if !ok {
 		return
 	}
@@ -48,6 +51,7 @@ func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	highestRank := h.Ranks().HighestRank()
 	if cfg.BetaLock && !(h.Ranks().HasRank(rank.Supporter) || highestRank >= rank.Moderator) {
 		p.Message(locale.Translate("queue.beta.lock"))
+
 		return
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
@@ -23,8 +24,8 @@ func init() {
 	QueueManager = NewManager()
 }
 
-// QueueTransfer represents a player waiting to be transferred to a server
-type QueueTransfer struct {
+// Transfer represents a player waiting to be transferred to a server
+type Transfer struct {
 	player *player.Player
 	entry  *Entry
 	server *srv.Server
@@ -43,6 +44,7 @@ func NewManager() *Manager {
 	q := m.queue.Load()
 	heap.Init(&q)
 	m.queue.Store(q)
+
 	return m
 }
 
@@ -61,6 +63,7 @@ func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 	// Verify server exists
 	if srv == nil {
 		p.Message(locale.Translate("queue.nonexistent.server"))
+
 		return
 	}
 
@@ -80,11 +83,13 @@ func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 
 	// Inform player about their queue status and explain priority system
 	status := srv.Status()
-	if status.Online && status.PlayerCount < status.MaxPlayerCount {
+
+	switch {
+	case status.Online && status.PlayerCount < status.MaxPlayerCount:
 		p.Message(locale.Translate("queue.added.success", srv.Name()))
-	} else if !status.Online {
+	case !status.Online:
 		p.Message(locale.Translate("queue.added.offline", srv.Name()))
-	} else {
+	default:
 		p.Message(locale.Translate("queue.added.full",
 			srv.Name(), status.PlayerCount, status.MaxPlayerCount))
 	}
@@ -99,9 +104,11 @@ func (m *Manager) RemovePlayer(p *player.Player) {
 		if entry.handle == p.H() {
 			m.RemoveFromQueue(i)
 			p.Messagef("%s", locale.Translate("queue.removed", entry.srv.Name()))
+
 			break
 		}
 	}
+
 	p.RemoveBossBar()
 	m.updateBossBars(p.Tx())
 }
@@ -115,6 +122,7 @@ func (m *Manager) NextPlayer() *Entry {
 
 	entry := heap.Pop(&queue).(*Entry)
 	m.queue.Store(queue)
+
 	return entry
 }
 
@@ -128,7 +136,8 @@ func (m *Manager) Update(tx *world.Tx) {
 	// Instead of modifying the queue during iteration,
 	// we'll track changes and apply them afterward
 	var entriesToRemove []int
-	var playersToTransfer []*QueueTransfer
+
+	var playersToTransfer []*Transfer
 
 	// First pass: check queue entries and mark for removal/transfer
 	for i, entry := range queue {
@@ -140,6 +149,7 @@ func (m *Manager) Update(tx *world.Tx) {
 		// Check for nil entries
 		if entry == nil || entry.handle == nil {
 			entriesToRemove = append(entriesToRemove, i)
+
 			continue
 		}
 
@@ -147,15 +157,19 @@ func (m *Manager) Update(tx *world.Tx) {
 		ent, ok := entry.handle.Entity(tx)
 		if !ok {
 			entriesToRemove = append(entriesToRemove, i)
+
 			continue
 		}
+
 		p := ent.(*player.Player)
 
 		// Verify server still exists and is valid
 		s := entry.srv
 		if s == nil {
 			entriesToRemove = append(entriesToRemove, i)
+
 			p.Message(locale.Translate("queue.destination.invalid"))
+
 			continue
 		}
 
@@ -180,11 +194,12 @@ func (m *Manager) Update(tx *world.Tx) {
 		}
 
 		// Mark for transfer
-		playersToTransfer = append(playersToTransfer, &QueueTransfer{
+		playersToTransfer = append(playersToTransfer, &Transfer{
 			player: p,
 			entry:  entry,
 			server: s,
 		})
+
 		entriesToRemove = append(entriesToRemove, i)
 
 		// Only process one transfer per tick
@@ -193,6 +208,7 @@ func (m *Manager) Update(tx *world.Tx) {
 
 	// Second pass: remove entries marked for removal (in reverse order to maintain indices)
 	sort.Sort(sort.Reverse(sort.IntSlice(entriesToRemove)))
+
 	for _, i := range entriesToRemove {
 		if i >= 0 && i < len(m.Queue()) {
 			m.RemoveFromQueue(i)
@@ -226,6 +242,7 @@ func (m *Manager) Update(tx *world.Tx) {
 // updateBossBars updates the boss bars for all players in the queue showing their position.
 func (m *Manager) updateBossBars(tx *world.Tx) {
 	queue := m.Queue()
+
 	length := len(queue)
 	if length == 0 {
 		return
@@ -242,6 +259,7 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 		if sortedEntries[i].rank == sortedEntries[j].rank {
 			return sortedEntries[i].joinTime.Before(sortedEntries[j].joinTime)
 		}
+
 		return sortedEntries[i].rank > sortedEntries[j].rank
 	})
 
@@ -253,17 +271,20 @@ func (m *Manager) updateBossBars(tx *world.Tx) {
 		if !ok {
 			continue
 		}
+
 		p := ent.(*player.Player)
 
 		// Show estimated time based on position
 		var waitMsg string
-		if position == 1 {
+
+		switch {
+		case position == 1:
 			waitMsg = "You're next in line!"
-		} else if position <= 3 {
+		case position <= 3:
 			waitMsg = "Almost your turn"
-		} else if position <= 10 {
+		case position <= 10:
 			waitMsg = "Short wait"
-		} else {
+		default:
 			waitMsg = "Longer wait"
 		}
 
@@ -306,6 +327,7 @@ func (m *Manager) GetQueuePosition(p *player.Player) int {
 	for _, entry := range queue {
 		if entry.handle == playerHandle {
 			playerEntry = entry
+
 			break
 		}
 	}
@@ -316,6 +338,7 @@ func (m *Manager) GetQueuePosition(p *player.Player) int {
 
 	// Count how many players are ahead of this player based on priority
 	position := 1
+
 	for _, entry := range queue {
 		if entry == playerEntry {
 			continue // Skip self
@@ -339,6 +362,7 @@ func (m *Manager) IsPlayerInQueue(p *player.Player) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
