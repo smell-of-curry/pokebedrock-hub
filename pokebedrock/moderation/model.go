@@ -5,6 +5,7 @@ package moderation
 // It is used to categorize the infliction type in moderation actions.
 type InflictionType string
 
+// InflictionType constants for the moderation service.
 const (
 	InflictionBanned InflictionType = "BANNED"
 	InflictionMuted  InflictionType = "MUTED"
@@ -17,6 +18,7 @@ const (
 // It is used to differentiate between ongoing and historical inflictions.
 type InflictionStatus string
 
+// InflictionStatus constants for the moderation service.
 const (
 	InflictionStatusCurrent = "current"
 	InflictionStatusPast    = "past"

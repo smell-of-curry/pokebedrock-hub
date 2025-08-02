@@ -81,6 +81,7 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 
 		url := fmt.Sprintf("%s/%s?fields=status,message,proxy", s.url, ip)
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			cancel()

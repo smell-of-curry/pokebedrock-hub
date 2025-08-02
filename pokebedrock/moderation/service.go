@@ -112,6 +112,7 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/getInflictions", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()
@@ -246,6 +247,7 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, s.url+"/removeInfliction", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()
@@ -351,6 +353,7 @@ func playerDetailsWorker() {
 						XUID: p.XUID(),
 						IP:   strings.Split(p.Addr().String(), ":")[0],
 					}
+
 					rawRequest, err := json.Marshal(req)
 					if err != nil {
 						s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))

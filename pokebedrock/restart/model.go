@@ -3,32 +3,33 @@ package restart
 
 import "time"
 
-// RestartStatus represents the possible responses to a restart request.
-type RestartStatus string
+// Status represents the possible responses to a restart request.
+type Status string
 
+// Status constants for the restart service.
 const (
-	RestartStatusAllow RestartStatus = "allow"
-	RestartStatusWait  RestartStatus = "wait"
-	RestartStatusDeny  RestartStatus = "deny"
+	StatusAllow Status = "allow"
+	StatusWait  Status = "wait"
+	StatusDeny  Status = "deny"
 )
 
-// RestartRequest represents a request from a downstream server to restart.
-type RestartRequest struct {
+// Request represents a request from a downstream server to restart.
+type Request struct {
 	ServerName string `json:"server_name" binding:"required"` // ex. BLACK
 	Host       string `json:"host" binding:"required"`        // ex. 40.160.19.215:19136
 }
 
-// RestartResponse represents the hub's response to a restart request.
-type RestartResponse struct {
-	Status       RestartStatus `json:"status"`
-	Message      string        `json:"message,omitempty"`
-	RetryAfter   int64         `json:"retry_after,omitempty"` // Unix timestamp when to retry
-	QueuePos     int           `json:"queue_position,omitempty"`
-	ResponseTime int64         `json:"response_time"`
+// Response represents the hub's response to a restart request.
+type Response struct {
+	Status       Status `json:"status"`
+	Message      string `json:"message,omitempty"`
+	RetryAfter   int64  `json:"retry_after,omitempty"` // Unix timestamp when to retry
+	QueuePos     int    `json:"queue_position,omitempty"`
+	ResponseTime int64  `json:"response_time"`
 }
 
-// RestartNotification represents a notification when a server has completed its restart.
-type RestartNotification struct {
+// Notification represents a notification when a server has completed its restart.
+type Notification struct {
 	Host          string `json:"host" binding:"required"` // ex. 40.160.19.215:19136
 	RestartTime   int64  `json:"restart_time" binding:"required"`
 	CompletedTime int64  `json:"completed_time" binding:"required"`
@@ -42,11 +43,11 @@ type QueueEntry struct {
 	LastRetry    time.Time
 	RetryCount   int
 	FailureCount int
-	Status       RestartStatus
+	Status       Status
 }
 
-// ServerRestartState represents the restart state of a server.
-type ServerRestartState struct {
+// ServerState represents the restart state of a server.
+type ServerState struct {
 	CurrentlyRestarting  string                 // Host that is currently restarting
 	Queue                []QueueEntry           // Queue of servers waiting to restart
 	RestartHistory       map[string]time.Time   // Last restart time for each server

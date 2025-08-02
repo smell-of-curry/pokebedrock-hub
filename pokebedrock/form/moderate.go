@@ -49,7 +49,7 @@ func (m Moderate) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 		go func() {
 			f := NewRemoveInfliction(m.target)
 
-			h.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			h.ExecWorld(func(_ *world.Tx, e world.Entity) {
 				p = e.(*player.Player)
 				p.SendForm(f)
 			})
@@ -247,6 +247,7 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 	go func() {
 		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
 			prosecutor = e.(*player.Player)
+
 			err := moderation.GlobalService().RemoveInfliction(moderation.ModelRequest{
 				Name:             r.target,
 				InflictionStatus: moderation.InflictionStatusCurrent,

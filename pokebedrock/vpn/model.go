@@ -1,6 +1,7 @@
 // Package vpn provides a model for the VPN service.
 package vpn
 
+// Status constants for the VPN service.
 const (
 	StatusSuccess = "success"
 	StatusFail    = "fail"

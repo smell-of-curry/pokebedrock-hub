@@ -53,6 +53,7 @@ const (
 	requestTimeout = 5 * time.Second
 )
 
+// Error constants for the rank service.
 var (
 	ErrUserNotFound = fmt.Errorf("user not found")
 	ErrTimeout      = fmt.Errorf("request timed out")

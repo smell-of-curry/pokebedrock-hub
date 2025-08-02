@@ -24,7 +24,7 @@ type Service struct {
 	closed bool
 	mu     sync.RWMutex
 
-	state ServerRestartState
+	state ServerState
 }
 
 // Config holds the configuration for the restart manager service.
@@ -53,7 +53,7 @@ func NewService(log *slog.Logger, config Config) {
 		log:    log,
 		config: config,
 		closed: false,
-		state: ServerRestartState{
+		state: ServerState{
 			CurrentlyRestarting:  "",
 			Queue:                make([]QueueEntry, 0),
 			RestartHistory:       make(map[string]time.Time),
@@ -71,10 +71,10 @@ func NewService(log *slog.Logger, config Config) {
 }
 
 // RequestRestart handles a restart request from a downstream server.
-func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
+func (s *Service) RequestRestart(req Request) Response {
 	if s.closed {
-		return RestartResponse{
-			Status:       RestartStatusDeny,
+		return Response{
+			Status:       StatusDeny,
 			Message:      "Restart manager service is closed",
 			ResponseTime: time.Now().Unix(),
 		}
@@ -89,8 +89,8 @@ func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
 	if s.state.CurrentlyRestarting == req.Host {
 		s.log.Debug("Server restart request granted - already currently restarting", "host", req.Host)
 
-		return RestartResponse{
-			Status:       RestartStatusAllow,
+		return Response{
+			Status:       StatusAllow,
 			Message:      "Restart permission granted",
 			ResponseTime: now.Unix(),
 		}
@@ -104,8 +104,8 @@ func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
 				"host", req.Host,
 				"remaining", remaining)
 
-			return RestartResponse{
-				Status:       RestartStatusWait,
+			return Response{
+				Status:       StatusWait,
 				Message:      fmt.Sprintf("Server in cooldown period, try again in %v", remaining.Round(time.Second)),
 				RetryAfter:   now.Add(remaining).Unix(),
 				ResponseTime: now.Unix(),
@@ -120,8 +120,8 @@ func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
 
 		s.log.Info("Server restart permission granted", "host", req.Host)
 
-		return RestartResponse{
-			Status:       RestartStatusAllow,
+		return Response{
+			Status:       StatusAllow,
 			Message:      "Restart permission granted",
 			ResponseTime: now.Unix(),
 		}
@@ -140,8 +140,8 @@ func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
 				"position", position,
 				"retryCount", s.state.Queue[i].RetryCount)
 
-			return RestartResponse{
-				Status:       RestartStatusWait,
+			return Response{
+				Status:       StatusWait,
 				Message:      fmt.Sprintf("Server in restart queue (position %d)", position),
 				QueuePos:     position,
 				RetryAfter:   now.Add(s.config.BackoffInterval).Unix(),
@@ -158,7 +158,7 @@ func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
 		LastRetry:    now,
 		RetryCount:   0,
 		FailureCount: 0,
-		Status:       RestartStatusWait,
+		Status:       StatusWait,
 	}
 
 	s.state.Queue = append(s.state.Queue, queueEntry)
@@ -168,8 +168,8 @@ func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
 		"host", req.Host,
 		"position", position)
 
-	return RestartResponse{
-		Status:       RestartStatusWait,
+	return Response{
+		Status:       StatusWait,
 		Message:      fmt.Sprintf("Server added to restart queue (position %d)", position),
 		QueuePos:     position,
 		RetryAfter:   now.Add(s.config.BackoffInterval).Unix(),
@@ -178,7 +178,7 @@ func (s *Service) RequestRestart(req RestartRequest) RestartResponse {
 }
 
 // NotifyRestartComplete notifies the service that a server has completed its restart.
-func (s *Service) NotifyRestartComplete(notification RestartNotification) error {
+func (s *Service) NotifyRestartComplete(notification Notification) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -285,12 +285,12 @@ func (s *Service) cleanupExpiredEntries() {
 }
 
 // GetState returns the current state of the restart manager (for debugging/monitoring).
-func (s *Service) GetState() ServerRestartState {
+func (s *Service) GetState() ServerState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	// Create a copy to avoid race conditions
-	state := ServerRestartState{
+	state := ServerState{
 		CurrentlyRestarting:  s.state.CurrentlyRestarting,
 		Queue:                make([]QueueEntry, len(s.state.Queue)),
 		RestartHistory:       make(map[string]time.Time),

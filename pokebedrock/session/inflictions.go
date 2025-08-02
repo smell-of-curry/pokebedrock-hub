@@ -118,7 +118,7 @@ func inflictionWorker() {
 						done := make(chan struct{}, 1)
 						go func() {
 							defer close(done)
-							handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+							handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
 								p, ok := e.(*player.Player)
 								if !ok {
 									return

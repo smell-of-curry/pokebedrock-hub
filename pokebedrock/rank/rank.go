@@ -5,6 +5,7 @@ import "github.com/sandertv/gophertunnel/minecraft/text"
 // Rank represents the rank of a player.
 type Rank int
 
+// Rank constants for the rank service.
 const (
 	UnLinked Rank = iota
 	Trainer

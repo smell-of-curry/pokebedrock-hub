@@ -178,7 +178,7 @@ func (poke *PokeBedrock) setupGin() error {
 				return
 			}
 
-			var req restart.RestartRequest
+			var req restart.Request
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
 
@@ -197,7 +197,7 @@ func (poke *PokeBedrock) setupGin() error {
 				return
 			}
 
-			var notification restart.RestartNotification
+			var notification restart.Notification
 			if err := c.ShouldBindJSON(&notification); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification format", "details": err.Error()})
 
