@@ -89,9 +89,10 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
+		response, err := s.client.Do(request)
+
 		cancel()
 
-		response, err := s.client.Do(request)
 		if err != nil {
 			if ErrorIsTemporary(err) {
 				continue
