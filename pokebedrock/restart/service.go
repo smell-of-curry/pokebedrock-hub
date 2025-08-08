@@ -33,6 +33,7 @@ type Config struct {
 	BackoffInterval time.Duration // Backoff interval between retries (default: 1 minute)
 	RestartCooldown time.Duration // Minimum time between restarts for the same server (default: 5 minutes)
 	QueueTimeout    time.Duration // Time after which queue entries expire (default: 15 minutes)
+	MaxRestartTime  time.Duration // Maximum time a server is allowed to be in restarting state (default: 20 minutes)
 }
 
 // DefaultConfig returns the default configuration for the restart manager.
@@ -42,6 +43,7 @@ func DefaultConfig() Config {
 		BackoffInterval: 1 * time.Minute,
 		RestartCooldown: 5 * time.Minute,
 		QueueTimeout:    15 * time.Minute,
+		MaxRestartTime:  20 * time.Minute,
 	}
 }
 
@@ -64,7 +66,8 @@ func NewService(log *slog.Logger, config Config) {
 
 	log.Info("Restart Manager service initialized",
 		"maxWaitTime", config.MaxWaitTime,
-		"backoffInterval", config.BackoffInterval)
+		"backoffInterval", config.BackoffInterval,
+		"maxRestartTime", config.MaxRestartTime)
 }
 
 // RequestRestart handles a restart request from a downstream server.
@@ -103,7 +106,7 @@ func (s *Service) RequestRestart(req Request) Response {
 			return Response{
 				Status:     StatusWait,
 				Message:    fmt.Sprintf("Server in cooldown period, try again in %v", remaining.Round(time.Second)),
-				RetryAfter: cooldownEnd.Unix(),
+				RetryAfter: cooldownEnd.UTC().UnixMilli(),
 			}
 		}
 	}
@@ -138,7 +141,7 @@ func (s *Service) RequestRestart(req Request) Response {
 				Status:     StatusWait,
 				Message:    "Server in restart queue",
 				QueuePos:   position,
-				RetryAfter: now.Add(s.config.BackoffInterval * time.Duration(position)).Unix(),
+				RetryAfter: now.Add(s.config.BackoffInterval * time.Duration(position)).UTC().UnixMilli(),
 			}
 		}
 	}
@@ -164,7 +167,7 @@ func (s *Service) RequestRestart(req Request) Response {
 		Status:     StatusWait,
 		Message:    fmt.Sprintf("Server added to restart queue (position %d)", position),
 		QueuePos:   position,
-		RetryAfter: now.Add(s.config.BackoffInterval * time.Duration(position)).Unix(),
+		RetryAfter: now.Add(s.config.BackoffInterval * time.Duration(position)).UTC().UnixMilli(),
 	}
 }
 
@@ -270,6 +273,28 @@ func (s *Service) cleanupExpiredEntries() {
 		}
 
 		s.state.Queue = validQueue
+
+		// Auto-clear stuck currently restarting server if it exceeds MaxRestartTime
+		if s.state.CurrentlyRestarting != "" {
+			name := s.state.CurrentlyRestarting
+
+			// Determine when the restart started; if not found, remove the server
+			startedAt := time.Time{}
+			if v, exists := s.state.RestartHistory[name]; exists {
+				startedAt = v
+			}
+
+			if startedAt.IsZero() || now.Sub(startedAt) >= s.config.MaxRestartTime {
+				s.log.Warn("Currently restarting server exceeded max restart time; moving to next in queue",
+					"name", name,
+					"duration", now.Sub(startedAt),
+					"maxRestartTime", s.config.MaxRestartTime)
+
+				// Clear and process next in queue
+				s.state.CurrentlyRestarting = ""
+				s.processQueue()
+			}
+		}
 		s.mu.Unlock()
 	}
 }

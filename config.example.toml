@@ -42,3 +42,4 @@ MaxWaitTime = "10m" # Maximum time a server will wait before force restart.
 BackoffInterval = "3m" # Backoff interval between retries.
 RestartCooldown = "5m" # Minimum time between restarts for the same server.
 QueueTimeout = "30m" # Time after which queue entries expire.
+MaxRestartTime = "20m" # Maximum time a server is allowed to be in restarting state before auto-advancing the queue.

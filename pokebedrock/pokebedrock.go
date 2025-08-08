@@ -296,6 +296,7 @@ func (poke *PokeBedrock) loadServices() {
 		BackoffInterval: time.Duration(poke.conf.RestartManager.BackoffInterval),
 		RestartCooldown: time.Duration(poke.conf.RestartManager.RestartCooldown),
 		QueueTimeout:    time.Duration(poke.conf.RestartManager.QueueTimeout),
+		MaxRestartTime:  time.Duration(poke.conf.RestartManager.MaxRestartTime),
 	}
 	restart.NewService(poke.log, restartConfig)
 }

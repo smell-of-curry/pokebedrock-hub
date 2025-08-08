@@ -37,6 +37,7 @@ type Config struct {
 		BackoffInterval util.Duration
 		RestartCooldown util.Duration
 		QueueTimeout    util.Duration
+		MaxRestartTime  util.Duration
 	}
 	server.UserConfig
 }
@@ -64,6 +65,7 @@ func DefaultConfig() Config {
 	c.RestartManager.BackoffInterval = util.Duration(1 * time.Minute)
 	c.RestartManager.RestartCooldown = util.Duration(5 * time.Minute)
 	c.RestartManager.QueueTimeout = util.Duration(15 * time.Minute)
+	c.RestartManager.MaxRestartTime = util.Duration(20 * time.Minute)
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
