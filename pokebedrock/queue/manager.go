@@ -3,6 +3,7 @@ package queue
 import (
 	"container/heap"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/df-mc/atomic"
@@ -34,6 +35,10 @@ type Transfer struct {
 // Manager ...
 type Manager struct {
 	queue atomic.Value[PriorityQueue]
+
+	// pending boss bar updates deduplicated by entity handle
+	pendingMu       sync.Mutex
+	pendingBossBars map[*world.EntityHandle]struct{}
 }
 
 // NewManager ...
@@ -41,6 +46,7 @@ func NewManager() *Manager {
 	m := &Manager{
 		queue: *atomic.NewValue(PriorityQueue{}),
 	}
+	m.pendingBossBars = make(map[*world.EntityHandle]struct{})
 	q := m.queue.Load()
 	heap.Init(&q)
 	m.queue.Store(q)
@@ -78,8 +84,8 @@ func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
 	// Add to queue
 	m.AddToQueue(entry)
 
-	// Update UI
-	m.updateBossBars(p.Tx())
+	// Queue boss bar updates (processed incrementally per tick)
+	m.queueAllBossBars()
 
 	// Inform player about their queue status and explain priority system
 	status := srv.Status()
@@ -110,7 +116,7 @@ func (m *Manager) RemovePlayer(p *player.Player) {
 	}
 
 	p.RemoveBossBar()
-	m.updateBossBars(p.Tx())
+	m.queueAllBossBars()
 }
 
 // NextPlayer ...
@@ -233,50 +239,70 @@ func (m *Manager) Update(tx *world.Tx) {
 		}
 	}
 
-	// Update boss bars for remaining players if any changes were made
-	if len(entriesToRemove) > 0 {
-		m.updateBossBars(tx)
+	// If queue changed, schedule a full boss bar refresh
+	if len(entriesToRemove) > 0 || len(playersToTransfer) > 0 {
+		m.queueAllBossBars()
 	}
+
+	// Process a limited number of boss bar updates per tick to avoid spikes
+	m.processBossBarUpdates(tx, 20)
 }
 
-// updateBossBars updates the boss bars for all players in the queue showing their position.
-func (m *Manager) updateBossBars(tx *world.Tx) {
-	queue := m.Queue()
+// queueAllBossBars adds all current players in queue to the pending update set.
+func (m *Manager) queueAllBossBars() {
+	q := m.Queue()
+	if len(q) == 0 {
+		return
+	}
+	m.pendingMu.Lock()
+	for _, entry := range q {
+		if entry != nil && entry.handle != nil {
+			m.pendingBossBars[entry.handle] = struct{}{}
+		}
+	}
+	m.pendingMu.Unlock()
+}
 
-	length := len(queue)
-	if length == 0 {
+// processBossBarUpdates processes up to maxCount pending boss bar updates using
+// O(n) position computation per player, avoiding full sort spikes.
+func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
+	if maxCount <= 0 {
 		return
 	}
 
-	// Create a sorted copy of the queue to accurately show positions
-	// We need to do this because the underlying heap's order doesn't necessarily match the priority order
-	sortedEntries := make([]*Entry, length)
-	copy(sortedEntries, queue)
+	// Take a small batch of handles to process
+	batch := make([]*world.EntityHandle, 0, maxCount)
 
-	// Sort entries by the same priority rules as the queue
-	sort.Slice(sortedEntries, func(i, j int) bool {
-		// Sort in priority order (reverse of what Less() does since we want highest priority first)
-		if sortedEntries[i].rank == sortedEntries[j].rank {
-			return sortedEntries[i].joinTime.Before(sortedEntries[j].joinTime)
+	m.pendingMu.Lock()
+	i := 0
+	for h := range m.pendingBossBars {
+		batch = append(batch, h)
+		delete(m.pendingBossBars, h)
+		i++
+		if i >= maxCount {
+			break
 		}
+	}
+	m.pendingMu.Unlock()
 
-		return sortedEntries[i].rank > sortedEntries[j].rank
-	})
+	if len(batch) == 0 {
+		return
+	}
 
-	// Now update boss bars with accurate positions
-	for i, entry := range sortedEntries {
-		position := i + 1 // 1-indexed position
-
-		ent, ok := entry.handle.Entity(tx)
+	for _, h := range batch {
+		ent, ok := h.Entity(tx)
 		if !ok {
 			continue
 		}
 
 		p := ent.(*player.Player)
+		position := m.GetQueuePosition(p)
+		if position < 1 {
+			// Not in queue anymore
+			continue
+		}
 
-		// Show estimated time based on position
 		var waitMsg string
-
 		switch {
 		case position == 1:
 			waitMsg = "You're next in line!"
