@@ -392,32 +392,25 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 // Close closes the server and all its associated services.
 func (poke *PokeBedrock) Close() {
 	poke.log.Debug("Closing Moderation Service...")
-
-	go moderation.GlobalService().Stop()
+	moderation.GlobalService().Stop()
 
 	poke.log.Debug("Closing Rank Service...")
-
-	go rank.GlobalService().Stop()
+	rank.GlobalService().Stop()
 
 	poke.log.Debug("Closing Vpn Service...")
-
-	go vpn.GlobalService().Stop()
+	vpn.GlobalService().Stop()
 
 	poke.log.Debug("Closing Restart Manager Service...")
-
-	go restart.GlobalService().Stop()
+	restart.GlobalService().Stop()
 
 	poke.log.Debug("Stopping Rank Channel...")
-
-	go session.StopRankChannel()
+	session.StopRankChannel()
 
 	poke.log.Debug("Stopping Rank Load Worker...")
-
-	go session.StopRankLoadWorker()
+	session.StopRankLoadWorker()
 
 	poke.log.Debug("Stopping Infliction Worker...")
-
-	go session.StopInflictionWorker()
+	session.StopInflictionWorker()
 
 	close(poke.c)
 }
