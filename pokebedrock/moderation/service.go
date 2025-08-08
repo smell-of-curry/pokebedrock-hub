@@ -66,9 +66,9 @@ func NewService(log *slog.Logger, url, key string) {
 }
 
 const (
-	maxRetries     = 3
+	maxRetries     = 1
 	retryDelay     = 300 * time.Millisecond
-	requestTimeout = 10 * time.Second
+	requestTimeout = 2 * time.Second
 
 	// Maximum number of concurrent API requests
 	maxConcurrentRequests = 5
