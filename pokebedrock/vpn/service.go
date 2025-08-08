@@ -34,10 +34,12 @@ type Service struct {
 
 	rateLimitReset time.Time
 	mu             sync.Mutex
+
+	cache *Cache
 }
 
 // NewService initializes a new global service instance with the provided logger, URL.
-func NewService(log *slog.Logger, url string) {
+func NewService(log *slog.Logger, url, cachePath string) {
 	globalService = &Service{
 		url: url,
 		client: &http.Client{
@@ -45,18 +47,35 @@ func NewService(log *slog.Logger, url string) {
 		},
 		log: log,
 	}
+
+	// Initialize cache (best-effort)
+	if cachePath != "" {
+		if c, err := NewCache(cachePath); err != nil {
+			log.Warn("failed to initialize vpn cache", "error", err)
+		} else {
+			globalService.cache = c
+		}
+	}
 }
 
 const (
-	maxRetries     = 3
+	maxRetries     = 1
 	retryDelay     = 1 * time.Second
-	requestTimeout = 5 * time.Second
+	requestTimeout = 1 * time.Second
 )
 
 // CheckIP determines whether the provided IP address is associated with a VPN connection.
 func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 	if net.ParseIP(ip) == nil {
 		return nil, fmt.Errorf("invalid IP address: %s", ip)
+	}
+
+	// Fast path: cached result
+	if s.cache != nil {
+		if cached, ok := s.cache.Get(ip); ok {
+			s.log.Info("VPN check result", "ip", ip, "proxy", cached)
+			return &ResponseModel{Status: StatusSuccess, Proxy: cached}, nil
+		}
 	}
 
 	s.mu.Lock()
@@ -117,12 +136,19 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 			if strings.EqualFold(responseModel.Status, "fail") {
 				failMessage := responseModel.Message
 				if strings.EqualFold(failMessage, "reserved range") {
-					responseModel.Proxy = false
-
-					return &responseModel, nil
+					// Persist to cache
+					if s.cache != nil {
+						s.cache.Set(ip, false)
+					}
+					return &ResponseModel{Status: StatusSuccess, Proxy: false}, nil
 				}
 
 				return nil, fmt.Errorf("query failed: %s", failMessage)
+			}
+
+			// Persist to cache
+			if s.cache != nil {
+				s.cache.Set(ip, responseModel.Proxy)
 			}
 
 			return &responseModel, nil

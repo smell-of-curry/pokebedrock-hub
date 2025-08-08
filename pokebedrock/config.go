@@ -30,7 +30,11 @@ type Config struct {
 		RolesURL      string
 		ModerationURL string
 		ModerationKey string
-		VpnURL        string
+
+		// VpnCachePath is the file path used to persist VPN IP results.
+		// Defaults to resources/vpnResults.json
+		VpnCachePath string
+		VpnURL       string
 	}
 	RestartManager struct {
 		MaxWaitTime     util.Duration
@@ -57,6 +61,9 @@ func DefaultConfig() Config {
 	c.Service.RolesURL = "http://127.0.0.1:4000/api/roles"
 	c.Service.ModerationURL = "http://127.0.0.1:4000/api/moderation"
 	c.Service.ModerationKey = "secret-key"
+
+	// Default VPN cache path
+	c.Service.VpnCachePath = "resources/vpnResults.json"
 	c.Service.VpnURL = "http://ip-api.com/json"
 
 	c.Service.GinAuthenticationKey = "secret-key"

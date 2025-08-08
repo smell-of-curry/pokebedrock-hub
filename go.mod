@@ -64,7 +64,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/df-mc/dragonfly => github.com/didntpot/dragonfly v0.0.0-20250807154421-1e52c6b5cffc
+replace github.com/df-mc/dragonfly => github.com/didntpot/dragonfly v0.0.0-20250808172736-60e6f776b4cf
 
 replace github.com/sandertv/gophertunnel => github.com/cooldogedev/gophertunnel v0.0.0-20250806215416-758d5047d822
 

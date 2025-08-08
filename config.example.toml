@@ -36,6 +36,7 @@ RolesURL = 'http://localhost:4000' # URL to the roles API.
 ModerationUrl = 'https://pokebedrock.com/api/moderation' # URL to the moderation API.
 ModerationKey = 'xxxxxx-xxxxx-xxxxxx-xxxxx' # Key for the moderation API.
 VpnURL = 'http://ip-api.com/json' # URL to the VPN API.
+VpnCachePath = 'resources/vpnResults.json' # File path to persist VPN IP results
 
 [RestartManager]
 MaxWaitTime = "10m" # Maximum time a server will wait before force restart.

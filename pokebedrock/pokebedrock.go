@@ -259,6 +259,8 @@ func (poke *PokeBedrock) setupGin() error {
 	poke.log.Info("Authentication service started on " + poke.conf.Service.GinAddress)
 
 	return nil
+    }
+    if err != nil {
 }
 
 // loadLocales registers all the locales active on the server.
