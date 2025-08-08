@@ -259,8 +259,6 @@ func (poke *PokeBedrock) setupGin() error {
 	poke.log.Info("Authentication service started on " + poke.conf.Service.GinAddress)
 
 	return nil
-    }
-    if err != nil {
 }
 
 // loadLocales registers all the locales active on the server.
@@ -290,7 +288,7 @@ func (poke *PokeBedrock) loadCommands() {
 func (poke *PokeBedrock) loadServices() {
 	rank.NewService(poke.log, poke.conf.Service.RolesURL)
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
-	vpn.NewService(poke.log, poke.conf.Service.VpnURL)
+	vpn.NewService(poke.log, poke.conf.Service.VpnURL, poke.conf.Service.VpnCachePath)
 
 	// Initialize restart manager service
 	restartConfig := restart.Config{
@@ -391,6 +389,28 @@ func (poke *PokeBedrock) accept(p *player.Player) {
 	})
 }
 
+// World returns the default world.
+func (poke *PokeBedrock) World() *world.World {
+	return poke.srv.World()
+}
+
+// doAFKCheck ...
+func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
+	for ent := range tx.Players() {
+		p := ent.(*player.Player)
+
+		h, ok := p.Handler().(*handler.PlayerHandler)
+		if !ok {
+			continue
+		}
+
+		m := h.Movement()
+		if time.Since(m.LastMoveTime()) > time.Duration(poke.conf.PokeBedrock.AFKTimeout) {
+			p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))
+		}
+	}
+}
+
 // Close closes the server and all its associated services.
 func (poke *PokeBedrock) Close() {
 	poke.log.Debug("Closing Moderation Service...")
@@ -415,26 +435,4 @@ func (poke *PokeBedrock) Close() {
 	session.StopInflictionWorker()
 
 	close(poke.c)
-}
-
-// World returns the default world.
-func (poke *PokeBedrock) World() *world.World {
-	return poke.srv.World()
-}
-
-// doAFKCheck ...
-func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
-	for ent := range tx.Players() {
-		p := ent.(*player.Player)
-
-		h, ok := p.Handler().(*handler.PlayerHandler)
-		if !ok {
-			continue
-		}
-
-		m := h.Movement()
-		if time.Since(m.LastMoveTime()) > time.Duration(poke.conf.PokeBedrock.AFKTimeout) {
-			p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))
-		}
-	}
 }
