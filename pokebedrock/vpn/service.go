@@ -91,7 +91,7 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 
 	for attempt := range maxRetries {
 		if s.closed.Load() {
-			break
+			return nil, fmt.Errorf("hub is shutting down")
 		}
 
 		if attempt > 0 {
@@ -161,6 +161,10 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 		default:
 			lastErr = fmt.Errorf("unexpected status code: %d", response.StatusCode)
 		}
+	}
+
+	if lastErr == nil {
+		lastErr = fmt.Errorf("max retries reached")
 	}
 
 	return nil, lastErr
