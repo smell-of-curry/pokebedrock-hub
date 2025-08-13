@@ -46,7 +46,7 @@ QueueTimeout = "30m" # Time after which queue entries expire.
 MaxRestartTime = "20m" # Maximum time a server is allowed to be in restarting state before auto-advancing the queue.
 
 [Ranks]
-# Discord Role IDs for different ranks - Replace with your Discord server's role IDs
+# Discord Role IDs for different ranks
 TrainerRoleID = "1068581342159306782"
 ServerBoosterRoleID = "1068578576951160952"
 SupporterRoleID = "1088998497061175296"
