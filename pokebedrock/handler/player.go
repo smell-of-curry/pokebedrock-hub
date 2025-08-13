@@ -13,6 +13,7 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
 
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/form"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
@@ -41,7 +42,7 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	// loading their inflictions at the exact same time
 	go func() {
 		// Random delay between 100ms and 2000ms to space out requests
-		delay := time.Duration(100+rand.Intn(1900)) * time.Millisecond
+		delay := time.Duration(internal.MinRandomDelayMs+rand.Intn(internal.MaxRandomDelayRangeMs)) * time.Millisecond
 		time.Sleep(delay)
 		h.inflictions.Load(p.H())
 	}()
@@ -49,7 +50,7 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	// Add another random delay to rank loading
 	go func() {
 		// Random delay between 500ms and 3000ms
-		delay := time.Duration(500+rand.Intn(2500)) * time.Millisecond
+		delay := time.Duration(internal.MinRandomDelayLongMs+rand.Intn(internal.MaxRandomDelayLongRangeMs)) * time.Millisecond
 		time.Sleep(delay)
 		h.Ranks().Load(p.XUID(), p.H())
 	}()

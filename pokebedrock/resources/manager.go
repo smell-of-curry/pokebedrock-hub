@@ -14,6 +14,8 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/schollz/progressbar/v3"
+
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 )
 
 const (
@@ -81,7 +83,7 @@ func (m *Manager) UnpackedPath() string {
 // CheckAndUpdate checks for updates and downloads if necessary.
 func (m *Manager) CheckAndUpdate() error {
 	// Ensure directory exists
-	if err := os.MkdirAll(m.resourceDir, 0755); err != nil {
+	if err := os.MkdirAll(m.resourceDir, internal.DirectoryPermissions); err != nil {
 		return fmt.Errorf("failed to create resource directory: %w", err)
 	}
 
@@ -290,7 +292,7 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		}
 	}
 
-	if err := os.MkdirAll(unpackPath, 0755); err != nil {
+	if err := os.MkdirAll(unpackPath, internal.DirectoryPermissions); err != nil {
 		return fmt.Errorf("failed to create unpack directory: %w", err)
 	}
 
@@ -318,13 +320,13 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		}
 
 		if file.FileInfo().IsDir() {
-			if err := os.MkdirAll(path, 0755); err != nil {
+			if err := os.MkdirAll(path, internal.DirectoryPermissions); err != nil {
 				return fmt.Errorf("failed to create directory: %w", err)
 			}
 			continue
 		}
 
-		if err = os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		if err = os.MkdirAll(filepath.Dir(path), internal.DirectoryPermissions); err != nil {
 			return fmt.Errorf("failed to create directories: %w", err)
 		}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
 
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
@@ -245,7 +246,7 @@ func (m *Manager) Update(tx *world.Tx) {
 	}
 
 	// Process a limited number of boss bar updates per tick to avoid spikes
-	m.processBossBarUpdates(tx, 20)
+	m.processBossBarUpdates(tx, internal.ProcessingBatchSize)
 }
 
 // queueAllBossBars adds all current players in queue to the pending update set.
@@ -306,9 +307,9 @@ func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 		switch {
 		case position == 1:
 			waitMsg = "You're next in line!"
-		case position <= 3:
+		case position <= internal.HighPriorityQueueThreshold:
 			waitMsg = "Almost your turn"
-		case position <= 10:
+		case position <= internal.MediumPriorityQueueThreshold:
 			waitMsg = "Short wait"
 		default:
 			waitMsg = "Longer wait"

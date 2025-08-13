@@ -6,12 +6,14 @@ import (
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 )
 
 // Kit defines the structure for a kit of items and actions that can be applied to a player.
 // It includes methods to retrieve the items for the kit and apply additional functions to the player.
 type Kit interface {
-	Items(*player.Player) (items [36]item.Stack)
+	Items(*player.Player) (items [internal.InventorySlots]item.Stack)
 	ApplyFunc(*player.Player)
 }
 
@@ -30,8 +32,8 @@ func Apply(k Kit, p *player.Player) {
 	p.ResetFallDistance()
 	p.SetGameMode(world.GameModeAdventure)
 
-	p.Heal(20, entity.FoodHealingSource{})
-	p.SetFood(20)
+	p.Heal(internal.MaxHealth, entity.FoodHealingSource{})
+	p.SetFood(internal.MaxFood)
 
 	for _, eff := range p.Effects() {
 		p.RemoveEffect(eff.Type())

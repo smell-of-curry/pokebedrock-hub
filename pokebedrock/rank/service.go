@@ -13,6 +13,7 @@ import (
 
 	"github.com/df-mc/dragonfly/server/player"
 
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 )
 
@@ -136,7 +137,7 @@ func (s *Service) RolesOfXUID(xuid string) ([]string, error) {
 		default:
 			lastErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 
-			if resp.StatusCode >= 500 {
+			if resp.StatusCode >= internal.InternalServerError {
 				continue
 			}
 

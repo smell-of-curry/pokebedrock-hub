@@ -8,6 +8,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
 
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 )
 
@@ -32,7 +33,7 @@ func NewInflictions() *Inflictions {
 const maxConcurrentInflictionRequests = 5
 
 // InflictionQueue is a buffered channel for queueing infliction load requests
-var InflictionQueue = make(chan inflictionRequest, 100)
+var InflictionQueue = make(chan inflictionRequest, internal.DefaultChannelBufferSize)
 
 // Used to signal worker shutdown
 var inflictionWorkerShutdown = make(chan struct{})
@@ -45,7 +46,7 @@ type inflictionRequest struct {
 
 var (
 	// inflictionQueue is a buffered channel for loading player inflictions
-	inflictionLoadQueue = make(chan inflictionLoadRequest, 50)
+	inflictionLoadQueue = make(chan inflictionLoadRequest, internal.SmallChannelBufferSize)
 	// Used to signal worker shutdown
 	inflictionLoadWorkerShutdown = make(chan struct{})
 )
@@ -156,7 +157,7 @@ func inflictionWorker() {
 						select {
 						case <-done:
 							// Completed successfully
-						case <-time.After(30 * time.Second):
+						case <-time.After(internal.LongOperationTimeoutSec * time.Second):
 							// Timeout - log warning but don't block
 							// TODO: Add proper logging here
 						}

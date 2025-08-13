@@ -38,36 +38,67 @@ type Info struct {
 	RoleID      string // External role identifier.
 }
 
-// rankInfos holds the rank details in the same order as the Rank constants.
-var rankInfos = map[Rank]Info{
-	UnLinked:             {DisplayName: "UnLinked", Color: "grey", Prefix: false},
-	Trainer:              {DisplayName: "Trainer", Color: "white", Prefix: true, RoleID: "1068581342159306782"},
-	ServerBooster:        {DisplayName: "Server Booster", Color: "diamond", Prefix: true, RoleID: "1068578576951160952"},
-	Supporter:            {DisplayName: "Supporter", Color: "emerald", Prefix: true, RoleID: "1088998497061175296"},
-	Premium:              {DisplayName: "Premium", Color: "green", Prefix: true, RoleID: "1096068279786815558"},
-	ContentCreator:       {DisplayName: "Content Creator", Color: "amethyst", Prefix: true, RoleID: "1084485790605787156"},
-	MonthlyTournamentMVP: {DisplayName: "Monthly Tournament MVP", Color: "aqua", Prefix: true, RoleID: "1281044331121217538"},
-	RetiredStaff:         {DisplayName: "Retired Staff", Color: "grey", Prefix: true, RoleID: "1179937172455952384"},
-	Helper:               {DisplayName: "Helper", Color: "yellow", Prefix: true, RoleID: "1088902437093523566"},
-	Team:                 {DisplayName: "Team", Color: "gold", Prefix: true, RoleID: "1067977855700574238"},
-	Translator:           {DisplayName: "Translator", Color: "dark-yellow", Prefix: true, RoleID: "1137751922217058365"},
-	DevelopmentTeam:      {DisplayName: "Development Team", Color: "redstone", Prefix: true, RoleID: "1123082881380646944"},
-	TrailModeler:         {DisplayName: "Trail Modeler", Color: "dark-green", Prefix: true, RoleID: "1085669665298194482"},
-	Modeler:              {DisplayName: "Modeler", Color: "purple", Prefix: true, RoleID: "1080719745290088498"},
-	HeadModeler:          {DisplayName: "Head Modeler", Color: "dark-purple", Prefix: true, RoleID: "1085669297034117200"},
-	Moderator:            {DisplayName: "Moderator", Color: "blue", Prefix: true, RoleID: "1083171623282163743"},
-	SeniorModerator:      {DisplayName: "Senior Moderator", Color: "aqua", Prefix: true, RoleID: "1295545506646462504"},
-	HeadModerator:        {DisplayName: "Head Moderator", Color: "dark-blue", Prefix: true, RoleID: "1131819233874022552"},
-	Admin:                {DisplayName: "Admin", Color: "red", Prefix: true, RoleID: "1083171563798540349"},
-	Manager:              {DisplayName: "Manager", Color: "purple", Prefix: true, RoleID: "1067977172339396698"},
-	Owner:                {DisplayName: "Owner", Color: "dark-red", Prefix: true, RoleID: "1055833987739824258"},
+// RankConfig holds the configurable role IDs for ranks
+type RankConfig struct {
+	TrainerRoleID              string
+	ServerBoosterRoleID        string
+	SupporterRoleID            string
+	PremiumRoleID              string
+	ContentCreatorRoleID       string
+	MonthlyTournamentMVPRoleID string
+	RetiredStaffRoleID         string
+	HelperRoleID               string
+	TeamRoleID                 string
+	TranslatorRoleID           string
+	DevelopmentTeamRoleID      string
+	TrailModelerRoleID         string
+	ModelerRoleID              string
+	HeadModelerRoleID          string
+	ModeratorRoleID            string
+	SeniorModeratorRoleID      string
+	HeadModeratorRoleID        string
+	AdminRoleID                string
+	ManagerRoleID              string
+	OwnerRoleID                string
 }
 
-func init() {
+// rankInfos holds the rank details in the same order as the Rank constants.
+var rankInfos map[Rank]Info
+
+// InitializeRanks initializes the rank system with the provided configuration
+func InitializeRanks(config RankConfig) {
+	rankInfos = map[Rank]Info{
+		UnLinked:             {DisplayName: "UnLinked", Color: "grey", Prefix: false},
+		Trainer:              {DisplayName: "Trainer", Color: "white", Prefix: true, RoleID: config.TrainerRoleID},
+		ServerBooster:        {DisplayName: "Server Booster", Color: "diamond", Prefix: true, RoleID: config.ServerBoosterRoleID},
+		Supporter:            {DisplayName: "Supporter", Color: "emerald", Prefix: true, RoleID: config.SupporterRoleID},
+		Premium:              {DisplayName: "Premium", Color: "green", Prefix: true, RoleID: config.PremiumRoleID},
+		ContentCreator:       {DisplayName: "Content Creator", Color: "amethyst", Prefix: true, RoleID: config.ContentCreatorRoleID},
+		MonthlyTournamentMVP: {DisplayName: "Monthly Tournament MVP", Color: "aqua", Prefix: true, RoleID: config.MonthlyTournamentMVPRoleID},
+		RetiredStaff:         {DisplayName: "Retired Staff", Color: "grey", Prefix: true, RoleID: config.RetiredStaffRoleID},
+		Helper:               {DisplayName: "Helper", Color: "yellow", Prefix: true, RoleID: config.HelperRoleID},
+		Team:                 {DisplayName: "Team", Color: "gold", Prefix: true, RoleID: config.TeamRoleID},
+		Translator:           {DisplayName: "Translator", Color: "dark-yellow", Prefix: true, RoleID: config.TranslatorRoleID},
+		DevelopmentTeam:      {DisplayName: "Development Team", Color: "redstone", Prefix: true, RoleID: config.DevelopmentTeamRoleID},
+		TrailModeler:         {DisplayName: "Trail Modeler", Color: "dark-green", Prefix: true, RoleID: config.TrailModelerRoleID},
+		Modeler:              {DisplayName: "Modeler", Color: "purple", Prefix: true, RoleID: config.ModelerRoleID},
+		HeadModeler:          {DisplayName: "Head Modeler", Color: "dark-purple", Prefix: true, RoleID: config.HeadModelerRoleID},
+		Moderator:            {DisplayName: "Moderator", Color: "blue", Prefix: true, RoleID: config.ModeratorRoleID},
+		SeniorModerator:      {DisplayName: "Senior Moderator", Color: "aqua", Prefix: true, RoleID: config.SeniorModeratorRoleID},
+		HeadModerator:        {DisplayName: "Head Moderator", Color: "dark-blue", Prefix: true, RoleID: config.HeadModeratorRoleID},
+		Admin:                {DisplayName: "Admin", Color: "red", Prefix: true, RoleID: config.AdminRoleID},
+		Manager:              {DisplayName: "Manager", Color: "purple", Prefix: true, RoleID: config.ManagerRoleID},
+		Owner:                {DisplayName: "Owner", Color: "dark-red", Prefix: true, RoleID: config.OwnerRoleID},
+	}
+	
+	// Rebuild the role to rank mapping
+	rolesToRanks = make(map[string]Rank)
 	for r, info := range rankInfos {
 		rolesToRanks[info.RoleID] = r
 	}
 }
+
+
 
 // Name returns the human-readable name of the rank.
 func (r Rank) Name() string {

@@ -13,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 )
 
 // globalService ...
@@ -179,7 +181,7 @@ func (s *Service) handleRateLimitHeaders(header http.Header) {
 		ttl, err := strconv.Atoi(timeToResetStr)
 		if err != nil {
 			// couldn't parse header for whatever reason, just default to fallback wait time.
-			ttl = 60
+			ttl = internal.DefaultTTL
 		}
 
 		s.mu.Lock()

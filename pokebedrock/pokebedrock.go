@@ -19,6 +19,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
@@ -58,6 +59,30 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Initialize rank system with configuration
+	rank.InitializeRanks(rank.RankConfig{
+		TrainerRoleID:              conf.Ranks.TrainerRoleID,
+		ServerBoosterRoleID:        conf.Ranks.ServerBoosterRoleID,
+		SupporterRoleID:            conf.Ranks.SupporterRoleID,
+		PremiumRoleID:              conf.Ranks.PremiumRoleID,
+		ContentCreatorRoleID:       conf.Ranks.ContentCreatorRoleID,
+		MonthlyTournamentMVPRoleID: conf.Ranks.MonthlyTournamentMVPRoleID,
+		RetiredStaffRoleID:         conf.Ranks.RetiredStaffRoleID,
+		HelperRoleID:               conf.Ranks.HelperRoleID,
+		TeamRoleID:                 conf.Ranks.TeamRoleID,
+		TranslatorRoleID:           conf.Ranks.TranslatorRoleID,
+		DevelopmentTeamRoleID:      conf.Ranks.DevelopmentTeamRoleID,
+		TrailModelerRoleID:         conf.Ranks.TrailModelerRoleID,
+		ModelerRoleID:              conf.Ranks.ModelerRoleID,
+		HeadModelerRoleID:          conf.Ranks.HeadModelerRoleID,
+		ModeratorRoleID:            conf.Ranks.ModeratorRoleID,
+		SeniorModeratorRoleID:      conf.Ranks.SeniorModeratorRoleID,
+		HeadModeratorRoleID:        conf.Ranks.HeadModeratorRoleID,
+		AdminRoleID:                conf.Ranks.AdminRoleID,
+		ManagerRoleID:              conf.Ranks.ManagerRoleID,
+		OwnerRoleID:                conf.Ranks.OwnerRoleID,
+	})
 
 	poke := &PokeBedrock{
 		log:  log,
@@ -110,17 +135,17 @@ func (poke *PokeBedrock) Start() {
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
-	l := world.NewLoader(10, w, world.NopViewer{})
+	l := world.NewLoader(internal.DefaultChunkLoaderCount, w, world.NopViewer{})
 	w.Exec(func(tx *world.Tx) {
 		l.Move(tx, w.Spawn().Vec3Middle())
-		l.Load(tx, 9999999)
+		l.Load(tx, internal.WorldLoadRadius)
 	})
 
 	w.StopWeatherCycle()
 	w.StopRaining()
 	w.StopThundering()
 	w.SetDefaultGameMode(world.GameModeAdventure)
-	w.SetTime(6000)
+	w.SetTime(internal.DefaultWorldTime)
 	w.StopTime()
 	w.SetTickRange(0)
 
