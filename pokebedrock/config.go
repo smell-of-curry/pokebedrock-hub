@@ -96,28 +96,6 @@ func DefaultConfig() Config {
 	c.RestartManager.QueueTimeout = util.Duration(15 * time.Minute)
 	c.RestartManager.MaxRestartTime = util.Duration(20 * time.Minute)
 
-	// Default Discord Role IDs (should be configured by users)
-	c.Ranks.TrainerRoleID = "1068581342159306782"
-	c.Ranks.ServerBoosterRoleID = "1068578576951160952"
-	c.Ranks.SupporterRoleID = "1088998497061175296"
-	c.Ranks.PremiumRoleID = "1096068279786815558"
-	c.Ranks.ContentCreatorRoleID = "1084485790605787156"
-	c.Ranks.MonthlyTournamentMVPRoleID = "1281044331121217538"
-	c.Ranks.RetiredStaffRoleID = "1179937172455952384"
-	c.Ranks.HelperRoleID = "1088902437093523566"
-	c.Ranks.TeamRoleID = "1067977855700574238"
-	c.Ranks.TranslatorRoleID = "1137751922217058365"
-	c.Ranks.DevelopmentTeamRoleID = "1123082881380646944"
-	c.Ranks.TrailModelerRoleID = "1085669665298194482"
-	c.Ranks.ModelerRoleID = "1080719745290088498"
-	c.Ranks.HeadModelerRoleID = "1085669297034117200"
-	c.Ranks.ModeratorRoleID = "1083171623282163743"
-	c.Ranks.SeniorModeratorRoleID = "1295545506646462504"
-	c.Ranks.HeadModeratorRoleID = "1131819233874022552"
-	c.Ranks.AdminRoleID = "1083171563798540349"
-	c.Ranks.ManagerRoleID = "1067977172339396698"
-	c.Ranks.OwnerRoleID = "1055833987739824258"
-
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
 	userConfig.World.Folder = "resources/world"
