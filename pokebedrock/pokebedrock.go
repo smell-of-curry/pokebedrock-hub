@@ -19,7 +19,6 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
@@ -31,6 +30,17 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
+)
+
+const (
+	// defaultWorldTime is the default time to set in the world (6000 = noon)
+	defaultWorldTime = 6000
+
+	// worldLoadRadius is the maximum radius to load around spawn
+	worldLoadRadius = 9999999
+
+	// defaultChunkLoaderCount is the number of chunk loaders to create
+	defaultChunkLoaderCount = 10
 )
 
 // PokeBedrock represents the main server struct.
@@ -135,17 +145,17 @@ func (poke *PokeBedrock) Start() {
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
-	l := world.NewLoader(internal.DefaultChunkLoaderCount, w, world.NopViewer{})
+	l := world.NewLoader(defaultChunkLoaderCount, w, world.NopViewer{})
 	w.Exec(func(tx *world.Tx) {
 		l.Move(tx, w.Spawn().Vec3Middle())
-		l.Load(tx, internal.WorldLoadRadius)
+		l.Load(tx, worldLoadRadius)
 	})
 
 	w.StopWeatherCycle()
 	w.StopRaining()
 	w.StopThundering()
 	w.SetDefaultGameMode(world.GameModeAdventure)
-	w.SetTime(internal.DefaultWorldTime)
+	w.SetTime(defaultWorldTime)
 	w.StopTime()
 	w.SetTickRange(0)
 

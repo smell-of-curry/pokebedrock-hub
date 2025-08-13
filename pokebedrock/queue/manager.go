@@ -11,11 +11,19 @@ import (
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
 
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
+)
+
+const (
+	// highPriorityQueueThreshold is the position threshold for "Almost your turn" message
+	highPriorityQueueThreshold = 3
+
+	// mediumPriorityQueueThreshold is the position threshold for "Short wait" message
+	mediumPriorityQueueThreshold = 10
 )
 
 // QueueManager ...
@@ -307,9 +315,9 @@ func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 		switch {
 		case position == 1:
 			waitMsg = "You're next in line!"
-		case position <= internal.HighPriorityQueueThreshold:
+		case position <= highPriorityQueueThreshold:
 			waitMsg = "Almost your turn"
-		case position <= internal.MediumPriorityQueueThreshold:
+		case position <= mediumPriorityQueueThreshold:
 			waitMsg = "Short wait"
 		default:
 			waitMsg = "Longer wait"

@@ -6,14 +6,23 @@ import (
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
+)
 
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
+const (
+	// inventorySlots is the number of slots in a player's inventory
+	inventorySlots = 36
+
+	// maxHealth is the maximum health value for a player
+	maxHealth = 20
+
+	// maxFood is the maximum food/hunger value for a player
+	maxFood = 20
 )
 
 // Kit defines the structure for a kit of items and actions that can be applied to a player.
 // It includes methods to retrieve the items for the kit and apply additional functions to the player.
 type Kit interface {
-	Items(*player.Player) (items [internal.InventorySlots]item.Stack)
+	Items(*player.Player) (items [inventorySlots]item.Stack)
 	ApplyFunc(*player.Player)
 }
 
@@ -32,8 +41,8 @@ func Apply(k Kit, p *player.Player) {
 	p.ResetFallDistance()
 	p.SetGameMode(world.GameModeAdventure)
 
-	p.Heal(internal.MaxHealth, entity.FoodHealingSource{})
-	p.SetFood(internal.MaxFood)
+	p.Heal(maxHealth, entity.FoodHealingSource{})
+	p.SetFood(maxFood)
 
 	for _, eff := range p.Effects() {
 		p.RemoveEffect(eff.Type())

@@ -1,12 +1,17 @@
 package kit
 
 import (
+	"time"
+
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	"github.com/df-mc/dragonfly/server/item"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+)
 
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
+const (
+	// speedEffectDuration is the duration for speed effects in lobby
+	speedEffectDuration = 24 * time.Hour
 )
 
 // Lobby ...
@@ -16,8 +21,8 @@ var Lobby lobby
 type lobby struct{}
 
 // Items ...
-func (lobby) Items(*player.Player) (items [internal.InventorySlots]item.Stack) {
-	return [internal.InventorySlots]item.Stack{
+func (lobby) Items(*player.Player) (items [inventorySlots]item.Stack) {
+	return [inventorySlots]item.Stack{
 		6: item.NewStack(item.Clock{}, 1).
 			WithCustomName(text.Colourf("<green>Re-Fetch Synced Rank</green>")).
 			WithValue("lobby", 2),
@@ -34,7 +39,7 @@ func (lobby) Items(*player.Player) (items [internal.InventorySlots]item.Stack) {
 func (lobby) ApplyFunc(p *player.Player) {
 	_ = p.SetHeldSlot(8)
 	p.ShowCoordinates()
-	p.AddEffect(effect.New(effect.Speed, 5, internal.SpeedEffectDuration).WithoutParticles())
+	p.AddEffect(effect.New(effect.Speed, 5, speedEffectDuration).WithoutParticles())
 
 	p.SetGameMode(lobbyGameMode{})
 	p.SetFlightSpeed(0.2)
