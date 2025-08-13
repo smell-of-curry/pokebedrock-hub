@@ -5,14 +5,14 @@ go 1.24.4
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.5
+	github.com/df-mc/dragonfly v0.10.6-0.20250812035922-b7aa3a4b058d
 	github.com/df-mc/npc v1.0.5
-	github.com/getsentry/sentry-go v0.35.0
+	github.com/getsentry/sentry-go v0.35.1
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.0.2
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
-	github.com/sandertv/gophertunnel v1.48.1
+	github.com/sandertv/gophertunnel v1.49.0
 	github.com/schollz/progressbar/v3 v3.18.0
 	golang.org/x/text v0.28.0
 )
@@ -22,7 +22,7 @@ require (
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudwego/base64x v0.1.5 // indirect
+	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/df-mc/goleveldb v1.1.9 // indirect
 	github.com/df-mc/worldupgrader v1.0.19 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
@@ -52,20 +52,14 @@ require (
 	github.com/segmentio/fasthash v1.0.3 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
-	golang.org/x/arch v0.19.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/exp v0.0.0-20250718183923-645b1fa84792 // indirect
-	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/arch v0.20.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
+	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/term v0.33.0 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/term v0.34.0 // indirect
+	google.golang.org/protobuf v1.36.7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/df-mc/dragonfly => github.com/didntpot/dragonfly v0.0.0-20250808172736-60e6f776b4cf
-
-replace github.com/sandertv/gophertunnel => github.com/cooldogedev/gophertunnel v0.0.0-20250806215416-758d5047d822
-
-replace github.com/sandertv/go-raknet => github.com/smell-of-curry/go-raknet v0.0.0-20250525005230-991ee492a907
