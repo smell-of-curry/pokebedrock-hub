@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -66,110 +65,177 @@ const (
 	requestTimeout = 1 * time.Second
 )
 
-// CheckIP determines whether the provided IP address is associated with a VPN connection.
 func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 	if net.ParseIP(ip) == nil {
 		return nil, fmt.Errorf("invalid IP address: %s", ip)
 	}
 
 	// Fast path: cached result
+	if cached, found := s.checkCache(ip); found {
+		return cached, nil
+	}
+
+	// Check rate limit
+	if err := s.checkRateLimit(); err != nil {
+		return nil, err
+	}
+
+	// Make API request
+	return s.makeVPNRequest(ip)
+}
+
+// checkCache checks if the IP result is cached
+func (s *Service) checkCache(ip string) (*ResponseModel, bool) {
 	if s.cache != nil {
 		if cached, ok := s.cache.Get(ip); ok {
 			s.log.Info("VPN check result", "ip", ip, "proxy", cached)
-			return &ResponseModel{Status: StatusSuccess, Proxy: cached}, nil
+			return &ResponseModel{Status: StatusSuccess, Proxy: cached}, true
 		}
 	}
+	return nil, false
+}
 
+// checkRateLimit checks if we're currently rate limited
+func (s *Service) checkRateLimit() error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if time.Now().Before(s.rateLimitReset) {
-		s.mu.Unlock()
-
-		return nil, fmt.Errorf("rate limit active, please wait until %v", s.rateLimitReset)
+		return fmt.Errorf("rate limit active, please wait until %v", s.rateLimitReset)
 	}
-	s.mu.Unlock()
+	return nil
+}
 
+// makeVPNRequest makes the actual VPN API request
+func (s *Service) makeVPNRequest(ip string) (*ResponseModel, error) {
+	url := fmt.Sprintf("%s/%s?fields=status,message,proxy", s.url, ip)
+	
+	req, err := s.createRequest(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	response, err := s.executeRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := s.processResponse(response, ip)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache the result if we have a cache
+	s.cacheResult(ip, result.Proxy)
+
+	return result, nil
+}
+
+// createRequest creates the HTTP request with proper headers
+func (s *Service) createRequest(url string) (*http.Request, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// executeRequest executes the HTTP request with retry logic
+func (s *Service) executeRequest(req *http.Request) (*http.Response, error) {
+	const maxRetries = 3
+	const retryDelay = 100 * time.Millisecond
 	var lastErr error
 
-	for attempt := range maxRetries {
+	for attempt := 0; attempt < maxRetries; attempt++ {
 		if s.closed.Load() {
-			return nil, fmt.Errorf("hub is shutting down")
+			return nil, fmt.Errorf("service is shutting down")
 		}
 
 		if attempt > 0 {
 			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
-		url := fmt.Sprintf("%s/%s?fields=status,message,proxy", s.url, ip)
-		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		response, err := s.client.Do(req)
 		if err != nil {
-			cancel()
-
-			return nil, fmt.Errorf("failed to create request: %w", err)
-		}
-
-		response, err := s.client.Do(request)
-
-		cancel()
-
-		if err != nil {
-			if ErrorIsTemporary(err) {
-				continue
-			}
-
 			lastErr = fmt.Errorf("request failed: %w", err)
-
-			return nil, lastErr
-		}
-
-		defer response.Body.Close()
-
-		s.handleRateLimitHeaders(response.Header)
-
-		switch response.StatusCode {
-		case http.StatusOK:
-			var responseModel ResponseModel
-			if err = json.NewDecoder(response.Body).Decode(&responseModel); err != nil {
-				return nil, fmt.Errorf("failed to decode response body: %w", err)
-			}
-
-			if strings.EqualFold(responseModel.Status, "fail") {
-				failMessage := responseModel.Message
-				if strings.EqualFold(failMessage, "reserved range") {
-					// Persist to cache
-					if s.cache != nil {
-						s.cache.Set(ip, false)
-					}
-					return &ResponseModel{Status: StatusSuccess, Proxy: false}, nil
-				}
-
-				return nil, fmt.Errorf("query failed: %s", failMessage)
-			}
-
-			// Persist to cache
-			if s.cache != nil {
-				s.cache.Set(ip, responseModel.Proxy)
-			}
-
-			return &responseModel, nil
-		case http.StatusTooManyRequests:
-			lastErr = fmt.Errorf("rate limited by api")
-
-			time.Sleep(time.Duration(attempt+1) * retryDelay)
-
 			continue
-		default:
-			lastErr = fmt.Errorf("unexpected status code: %d", response.StatusCode)
+		}
+
+		if response.StatusCode == http.StatusOK {
+			return response, nil
+		}
+
+		response.Body.Close()
+
+		if err := s.handleHTTPError(response); err != nil {
+			return nil, err
+		}
+
+		lastErr = fmt.Errorf("unexpected status: %d", response.StatusCode)
+	}
+
+	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
+}
+
+// processResponse processes the HTTP response and parses the JSON
+func (s *Service) processResponse(response *http.Response, ip string) (*ResponseModel, error) {
+	defer response.Body.Close()
+
+	var responseModel ResponseModel
+	if err := json.NewDecoder(response.Body).Decode(&responseModel); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if responseModel.Status == "fail" {
+		if responseModel.Message == "reserved range" {
+			// Private IP range - not a proxy
+			result := &ResponseModel{Status: StatusSuccess, Proxy: false}
+			s.cacheResult(ip, false)
+			return result, nil
+		}
+		return nil, fmt.Errorf("query failed: %s", responseModel.Message)
+	}
+
+	s.log.Info("VPN check result", "ip", ip, "proxy", responseModel.Proxy)
+	return &responseModel, nil
+}
+
+// handleHTTPError handles specific HTTP error responses
+func (s *Service) handleHTTPError(response *http.Response) error {
+	switch response.StatusCode {
+	case http.StatusTooManyRequests:
+		return s.handleRateLimit(response)
+	case http.StatusForbidden:
+		return fmt.Errorf("API key invalid or insufficient permissions")
+	case http.StatusBadRequest:
+		return fmt.Errorf("bad request - invalid IP format")
+	default:
+		return nil // Continue retrying for other errors
+	}
+}
+
+// handleRateLimit processes rate limit responses
+func (s *Service) handleRateLimit(response *http.Response) error {
+	resetHeader := response.Header.Get("X-RateLimit-Reset")
+	if resetHeader != "" {
+		if resetTime, err := time.Parse(time.RFC3339, resetHeader); err == nil {
+			s.mu.Lock()
+			s.rateLimitReset = resetTime
+			s.mu.Unlock()
 		}
 	}
+	return fmt.Errorf("rate limit exceeded")
+}
 
-	if lastErr == nil {
-		lastErr = fmt.Errorf("max retries reached")
+// cacheResult caches the VPN check result
+func (s *Service) cacheResult(ip string, isProxy bool) {
+	if s.cache != nil {
+		s.cache.Set(ip, isProxy)
 	}
-
-	return nil, lastErr
 }
 
 // handleRateLimitHeaders handles the rate limit headers.

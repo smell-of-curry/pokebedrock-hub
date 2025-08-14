@@ -50,7 +50,8 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	// Add another random delay to rank loading
 	go func() {
 		// Random delay between 500ms and 3000ms
-		delay := time.Duration(internal.MinRandomDelayLongMs+rand.Intn(internal.MaxRandomDelayLongRangeMs)) * time.Millisecond
+		delay := time.Duration(internal.MinRandomDelayLongMs+
+			rand.Intn(internal.MaxRandomDelayLongRangeMs)) * time.Millisecond
 		time.Sleep(delay)
 		h.Ranks().Load(p.XUID(), p.H())
 	}()

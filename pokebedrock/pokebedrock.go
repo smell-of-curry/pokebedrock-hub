@@ -174,121 +174,12 @@ func (poke *PokeBedrock) setupGin() error {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
-	router.GET("/authentication/:xuid", func(c *gin.Context) {
-		if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 
-			return
-		}
-
-		xuid := c.Param("xuid")
-		if xuid == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "xuid is required"})
-
-			return
-		}
-
-		req, exists := authentication.GlobalFactory().Of(xuid)
-		if !exists {
-			c.JSON(http.StatusNotFound, gin.H{"reason": "no player found"})
-
-			return
-		}
-
-		if time.Now().After(req.Expiration) {
-			authentication.GlobalFactory().Remove(xuid)
-			c.JSON(http.StatusGone, gin.H{"reason": "request expired"})
-
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"allowed": true})
-	})
-
-	// Restart Manager endpoints
-	restartGroup := router.Group("/restart")
-	{
-		// Request restart permission
-		restartGroup.POST("/request", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-
-				return
-			}
-
-			var req restart.Request
-			if err := c.ShouldBindJSON(&req); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
-
-				return
-			}
-
-			response := restart.GlobalService().RequestRestart(req)
-			c.JSON(http.StatusOK, response)
-		})
-
-		// Notify restart completion
-		restartGroup.POST("/complete", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-
-				return
-			}
-
-			var notification restart.Notification
-			if err := c.ShouldBindJSON(&notification); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification format", "details": err.Error()})
-
-				return
-			}
-
-			if err := restart.GlobalService().NotifyRestartComplete(notification); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-
-				return
-			}
-
-			c.JSON(http.StatusOK, gin.H{"status": "acknowledged"})
-		})
-
-		// Notify unauthorized restart
-		restartGroup.POST("/unauthorized", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-
-				return
-			}
-
-			var req restart.Request
-			if err := c.ShouldBindJSON(&req); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
-
-				return
-			}
-
-			restart.GlobalService().NotifyUnauthorizedRestart(req.ServerName)
-			c.JSON(http.StatusOK, gin.H{"status": "acknowledged"})
-		})
-
-		// Get restart manager state (for monitoring/debugging)
-		restartGroup.GET("/state", func(c *gin.Context) {
-			if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-
-				return
-			}
-
-			stateJSON, err := restart.GlobalService().GetStateJSON()
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get state", "details": err.Error()})
-
-				return
-			}
-
-			c.Header("Content-Type", "application/json")
-			c.String(http.StatusOK, string(stateJSON))
-		})
-	}
+	// Setup authentication route
+	poke.setupAuthenticationRoute(router)
+	
+	// Setup restart manager routes  
+	poke.setupRestartRoutes(router)
 
 	err := router.Run(poke.conf.Service.GinAddress)
 	if err != nil {
@@ -296,8 +187,129 @@ func (poke *PokeBedrock) setupGin() error {
 	}
 
 	poke.log.Info("Authentication service started on " + poke.conf.Service.GinAddress)
-
 	return nil
+}
+
+// setupAuthenticationRoute sets up the authentication endpoint
+func (poke *PokeBedrock) setupAuthenticationRoute(router *gin.Engine) {
+	router.GET("/authentication/:xuid", func(c *gin.Context) {
+		if !poke.validateAuth(c) {
+			return
+		}
+
+		xuid := c.Param("xuid")
+		if xuid == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "xuid is required"})
+			return
+		}
+
+		poke.handleAuthenticationRequest(c, xuid)
+	})
+}
+
+// setupRestartRoutes sets up all restart manager endpoints
+func (poke *PokeBedrock) setupRestartRoutes(router *gin.Engine) {
+	restartGroup := router.Group("/restart")
+	{
+		restartGroup.POST("/request", poke.handleRestartRequest)
+		restartGroup.POST("/complete", poke.handleRestartComplete)
+		restartGroup.POST("/unauthorized", poke.handleUnauthorizedRestart)
+		restartGroup.GET("/state", poke.handleRestartState)
+	}
+}
+
+// validateAuth validates the authorization header
+func (poke *PokeBedrock) validateAuth(c *gin.Context) bool {
+	if c.GetHeader("authorization") != poke.conf.Service.GinAuthenticationKey {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return false
+	}
+	return true
+}
+
+// handleAuthenticationRequest handles the authentication request logic
+func (poke *PokeBedrock) handleAuthenticationRequest(c *gin.Context, xuid string) {
+	req, exists := authentication.GlobalFactory().Of(xuid)
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"reason": "no player found"})
+		return
+	}
+
+	if time.Now().After(req.Expiration) {
+		authentication.GlobalFactory().Remove(xuid)
+		c.JSON(http.StatusGone, gin.H{"reason": "request expired"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"allowed": true})
+}
+
+// handleRestartRequest handles restart permission requests
+func (poke *PokeBedrock) handleRestartRequest(c *gin.Context) {
+	if !poke.validateAuth(c) {
+		return
+	}
+
+	var req restart.Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
+		return
+	}
+
+	response := restart.GlobalService().RequestRestart(req)
+	c.JSON(http.StatusOK, response)
+}
+
+// handleRestartComplete handles restart completion notifications
+func (poke *PokeBedrock) handleRestartComplete(c *gin.Context) {
+	if !poke.validateAuth(c) {
+		return
+	}
+
+	var notification restart.Notification
+	if err := c.ShouldBindJSON(&notification); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification format", "details": err.Error()})
+		return
+	}
+
+	if err := restart.GlobalService().NotifyRestartComplete(notification); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "acknowledged"})
+}
+
+// handleUnauthorizedRestart handles unauthorized restart notifications
+func (poke *PokeBedrock) handleUnauthorizedRestart(c *gin.Context) {
+	if !poke.validateAuth(c) {
+		return
+	}
+
+	var req restart.Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format", "details": err.Error()})
+		return
+	}
+
+	restart.GlobalService().NotifyUnauthorizedRestart(req.ServerName)
+	c.JSON(http.StatusOK, gin.H{"status": "acknowledged"})
+}
+
+// handleRestartState handles restart state queries
+func (poke *PokeBedrock) handleRestartState(c *gin.Context) {
+	if !poke.validateAuth(c) {
+		return
+	}
+
+	stateJSON, err := restart.GlobalService().GetStateJSON()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get state", "details": err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "application/json")
+	c.String(http.StatusOK, string(stateJSON))
 }
 
 // loadLocales registers all the locales active on the server.
