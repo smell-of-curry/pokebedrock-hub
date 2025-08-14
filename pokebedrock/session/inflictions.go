@@ -124,7 +124,8 @@ func tryProcessRequest(semaphore, activeRequests chan struct{}, req inflictionRe
 }
 
 // processInflictionRequest processes a single infliction request
-func processInflictionRequest(semaphore, activeRequests chan struct{}, handle *world.EntityHandle, inflictions *Inflictions) {
+func processInflictionRequest(semaphore, activeRequests chan struct{}, 
+	handle *world.EntityHandle, inflictions *Inflictions) {
 	defer func() {
 		// Release semaphore slot when done
 		<-semaphore
@@ -139,7 +140,7 @@ func processInflictionRequest(semaphore, activeRequests chan struct{}, handle *w
 // executeWithTimeout executes the infliction loading with a timeout
 func executeWithTimeout(handle *world.EntityHandle, inflictions *Inflictions) {
 	done := make(chan struct{}, 1)
-	
+
 	go func() {
 		defer close(done)
 		loadPlayerInflictions(handle, inflictions)

@@ -98,6 +98,7 @@ func (c *Cache) Set(ip string, isProxy bool) {
 func writeJSONFile(path string, v any) error {
 	tmp := path + ".tmp"
 	f, err := os.Create(tmp)
+
 	if err != nil {
 		return err
 	}
@@ -109,6 +110,7 @@ func writeJSONFile(path string, v any) error {
 	if err == nil {
 		err = cerr
 	}
+
 	if err != nil {
 		_ = os.Remove(tmp)
 

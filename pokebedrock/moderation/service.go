@@ -189,6 +189,7 @@ func (s *Service) AddInfliction(req *ModelRequest) error {
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/addInfliction",
 			bytes.NewBuffer(rawRequest))
+
 		s.log.Debug(fmt.Sprintf("Adding infliction on url=%s,request=%+v",
 			s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
 
@@ -252,7 +253,7 @@ func (s *Service) RemoveInfliction(req *ModelRequest) error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, 
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete,
 			s.url+"/removeInfliction", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()
@@ -321,10 +322,12 @@ func playerDetailsWorker() {
 		select {
 		case <-detailsWorkerShutdown:
 			waitForActiveDetailsRequests(activeRequests)
+
 			return
 		case req, ok := <-SendDetailsOfQueue:
 			if !ok {
 				// Channel closed, exit worker
+
 				return
 			}
 
@@ -352,9 +355,11 @@ func tryProcessDetailsRequest(semaphore, activeRequests chan struct{}, req playe
 
 		// Process request in a goroutine
 		go processPlayerDetailsRequest(semaphore, activeRequests, req.player)
+
 		return true
 	case <-detailsWorkerShutdown:
 		// Worker is shutting down, don't start new requests
+
 		return false
 	}
 }
@@ -394,9 +399,10 @@ func sendPlayerDetails(s *Service, p *player.Player) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, 
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
-	s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", 
+
+	s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v",
 		s.url+"/playerDetails", bytes.NewBuffer(rawRequest)))
 
 	if err != nil {

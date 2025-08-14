@@ -94,26 +94,23 @@ func NewCreateInfliction(target string) form.Custom {
 func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 	prosecutor := sub.(*player.Player)
 
+	infliction, err := c.buildInfliction(prosecutor)
+	if err != nil {
+		prosecutor.Message(text.Colourf("<red>%s</red>", err.Error()))
+		return
+	}
+
+	c.processInflictionAsync(prosecutor, infliction)
+}
+
+// buildInfliction creates an infliction from form data
+func (c CreateInfliction) buildInfliction(prosecutor *player.Player) (moderation.Infliction, error) {
 	inf := c.InflictionType.Options[c.InflictionType.Value()]
 	infType := moderation.InflictionType(inf)
 
-	var permanent bool
-
-	var expiry int64
-
-	if c.Expiry.Value() == "" {
-		permanent = true
-	}
-
-	if !permanent {
-		exp, err := strconv.Atoi(c.Expiry.Value())
-		if err != nil {
-			prosecutor.Message(text.Colourf("<red>Invalid expiry value provided.</red>"))
-
-			return
-		}
-
-		expiry = time.Now().UnixMilli() + time.Minute.Milliseconds()*int64(exp)
+	expiry, err := c.parseExpiry()
+	if err != nil {
+		return moderation.Infliction{}, fmt.Errorf("Invalid expiry value provided")
 	}
 
 	reason := c.Reason.Value()
@@ -127,10 +124,31 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 		Reason:        reason,
 		Prosecutor:    prosecutor.Name(),
 	}
-	if !permanent {
-		infliction.ExpiryDate = &expiry
+
+	if expiry != nil {
+		infliction.ExpiryDate = expiry
 	}
 
+	return infliction, nil
+}
+
+// parseExpiry parses the expiry time from form data
+func (c CreateInfliction) parseExpiry() (*int64, error) {
+	if c.Expiry.Value() == "" {
+		return nil, nil // Permanent infliction
+	}
+
+	exp, err := strconv.Atoi(c.Expiry.Value())
+	if err != nil {
+		return nil, err
+	}
+
+	expiry := time.Now().UnixMilli() + time.Minute.Milliseconds()*int64(exp)
+	return &expiry, nil
+}
+
+// processInflictionAsync handles the async processing of adding an infliction
+func (c CreateInfliction) processInflictionAsync(prosecutor *player.Player, infliction moderation.Infliction) {
 	h := prosecutor.H()
 	go func() {
 		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
@@ -139,52 +157,89 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 				return
 			}
 
-			err := moderation.GlobalService().AddInfliction(&moderation.ModelRequest{
-				Name:             c.target,
-				InflictionStatus: moderation.InflictionStatusCurrent,
-				Infliction:       infliction,
-			})
-			if err != nil {
+			if err := c.addInflictionToService(infliction); err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s' %s.</red>", c.target, err.Error()))
-
 				return
 			}
 
 			prosecutor.Message(text.Colourf("<green>Added infliction on '%s'.</green>", c.target))
-
-			for ent := range tx.Players() {
-				victim := ent.(*player.Player)
-				if !strings.EqualFold(victim.Name(), c.target) {
-					continue
-				}
-
-				handler, ok := victim.Handler().(inflictionHandler)
-				if !ok {
-					continue
-				}
-
-				switch infliction.Type {
-				case moderation.InflictionMuted:
-					exp := infliction.ExpiryDate
-					if exp != nil && *exp != 0 {
-						handler.Inflictions().SetMuteDuration(*exp)
-					}
-
-					handler.Inflictions().SetMuted(true)
-				case moderation.InflictionFrozen:
-					handler.Inflictions().SetFrozen(true)
-					victim.SetImmobile()
-				case moderation.InflictionWarned:
-					victim.Message(text.Colourf("<yellow>You've been warned for %s.</yellow>", infliction.Reason))
-				case moderation.InflictionKicked:
-					victim.Disconnect(text.Colourf("<red>You've been kicked."))
-				case moderation.InflictionBanned:
-					victim.Disconnect(text.Colourf("<red>You've been banned! Reason: %s, Expiry Date: %d, Prosecutor: %s</red>",
-						infliction.Reason, infliction.ExpiryDate, infliction.Prosecutor))
-				}
-			}
+			c.applyInflictionToOnlinePlayer(tx, infliction)
 		})
 	}()
+}
+
+// addInflictionToService adds the infliction to the moderation service
+func (c CreateInfliction) addInflictionToService(infliction moderation.Infliction) error {
+	return moderation.GlobalService().AddInfliction(&moderation.ModelRequest{
+		Name:             c.target,
+		InflictionStatus: moderation.InflictionStatusCurrent,
+		Infliction:       infliction,
+	})
+}
+
+// applyInflictionToOnlinePlayer applies the infliction effects to online players
+func (c CreateInfliction) applyInflictionToOnlinePlayer(tx *world.Tx, infliction moderation.Infliction) {
+	for ent := range tx.Players() {
+		victim := ent.(*player.Player)
+		if !strings.EqualFold(victim.Name(), c.target) {
+			continue
+		}
+
+		c.applyInflictionEffects(victim, infliction)
+		break
+	}
+}
+
+// applyInflictionEffects applies the specific effects of an infliction to a player
+func (c CreateInfliction) applyInflictionEffects(victim *player.Player, infliction moderation.Infliction) {
+	handler, ok := victim.Handler().(inflictionHandler)
+	if !ok {
+		return
+	}
+
+	switch infliction.Type {
+	case moderation.InflictionMuted:
+		c.applyMuteEffect(handler, infliction)
+	case moderation.InflictionFrozen:
+		c.applyFrozenEffect(handler, victim)
+	case moderation.InflictionWarned:
+		c.applyWarnEffect(victim, infliction)
+	case moderation.InflictionKicked:
+		c.applyKickEffect(victim)
+	case moderation.InflictionBanned:
+		c.applyBanEffect(victim, infliction)
+	}
+}
+
+// applyMuteEffect applies mute infliction effects
+func (c CreateInfliction) applyMuteEffect(handler inflictionHandler, infliction moderation.Infliction) {
+	exp := infliction.ExpiryDate
+	if exp != nil && *exp != 0 {
+		handler.Inflictions().SetMuteDuration(*exp)
+	}
+	handler.Inflictions().SetMuted(true)
+}
+
+// applyFrozenEffect applies frozen infliction effects
+func (c CreateInfliction) applyFrozenEffect(handler inflictionHandler, victim *player.Player) {
+	handler.Inflictions().SetFrozen(true)
+	victim.SetImmobile()
+}
+
+// applyWarnEffect applies warning infliction effects
+func (c CreateInfliction) applyWarnEffect(victim *player.Player, infliction moderation.Infliction) {
+	victim.Message(text.Colourf("<yellow>You've been warned for %s.</yellow>", infliction.Reason))
+}
+
+// applyKickEffect applies kick infliction effects
+func (c CreateInfliction) applyKickEffect(victim *player.Player) {
+	victim.Disconnect(text.Colourf("<red>You've been kicked.</red>"))
+}
+
+// applyBanEffect applies ban infliction effects
+func (c CreateInfliction) applyBanEffect(victim *player.Player, infliction moderation.Infliction) {
+	victim.Disconnect(text.Colourf("<red>You've been banned! Reason: %s, Expiry Date: %d, Prosecutor: %s</red>",
+		infliction.Reason, infliction.ExpiryDate, infliction.Prosecutor))
 }
 
 // RemoveInfliction represents a form for removing existing inflictions from a player.

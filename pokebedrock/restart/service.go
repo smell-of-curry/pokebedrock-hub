@@ -107,7 +107,7 @@ func (s *Service) RequestRestart(req Request) Response {
 func (s *Service) checkCurrentlyRestarting(serverName string) (Response, bool) {
 	if s.state.CurrentlyRestarting == serverName {
 		s.log.Debug("Server restart request granted - already currently restarting", "name", serverName)
-		
+
 		return Response{
 			Status:  StatusAllow,
 			Message: "Restart permission granted",
