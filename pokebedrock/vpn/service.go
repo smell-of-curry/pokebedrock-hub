@@ -8,12 +8,9 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 )
 
 // globalService ...
@@ -235,25 +232,6 @@ func (s *Service) handleRateLimit(response *http.Response) error {
 func (s *Service) cacheResult(ip string, isProxy bool) {
 	if s.cache != nil {
 		s.cache.Set(ip, isProxy)
-	}
-}
-
-// handleRateLimitHeaders handles the rate limit headers.
-func (s *Service) handleRateLimitHeaders(header http.Header) {
-	requestsRemainingStr := header.Get("X-Rl")
-	timeToResetStr := header.Get("X-Ttl")
-
-	if requestsRemainingStr == "0" && timeToResetStr != "" {
-		ttl, err := strconv.Atoi(timeToResetStr)
-		if err != nil {
-			// couldn't parse header for whatever reason, just default to fallback wait time.
-			ttl = internal.DefaultTTL
-		}
-
-		s.mu.Lock()
-		s.rateLimitReset = time.Now().Add(time.Duration(ttl) * time.Second)
-		s.mu.Unlock()
-		s.log.Warn("rate limit reached. waiting for reset.", "ttl_seconds", ttl)
 	}
 }
 

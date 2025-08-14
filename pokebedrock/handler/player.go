@@ -1,8 +1,9 @@
 package handler
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"strings"
 	"time"
 
@@ -42,7 +43,8 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	// loading their inflictions at the exact same time
 	go func() {
 		// Random delay between 100ms and 2000ms to space out requests
-		delay := time.Duration(internal.MinRandomDelayMs+rand.Intn(internal.MaxRandomDelayRangeMs)) * time.Millisecond
+		randValue, _ := rand.Int(rand.Reader, big.NewInt(int64(internal.MaxRandomDelayRangeMs)))
+		delay := time.Duration(internal.MinRandomDelayMs+int(randValue.Int64())) * time.Millisecond
 		time.Sleep(delay)
 		h.inflictions.Load(p.H())
 	}()
@@ -50,8 +52,8 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 	// Add another random delay to rank loading
 	go func() {
 		// Random delay between 500ms and 3000ms
-		delay := time.Duration(internal.MinRandomDelayLongMs+
-			rand.Intn(internal.MaxRandomDelayLongRangeMs)) * time.Millisecond
+		randValue, _ := rand.Int(rand.Reader, big.NewInt(int64(internal.MaxRandomDelayLongRangeMs)))
+		delay := time.Duration(internal.MinRandomDelayLongMs+int(randValue.Int64())) * time.Millisecond
 		time.Sleep(delay)
 		h.Ranks().Load(p.XUID(), p.H())
 	}()

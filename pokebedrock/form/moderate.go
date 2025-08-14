@@ -110,7 +110,7 @@ func (c CreateInfliction) buildInfliction(prosecutor *player.Player) (moderation
 
 	expiry, err := c.parseExpiry()
 	if err != nil {
-		return moderation.Infliction{}, fmt.Errorf("Invalid expiry value provided")
+		return moderation.Infliction{}, fmt.Errorf("invalid expiry value provided: %w", err)
 	}
 
 	reason := c.Reason.Value()

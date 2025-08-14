@@ -15,7 +15,7 @@ import (
 // Entries are prioritized by rank first, then by join time for equal ranks.
 type Entry struct {
 	joinTime time.Time           // When the player joined the queue
-	index    int                 //nolint:unused // Index in the heap, used by heap.Interface
+	index    int                 // Index in the heap, used by heap.Interface
 	handle   *world.EntityHandle // Handle to the player entity
 	rank     rank.Rank           // Player's rank for priority determination
 	srv      *srv.Server         // Target server to connect to
