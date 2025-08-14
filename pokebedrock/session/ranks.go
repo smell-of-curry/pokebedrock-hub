@@ -194,6 +194,17 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 	// Create a buffered channel to prevent goroutine leak
 	doneCh := make(chan struct{}, 1)
 
+	if !r.tryQueueRankUpdate(xuid, handle, doneCh) {
+		r.handleQueueFull(handle)
+		return
+	}
+
+	r.sendFetchingMessage(handle)
+	r.waitForRankUpdate(doneCh, handle)
+}
+
+// tryQueueRankUpdate attempts to queue a rank update request
+func (r *Ranks) tryQueueRankUpdate(xuid string, handle *world.EntityHandle, doneCh chan struct{}) bool {
 	select {
 	case rankUpdateCh <- rankUpdate{
 		ranks:  r,
@@ -201,35 +212,41 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 		xuid:   xuid,
 		ch:     doneCh,
 	}:
-		// Move ExecWorld call outside of channel operation
-		go func() {
-			handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-				p, ok := e.(*player.Player)
-				if !ok {
-					return
-				}
-
-				p.SendTip(locale.Translate("rank.fetching"))
-			})
-		}()
+		return true
 	default:
-		// Channel full, log warning but continue
-		go func() {
-			handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-				p, ok := e.(*player.Player)
-				if !ok {
-					return
-				}
-
-				p.SendTip(locale.Translate("rank.update.queue.full"))
-			})
-		}()
-
-		return
+		return false
 	}
+}
 
+// sendFetchingMessage sends a fetching message to the player
+func (r *Ranks) sendFetchingMessage(handle *world.EntityHandle) {
+	go func() {
+		handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+			p.SendTip(locale.Translate("rank.fetching"))
+		})
+	}()
+}
+
+// handleQueueFull handles the case when the rank update queue is full
+func (r *Ranks) handleQueueFull(handle *world.EntityHandle) {
+	go func() {
+		handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+			p.SendTip(locale.Translate("rank.update.queue.full"))
+		})
+	}()
+}
+
+// waitForRankUpdate waits for the rank update to complete with timeout handling
+func (r *Ranks) waitForRankUpdate(doneCh chan struct{}, handle *world.EntityHandle) {
 	timeout := time.After(internal.DefaultTimeout)
-
 	ticker := time.NewTicker(internal.ShortRetryDelayMs * time.Millisecond)
 	defer ticker.Stop()
 
@@ -238,41 +255,57 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 		case <-doneCh:
 			return
 		case <-ticker.C:
-			select {
-			case <-doneCh:
+			if r.checkHandleValid(doneCh, handle) {
 				return
-			default:
-				if handle == nil {
-					ticker.Stop()
-
-					return
-				}
 			}
 		case <-timeout:
-			select {
-			case <-doneCh:
-				return
-			default:
-				if handle == nil {
-					return
-				}
-				doneCh <- struct{}{} // Close the channel to signal timeout
-				// Move ExecWorld call outside of channel/select context
-				go func() {
-					handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-						p, ok := e.(*player.Player)
-						if !ok {
-							return
-						}
-
-						p.SendTip(locale.Translate("rank.fetch.timeout"))
-					})
-				}()
-
+			if r.handleTimeout(doneCh, handle) {
 				return
 			}
 		}
 	}
+}
+
+// checkHandleValid checks if the handle is still valid during ticker events
+func (r *Ranks) checkHandleValid(doneCh chan struct{}, handle *world.EntityHandle) bool {
+	select {
+	case <-doneCh:
+		return true
+	default:
+		if handle == nil {
+			return true
+		}
+		return false
+	}
+}
+
+// handleTimeout handles timeout events during rank loading
+func (r *Ranks) handleTimeout(doneCh chan struct{}, handle *world.EntityHandle) bool {
+	select {
+	case <-doneCh:
+		return true
+	default:
+		if handle == nil {
+			return true
+		}
+
+		doneCh <- struct{}{} // Close the channel to signal timeout
+		r.sendTimeoutMessage(handle)
+		return true
+	}
+}
+
+// sendTimeoutMessage sends a timeout message to the player
+func (r *Ranks) sendTimeoutMessage(handle *world.EntityHandle) {
+	go func() {
+		handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
+			p, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+			p.SendTip(locale.Translate("rank.fetch.timeout"))
+		})
+	}()
 }
 
 // SetRanks updates the player's ranks and sorts them in ascending order.

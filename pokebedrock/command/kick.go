@@ -48,7 +48,7 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
 		}
 
 		// Add the infliction to the moderation service
-		err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
+		err := moderation.GlobalService().AddInfliction(&moderation.ModelRequest{
 			Name:             victim.Name(),
 			InflictionStatus: moderation.InflictionStatusCurrent,
 			Infliction:       infliction,

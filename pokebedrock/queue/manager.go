@@ -150,9 +150,9 @@ func (m *Manager) Update(tx *world.Tx) {
 
 	// Instead of modifying the queue during iteration,
 	// we'll track changes and apply them afterward
-	var entriesToRemove []int
+	entriesToRemove := make([]int, 0, len(queue))
 
-	var playersToTransfer []*Transfer
+	playersToTransfer := make([]*Transfer, 0, len(queue))
 
 	// First pass: check queue entries and mark for removal/transfer
 	for i, entry := range queue {
@@ -177,48 +177,28 @@ func (m *Manager) Update(tx *world.Tx) {
 		}
 
 		p := ent.(*player.Player)
+		position := m.GetQueuePosition(p)
 
-		// Verify server still exists and is valid
-		s := entry.srv
-		if s == nil {
-			entriesToRemove = append(entriesToRemove, i)
-
-			p.Message(locale.Translate("queue.destination.invalid"))
-
+		if position < 1 {
+			// Not in queue anymore
 			continue
 		}
 
-		// Check server status
-		st := s.Status()
-		if !st.Online {
-			// Skip offline servers but keep p in queue
-			continue
+		var waitMsg string
+
+		switch {
+		case position == 1:
+			waitMsg = "You're next in line!"
+		case position <= highPriorityQueueThreshold:
+			waitMsg = "Almost your turn"
+		case position <= mediumPriorityQueueThreshold:
+			waitMsg = "Short wait"
+		default:
+			waitMsg = "Longer wait"
 		}
 
-		// Check if there's capacity in the server
-		if st.PlayerCount >= st.MaxPlayerCount {
-			// Server is full, keep p in queue
-			continue
-		}
-
-		// Admin bypass - allow admins to join immediately regardless of server capacity
-		// Others still need to wait for available slots
-		if st.PlayerCount >= st.MaxPlayerCount-5 && entry.rank < rank.Admin {
-			// Server is near capacity, only admins can bypass
-			continue
-		}
-
-		// Mark for transfer
-		playersToTransfer = append(playersToTransfer, &Transfer{
-			player: p,
-			entry:  entry,
-			server: s,
-		})
-
-		entriesToRemove = append(entriesToRemove, i)
-
-		// Only process one transfer per tick
-		break
+		bar := bossbar.New(locale.Translate("queue.position", position, waitMsg))
+		p.SendBossBar(bar)
 	}
 
 	// Second pass: remove entries marked for removal (in reverse order to maintain indices)
@@ -263,6 +243,7 @@ func (m *Manager) queueAllBossBars() {
 	if len(q) == 0 {
 		return
 	}
+
 	m.pendingMu.Lock()
 	for _, entry := range q {
 		if entry != nil && entry.handle != nil {
@@ -283,10 +264,12 @@ func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 	batch := make([]*world.EntityHandle, 0, maxCount)
 
 	m.pendingMu.Lock()
+
 	i := 0
 	for h := range m.pendingBossBars {
 		batch = append(batch, h)
 		delete(m.pendingBossBars, h)
+
 		i++
 		if i >= maxCount {
 			break

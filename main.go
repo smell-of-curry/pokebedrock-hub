@@ -51,7 +51,7 @@ func main() {
 	slog.SetLogLoggerLevel(logLevel)
 	log.Info("Log level set", "level", logLevel.String())
 
-	poke, err := pokebedrock.NewPokeBedrock(log, conf)
+	poke, err := pokebedrock.NewPokeBedrock(log, &conf)
 	if err != nil {
 		panic(err)
 	}
