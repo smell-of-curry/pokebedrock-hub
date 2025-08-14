@@ -84,71 +84,110 @@ func (s *Service) RequestRestart(req Request) Response {
 
 	now := time.Now()
 
-	// If this server is already the currently restarting server, grant permission
-	if s.state.CurrentlyRestarting == req.ServerName {
-		s.log.Debug("Server restart request granted - already currently restarting", "name", req.ServerName)
-
-		return Response{
-			Status:  StatusAllow,
-			Message: "Restart permission granted",
-		}
+	// Check if server is already currently restarting
+	if response, handled := s.checkCurrentlyRestarting(req.ServerName); handled {
+		return response
 	}
 
-	// Check if server is in cooldown period
-	if lastRestart, exists := s.state.RestartHistory[req.ServerName]; exists {
-		if now.Sub(lastRestart) < s.config.RestartCooldown {
-			cooldownEnd := lastRestart.Add(s.config.RestartCooldown)
-			remaining := cooldownEnd.Sub(now)
-			s.log.Debug("Server restart request denied - cooldown period",
-				"name", req.ServerName,
-				"remaining", remaining)
-
-			return Response{
-				Status:     StatusWait,
-				Message:    fmt.Sprintf("Server in cooldown period, try again in %v", remaining.Round(time.Second)),
-				RetryAfter: cooldownEnd.UTC().UnixMilli(),
-			}
-		}
+	// Check cooldown period
+	if response, handled := s.checkCooldownPeriod(req.ServerName, now); handled {
+		return response
 	}
 
 	// If no server is currently restarting, allow this one
 	if s.state.CurrentlyRestarting == "" {
-		s.state.CurrentlyRestarting = req.ServerName
-		s.state.RestartHistory[req.ServerName] = now
+		return s.grantRestartPermission(req.ServerName, now)
+	}
 
-		s.log.Info("Server restart permission granted", "name", req.ServerName)
+	// Handle queue operations
+	return s.handleQueueOperations(req.ServerName, now)
+}
 
+// checkCurrentlyRestarting checks if the server is already currently restarting
+func (s *Service) checkCurrentlyRestarting(serverName string) (Response, bool) {
+	if s.state.CurrentlyRestarting == serverName {
+		s.log.Debug("Server restart request granted - already currently restarting", "name", serverName)
+		
 		return Response{
 			Status:  StatusAllow,
 			Message: "Restart permission granted",
-		}
+		}, true
+	}
+	return Response{}, false
+}
+
+// checkCooldownPeriod checks if the server is in cooldown period
+func (s *Service) checkCooldownPeriod(serverName string, now time.Time) (Response, bool) {
+	lastRestart, exists := s.state.RestartHistory[serverName]
+	if !exists {
+		return Response{}, false
 	}
 
+	if now.Sub(lastRestart) < s.config.RestartCooldown {
+		cooldownEnd := lastRestart.Add(s.config.RestartCooldown)
+		remaining := cooldownEnd.Sub(now)
+		s.log.Debug("Server restart request denied - cooldown period",
+			"name", serverName,
+			"remaining", remaining)
+
+		return Response{
+			Status:     StatusWait,
+			Message:    fmt.Sprintf("Server in cooldown period, try again in %v", remaining.Round(time.Second)),
+			RetryAfter: cooldownEnd.UTC().UnixMilli(),
+		}, true
+	}
+	return Response{}, false
+}
+
+// grantRestartPermission grants restart permission to the server
+func (s *Service) grantRestartPermission(serverName string, now time.Time) Response {
+	s.state.CurrentlyRestarting = serverName
+	s.state.RestartHistory[serverName] = now
+
+	s.log.Info("Server restart permission granted", "name", serverName)
+
+	return Response{
+		Status:  StatusAllow,
+		Message: "Restart permission granted",
+	}
+}
+
+// handleQueueOperations handles queue-related operations for restart requests
+func (s *Service) handleQueueOperations(serverName string, now time.Time) Response {
 	// Check if server is already in queue
 	for i, entry := range s.state.Queue {
-		if entry.ServerName == req.ServerName {
-			// Update existing queue entry
-			s.state.Queue[i].LastRetry = now
-			s.state.Queue[i].RetryCount++
-
-			position := i + 1
-			s.log.Debug("Server restart request - already in queue",
-				"name", req.ServerName,
-				"position", position,
-				"retryCount", s.state.Queue[i].RetryCount)
-
-			return Response{
-				Status:     StatusWait,
-				Message:    "Server in restart queue",
-				QueuePos:   position,
-				RetryAfter: now.Add(s.config.BackoffInterval * time.Duration(position)).UTC().UnixMilli(),
-			}
+		if entry.ServerName == serverName {
+			return s.updateExistingQueueEntry(i, now)
 		}
 	}
 
 	// Add server to queue
+	return s.addServerToQueue(serverName, now)
+}
+
+// updateExistingQueueEntry updates an existing queue entry
+func (s *Service) updateExistingQueueEntry(index int, now time.Time) Response {
+	s.state.Queue[index].LastRetry = now
+	s.state.Queue[index].RetryCount++
+
+	position := index + 1
+	s.log.Debug("Server restart request - already in queue",
+		"name", s.state.Queue[index].ServerName,
+		"position", position,
+		"retryCount", s.state.Queue[index].RetryCount)
+
+	return Response{
+		Status:     StatusWait,
+		Message:    "Server in restart queue",
+		QueuePos:   position,
+		RetryAfter: now.Add(s.config.BackoffInterval * time.Duration(position)).UTC().UnixMilli(),
+	}
+}
+
+// addServerToQueue adds a new server to the restart queue
+func (s *Service) addServerToQueue(serverName string, now time.Time) Response {
 	queueEntry := QueueEntry{
-		ServerName:   req.ServerName,
+		ServerName:   serverName,
 		RequestTime:  now,
 		LastRetry:    now,
 		RetryCount:   0,
@@ -160,7 +199,7 @@ func (s *Service) RequestRestart(req Request) Response {
 	position := len(s.state.Queue)
 
 	s.log.Info("Server added to restart queue",
-		"name", req.ServerName,
+		"name", serverName,
 		"position", position)
 
 	return Response{

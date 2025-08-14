@@ -38,8 +38,8 @@ type Info struct {
 	RoleID      string // External role identifier.
 }
 
-// RankConfig holds the configurable role IDs for ranks
-type RankConfig struct {
+// Config holds the configurable role IDs for ranks
+type Config struct {
 	TrainerRoleID              string
 	ServerBoosterRoleID        string
 	SupporterRoleID            string
@@ -66,7 +66,7 @@ type RankConfig struct {
 var rankInfos map[Rank]Info
 
 // InitializeRanks initializes the rank system with the provided configuration
-func InitializeRanks(config RankConfig) {
+func InitializeRanks(config *Config) {
 	rankInfos = map[Rank]Info{
 		UnLinked:             {DisplayName: "UnLinked", Color: "grey", Prefix: false},
 		Trainer:              {DisplayName: "Trainer", Color: "white", Prefix: true, RoleID: config.TrainerRoleID},

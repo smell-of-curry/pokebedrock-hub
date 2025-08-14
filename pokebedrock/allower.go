@@ -17,7 +17,7 @@ import (
 type Allower struct{}
 
 // Allow ...
-func (a Allower) Allow(addr net.Addr, d login.IdentityData, _ login.ClientData) (string, bool) {
+func (a Allower) Allow(addr net.Addr, d login.IdentityData, _ *login.ClientData) (string, bool) {
 	if reason, allowed := a.handleVPN(addr); !allowed {
 		return reason, allowed
 	}

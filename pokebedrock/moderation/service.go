@@ -85,18 +85,18 @@ func (s *Service) InflictionOfPlayer(p *player.Player) (*ModelResponse, error) {
 // InflictionOfXUID retrieves the inflictions for a specific XUID.
 // This function makes a request to the service and returns the player's current and past inflictions.
 func (s *Service) InflictionOfXUID(xuid string) (*ModelResponse, error) {
-	return s.InflictionOf(ModelRequest{XUID: xuid})
+	return s.InflictionOf(&ModelRequest{XUID: xuid})
 }
 
 // InflictionOfName retrieves the inflictions for a player based on their name.
 // This function makes a request to the service and returns the player's current and past inflictions.
 func (s *Service) InflictionOfName(name string) (*ModelResponse, error) {
-	return s.InflictionOf(ModelRequest{Name: name})
+	return s.InflictionOf(&ModelRequest{Name: name})
 }
 
 // InflictionOf makes a request to the service to retrieve the inflictions based on a given request model.
 // It handles retries, timeouts, and different server response codes, including parsing the response.
-func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
+func (s *Service) InflictionOf(req *ModelRequest) (*ModelResponse, error) {
 	rawRequest, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 
 // AddInfliction adds a new infliction (e.g., ban, mute) to the player.
 // It sends a request to the service and retries in case of temporary errors.
-func (s *Service) AddInfliction(req ModelRequest) error {
+func (s *Service) AddInfliction(req *ModelRequest) error {
 	rawRequest, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
@@ -187,8 +187,10 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/addInfliction", bytes.NewBuffer(rawRequest))
-		s.log.Debug(fmt.Sprintf("Adding infliction on url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/addInfliction",
+			bytes.NewBuffer(rawRequest))
+		s.log.Debug(fmt.Sprintf("Adding infliction on url=%s,request=%+v",
+			s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
 
 		if err != nil {
 			cancel()
@@ -231,7 +233,7 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 
 // RemoveInfliction removes an existing infliction (e.g., un-ban, un-mute) from a player.
 // It sends a request to the service to remove the infliction and retries on temporary errors.
-func (s *Service) RemoveInfliction(req ModelRequest) error {
+func (s *Service) RemoveInfliction(req *ModelRequest) error {
 	rawRequest, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
@@ -250,7 +252,8 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, s.url+"/removeInfliction", bytes.NewBuffer(rawRequest))
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, 
+			s.url+"/removeInfliction", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()
 
@@ -317,11 +320,7 @@ func playerDetailsWorker() {
 	for {
 		select {
 		case <-detailsWorkerShutdown:
-			// Wait for all active requests to finish before exiting
-			for range len(activeRequests) {
-				<-activeRequests
-			}
-
+			waitForActiveDetailsRequests(activeRequests)
 			return
 		case req, ok := <-SendDetailsOfQueue:
 			if !ok {
@@ -329,71 +328,93 @@ func playerDetailsWorker() {
 				return
 			}
 
-			// Acquire semaphore slot (blocks if maxConcurrentRequests are already running)
-			select {
-			case semaphore <- struct{}{}:
-				// Track active request
-				activeRequests <- struct{}{}
-
-				// Process request in a goroutine
-				go func(p *player.Player) {
-					defer func() {
-						// Release semaphore slot when done
-						<-semaphore
-						// Mark request as complete
-						<-activeRequests
-					}()
-
-					// Skip if service is closed
-					s := GlobalService()
-					if s == nil || s.closed {
-						return
-					}
-
-					req := PlayerDetails{
-						Name: p.Name(),
-						XUID: p.XUID(),
-						IP:   strings.Split(p.Addr().String(), ":")[0],
-					}
-
-					rawRequest, err := json.Marshal(req)
-					if err != nil {
-						s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))
-
-						return
-					}
-
-					ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-					defer cancel()
-
-					httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
-					s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", s.url+"/playerDetails", bytes.NewBuffer(rawRequest)))
-
-					if err != nil {
-						s.log.Error(fmt.Sprintf("failed to create new request: %v", err))
-
-						return
-					}
-
-					httpReq.Header.Set("Content-Type", "application/json")
-					httpReq.Header.Set("authorization", s.key)
-
-					resp, err := s.client.Do(httpReq)
-					if err != nil {
-						s.log.Error(fmt.Sprintf("request failed: %v", err))
-
-						return
-					}
-					defer resp.Body.Close()
-
-					s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
-				}(req.player)
-			case <-detailsWorkerShutdown:
-				// Worker is shutting down, don't start new requests
-				return
+			if !tryProcessDetailsRequest(semaphore, activeRequests, req) {
+				return // Worker is shutting down
 			}
 		}
 	}
+}
+
+// waitForActiveDetailsRequests waits for all active requests to complete before shutdown
+func waitForActiveDetailsRequests(activeRequests chan struct{}) {
+	for range len(activeRequests) {
+		<-activeRequests
+	}
+}
+
+// tryProcessDetailsRequest attempts to process a player details request with concurrency limits
+func tryProcessDetailsRequest(semaphore, activeRequests chan struct{}, req playerDetailsRequest) bool {
+	// Acquire semaphore slot (blocks if maxConcurrentRequests are already running)
+	select {
+	case semaphore <- struct{}{}:
+		// Track active request
+		activeRequests <- struct{}{}
+
+		// Process request in a goroutine
+		go processPlayerDetailsRequest(semaphore, activeRequests, req.player)
+		return true
+	case <-detailsWorkerShutdown:
+		// Worker is shutting down, don't start new requests
+		return false
+	}
+}
+
+// processPlayerDetailsRequest processes a single player details request
+func processPlayerDetailsRequest(semaphore, activeRequests chan struct{}, p *player.Player) {
+	defer func() {
+		// Release semaphore slot when done
+		<-semaphore
+		// Mark request as complete
+		<-activeRequests
+	}()
+
+	// Skip if service is closed
+	s := GlobalService()
+	if s == nil || s.closed {
+		return
+	}
+
+	sendPlayerDetails(s, p)
+}
+
+// sendPlayerDetails sends player details to the moderation service
+func sendPlayerDetails(s *Service, p *player.Player) {
+	req := PlayerDetails{
+		Name: p.Name(),
+		XUID: p.XUID(),
+		IP:   strings.Split(p.Addr().String(), ":")[0],
+	}
+
+	rawRequest, err := json.Marshal(req)
+	if err != nil {
+		s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, 
+		s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
+	s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", 
+		s.url+"/playerDetails", bytes.NewBuffer(rawRequest)))
+
+	if err != nil {
+		s.log.Error(fmt.Sprintf("failed to create new request: %v", err))
+		return
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("authorization", s.key)
+
+	resp, err := s.client.Do(httpReq)
+	if err != nil {
+		s.log.Error(fmt.Sprintf("request failed: %v", err))
+		return
+	}
+	defer resp.Body.Close()
+
+	s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
 }
 
 // SendDetailsOf queues a request to send player details to the API

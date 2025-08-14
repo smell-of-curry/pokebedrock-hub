@@ -60,7 +60,7 @@ type PokeBedrock struct {
 }
 
 // NewPokeBedrock creates a new instance of PokeBedrock.
-func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
+func NewPokeBedrock(log *slog.Logger, conf *Config) (*PokeBedrock, error) {
 	// Initialize resource pack manager and check for updates.
 	resManager := resources.NewManager(log, conf.UserConfig.Resources.Folder)
 	if err := resManager.CheckAndUpdate(); err != nil {
@@ -75,7 +75,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	}
 
 	// Initialize rank system with configuration
-	rank.InitializeRanks(rank.RankConfig{
+	rank.InitializeRanks(&rank.Config{
 		TrainerRoleID:              conf.Ranks.TrainerRoleID,
 		ServerBoosterRoleID:        conf.Ranks.ServerBoosterRoleID,
 		SupporterRoleID:            conf.Ranks.SupporterRoleID,
@@ -100,7 +100,7 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 
 	poke := &PokeBedrock{
 		log:  log,
-		conf: conf,
+		conf: *conf,
 
 		c:          make(chan struct{}),
 		resManager: resManager,

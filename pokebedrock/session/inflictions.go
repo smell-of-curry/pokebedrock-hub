@@ -74,7 +74,6 @@ func StopInflictionWorker() {
 	<-timeout.C
 }
 
-// inflictionWorker processes queued infliction load requests with rate limiting
 func inflictionWorker() {
 	// Create a semaphore using a buffered channel to limit concurrent requests
 	semaphore := make(chan struct{}, maxConcurrentInflictionRequests)
@@ -85,11 +84,7 @@ func inflictionWorker() {
 	for {
 		select {
 		case <-inflictionWorkerShutdown:
-			// Wait for all active requests to finish before exiting
-			for i := 0; i < len(activeRequests); i++ {
-				<-activeRequests
-			}
-
+			waitForActiveRequests(activeRequests)
 			return
 		case req, ok := <-InflictionQueue:
 			if !ok {
@@ -97,78 +92,114 @@ func inflictionWorker() {
 				return
 			}
 
-			// Acquire semaphore slot (blocks if max concurrent requests are already running)
-			select {
-			case semaphore <- struct{}{}:
-				// Track active request
-				activeRequests <- struct{}{}
-
-				// Process request in a goroutine
-				go func(handle *world.EntityHandle, inflictions *Inflictions) {
-					defer func() {
-						// Release semaphore slot when done
-						<-semaphore
-						// Mark request as complete
-						<-activeRequests
-					}()
-
-					// Move ExecWorld outside of semaphore critical section
-					// to prevent deadlock with condition variables
-					go func() {
-						// Add timeout to prevent infinite waiting
-						done := make(chan struct{}, 1)
-						go func() {
-							defer close(done)
-							handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-								p, ok := e.(*player.Player)
-								if !ok {
-									return
-								}
-
-								modSvc := moderation.GlobalService()
-								if modSvc == nil {
-									return
-								}
-
-								resp, err := modSvc.InflictionOfPlayer(p)
-								if err != nil {
-									return
-								}
-
-								for _, inf := range resp.CurrentInflictions {
-									switch inf.Type {
-									case moderation.InflictionMuted:
-										expiry := inf.ExpiryDate
-										if expiry != nil && *expiry != 0 {
-											inflictions.muteDuration.Store(*expiry)
-										}
-
-										inflictions.muted.Store(true)
-									case moderation.InflictionFrozen:
-										inflictions.frozen.Store(true)
-									}
-								}
-
-								inflictions.handleActiveInflictions(p)
-							})
-						}()
-
-						// Timeout after 30 seconds to prevent indefinite waiting
-						select {
-						case <-done:
-							// Completed successfully
-						case <-time.After(internal.LongOperationTimeoutSec * time.Second):
-							// Timeout - log warning but don't block
-							// TODO: Add proper logging here
-						}
-					}()
-				}(req.handle, req.inflictions)
-			case <-inflictionWorkerShutdown:
-				// Worker is shutting down, don't start new requests
-				return
+			if !tryProcessRequest(semaphore, activeRequests, req) {
+				return // Worker is shutting down
 			}
 		}
 	}
+}
+
+// waitForActiveRequests waits for all active requests to complete before shutdown
+func waitForActiveRequests(activeRequests chan struct{}) {
+	for i := 0; i < len(activeRequests); i++ {
+		<-activeRequests
+	}
+}
+
+// tryProcessRequest attempts to process an infliction request with concurrency limits
+func tryProcessRequest(semaphore, activeRequests chan struct{}, req inflictionRequest) bool {
+	// Acquire semaphore slot (blocks if max concurrent requests are already running)
+	select {
+	case semaphore <- struct{}{}:
+		// Track active request
+		activeRequests <- struct{}{}
+
+		// Process request in a goroutine
+		go processInflictionRequest(semaphore, activeRequests, req.handle, req.inflictions)
+		return true
+	case <-inflictionWorkerShutdown:
+		// Worker is shutting down, don't start new requests
+		return false
+	}
+}
+
+// processInflictionRequest processes a single infliction request
+func processInflictionRequest(semaphore, activeRequests chan struct{}, handle *world.EntityHandle, inflictions *Inflictions) {
+	defer func() {
+		// Release semaphore slot when done
+		<-semaphore
+		// Mark request as complete
+		<-activeRequests
+	}()
+
+	// Execute with timeout to prevent infinite waiting
+	executeWithTimeout(handle, inflictions)
+}
+
+// executeWithTimeout executes the infliction loading with a timeout
+func executeWithTimeout(handle *world.EntityHandle, inflictions *Inflictions) {
+	done := make(chan struct{}, 1)
+	
+	go func() {
+		defer close(done)
+		loadPlayerInflictions(handle, inflictions)
+	}()
+
+	// Timeout after 30 seconds to prevent indefinite waiting
+	select {
+	case <-done:
+		// Completed successfully
+	case <-time.After(internal.LongOperationTimeoutSec * time.Second):
+		// Timeout - log warning but don't block
+		// TODO: Add proper logging here
+	}
+}
+
+// loadPlayerInflictions loads and applies inflictions for a specific player
+func loadPlayerInflictions(handle *world.EntityHandle, inflictions *Inflictions) {
+	handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
+		p, ok := e.(*player.Player)
+		if !ok {
+			return
+		}
+
+		modSvc := moderation.GlobalService()
+		if modSvc == nil {
+			return
+		}
+
+		resp, err := modSvc.InflictionOfPlayer(p)
+		if err != nil {
+			return
+		}
+
+		applyInflictionsToPlayer(resp, inflictions, p)
+	})
+}
+
+// applyInflictionsToPlayer applies the inflictions to the player's state
+func applyInflictionsToPlayer(resp *moderation.ModelResponse, inflictions *Inflictions, p *player.Player) {
+	for _, inf := range resp.CurrentInflictions {
+		switch inf.Type {
+		case moderation.InflictionMuted:
+			expiry := inf.ExpiryDate
+			if expiry != nil && *expiry != 0 {
+				inflictions.muteDuration.Store(*expiry)
+			}
+
+			inflictions.muted.Store(true)
+		case moderation.InflictionFrozen:
+			inflictions.frozen.Store(true)
+		case moderation.InflictionBanned:
+			// Banned players should be disconnected, handled elsewhere
+		case moderation.InflictionWarned:
+			// Warnings don't affect runtime state
+		case moderation.InflictionKicked:
+			// Kicks are instant actions, no runtime state
+		}
+	}
+
+	inflictions.handleActiveInflictions(p)
 }
 
 // Load queues a request to load the player's inflictions from the moderation service.
@@ -265,6 +296,6 @@ func (i *Inflictions) QueueLoad(handle *world.EntityHandle) {
 	case inflictionLoadQueue <- inflictionLoadRequest{handle: handle, inf: i}:
 		// Successfully queued
 	default:
-		// Queue is full, log this somewhere if needed
+		// Queue is full, ignore to avoid blocking
 	}
 }

@@ -81,6 +81,7 @@ func (c *Cache) Set(ip string, isProxy bool) {
 		c.data = make(map[string]bool)
 	}
 	c.data[ip] = isProxy
+
 	// Take a snapshot to write outside the lock as much as possible
 	snapshot := make(map[string]bool, len(c.data))
 	maps.Copy(snapshot, c.data)
@@ -104,12 +105,15 @@ func writeJSONFile(path string, v any) error {
 	enc.SetIndent("", "  ")
 	err = enc.Encode(v)
 	cerr := f.Close()
+
 	if err == nil {
 		err = cerr
 	}
 	if err != nil {
 		_ = os.Remove(tmp)
+
 		return err
 	}
+
 	return os.Rename(tmp, path)
 }

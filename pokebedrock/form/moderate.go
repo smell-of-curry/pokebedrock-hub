@@ -278,6 +278,12 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 				case moderation.InflictionFrozen:
 					handler.Inflictions().SetFrozen(false)
 					victim.SetMobile()
+				case moderation.InflictionBanned:
+					// Banned players are typically disconnected, no action needed here
+				case moderation.InflictionWarned:
+					// Warnings don't have persistent state to clear
+				case moderation.InflictionKicked:
+					// Kicks are instant actions, no persistent state to clear
 				}
 			}
 		})
