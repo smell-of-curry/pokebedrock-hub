@@ -17,6 +17,7 @@ import (
 type Allower struct{}
 
 // Allow ...
+//
 //nolint:gocritic // hugeParam: interface implementation requires this signature
 func (a Allower) Allow(addr net.Addr, d login.IdentityData, _ login.ClientData) (string, bool) {
 	if reason, allowed := a.handleVPN(addr); !allowed {
