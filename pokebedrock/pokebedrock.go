@@ -41,6 +41,10 @@ const (
 
 	// defaultChunkLoaderCount is the number of chunk loaders to create
 	defaultChunkLoaderCount = 10
+	
+	// Ticking intervals
+	serverUpdateInterval = 10  // Update servers every 10 ticks
+	slapperUpdateInterval = 5  // Update slappers every 5 ticks
 )
 
 // PokeBedrock represents the main server struct.
@@ -395,9 +399,9 @@ func (poke *PokeBedrock) startTicking() {
 				queue.QueueManager.Update(tx)
 
 				switch {
-				case f(10):
+				case f(serverUpdateInterval):
 					srv.UpdateAll()
-				case f(5):
+				case f(slapperUpdateInterval):
 					slapper.UpdateAll(tx)
 				case f(1):
 					poke.doAFKCheck(tx)

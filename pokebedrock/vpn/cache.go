@@ -9,6 +9,11 @@ import (
 	"sync"
 )
 
+const (
+	// defaultDirPerms is the default permission for created directories
+	defaultDirPerms = 0o755
+)
+
 // Cache stores IP -> isProxy results and persists them to disk.
 type Cache struct {
 	mu   sync.RWMutex
@@ -32,7 +37,7 @@ func NewCache(path string) (*Cache, error) {
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// Ensure directory exists for future writes
-			_ = os.MkdirAll(filepath.Dir(path), 0o755)
+			_ = os.MkdirAll(filepath.Dir(path), defaultDirPerms)
 
 			// Write empty file
 			_ = writeJSONFile(path, c.data)
@@ -82,7 +87,7 @@ func (c *Cache) Set(ip string, isProxy bool) {
 	c.mu.Unlock()
 
 	// Ensure directory exists
-	_ = os.MkdirAll(filepath.Dir(c.path), 0o755)
+	_ = os.MkdirAll(filepath.Dir(c.path), defaultDirPerms)
 
 	// Best-effort write; ignore errors here to avoid blocking join path
 	// but we still attempt to persist.

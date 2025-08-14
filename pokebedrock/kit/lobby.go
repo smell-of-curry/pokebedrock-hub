@@ -12,6 +12,11 @@ import (
 const (
 	// speedEffectDuration is the duration for speed effects in lobby
 	speedEffectDuration = 24 * time.Hour
+	
+	// Lobby-specific constants
+	compassSlot         = 8     // Slot for compass item
+	speedEffectLevel    = 5     // Speed effect level
+	defaultFlightSpeed  = 0.2   // Default flight speed
 )
 
 // Lobby ...
@@ -37,12 +42,12 @@ func (lobby) Items(*player.Player) (items [inventorySlots]item.Stack) {
 
 // ApplyFunc ...
 func (lobby) ApplyFunc(p *player.Player) {
-	_ = p.SetHeldSlot(8)
+	_ = p.SetHeldSlot(compassSlot)
 	p.ShowCoordinates()
-	p.AddEffect(effect.New(effect.Speed, 5, speedEffectDuration).WithoutParticles())
+	p.AddEffect(effect.New(effect.Speed, speedEffectLevel, speedEffectDuration).WithoutParticles())
 
 	p.SetGameMode(lobbyGameMode{})
-	p.SetFlightSpeed(0.2)
+	p.SetFlightSpeed(defaultFlightSpeed)
 	p.SetVerticalFlightSpeed(3)
 }
 

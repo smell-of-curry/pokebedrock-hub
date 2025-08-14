@@ -244,7 +244,7 @@ func (m *Manager) Update(tx *world.Tx) {
 			m.AddToQueue(transfer.entry)
 		} else {
 			// Transfer was successful, send player data to authentication factory.
-			authentication.GlobalFactory().Set(p.Name(), p.XUID(), time.Minute*5)
+			authentication.GlobalFactory().Set(p.Name(), p.XUID(), authentication.DefaultAuthDuration)
 		}
 	}
 
