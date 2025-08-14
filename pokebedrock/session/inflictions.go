@@ -124,7 +124,7 @@ func tryProcessRequest(semaphore, activeRequests chan struct{}, req inflictionRe
 }
 
 // processInflictionRequest processes a single infliction request
-func processInflictionRequest(semaphore, activeRequests chan struct{}, 
+func processInflictionRequest(semaphore, activeRequests chan struct{},
 	handle *world.EntityHandle, inflictions *Inflictions) {
 	defer func() {
 		// Release semaphore slot when done

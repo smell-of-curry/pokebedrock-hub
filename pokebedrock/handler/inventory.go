@@ -12,18 +12,21 @@ type InventoryHandler struct {
 }
 
 // HandleTake ...
+//
 //nolint:gocritic // hugeParam: interface implementation requires this signature
 func (InventoryHandler) HandleTake(ctx *inventory.Context, _ int, _ item.Stack) {
 	ctx.Cancel()
 }
 
 // HandlePlace ...
+//
 //nolint:gocritic // hugeParam: interface implementation requires this signature
 func (InventoryHandler) HandlePlace(ctx *inventory.Context, _ int, _ item.Stack) {
 	ctx.Cancel()
 }
 
 // HandleDrop ...
+//
 //nolint:gocritic // hugeParam: interface implementation requires this signature
 func (InventoryHandler) HandleDrop(ctx *inventory.Context, _ int, _ item.Stack) {
 	ctx.Cancel()

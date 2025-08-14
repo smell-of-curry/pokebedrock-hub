@@ -109,7 +109,7 @@ func (s *Service) checkRateLimit() error {
 // makeVPNRequest makes the actual VPN API request
 func (s *Service) makeVPNRequest(ip string) (*ResponseModel, error) {
 	url := fmt.Sprintf("%s/%s?fields=status,message,proxy", s.url, ip)
-	
+
 	req, err := s.createRequest(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

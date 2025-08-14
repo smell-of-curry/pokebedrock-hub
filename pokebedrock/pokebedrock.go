@@ -177,8 +177,8 @@ func (poke *PokeBedrock) setupGin() error {
 
 	// Setup authentication route
 	poke.setupAuthenticationRoute(router)
-	
-	// Setup restart manager routes  
+
+	// Setup restart manager routes
 	poke.setupRestartRoutes(router)
 
 	err := router.Run(poke.conf.Service.GinAddress)

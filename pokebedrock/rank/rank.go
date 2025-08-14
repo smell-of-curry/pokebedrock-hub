@@ -68,8 +68,8 @@ var rankInfos map[Rank]Info
 // InitializeRanks initializes the rank system with the provided configuration
 func InitializeRanks(config *Config) {
 	rankInfos = map[Rank]Info{
-		UnLinked:    {DisplayName: "UnLinked", Color: "grey", Prefix: false},
-		Trainer:     {DisplayName: "Trainer", Color: "white", Prefix: true, RoleID: config.TrainerRoleID},
+		UnLinked: {DisplayName: "UnLinked", Color: "grey", Prefix: false},
+		Trainer:  {DisplayName: "Trainer", Color: "white", Prefix: true, RoleID: config.TrainerRoleID},
 		ServerBooster: {DisplayName: "Server Booster", Color: "diamond", Prefix: true,
 			RoleID: config.ServerBoosterRoleID},
 		Supporter: {DisplayName: "Supporter", Color: "emerald", Prefix: true, RoleID: config.SupporterRoleID},

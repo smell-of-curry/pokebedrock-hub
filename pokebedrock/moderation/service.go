@@ -115,7 +115,7 @@ func (s *Service) InflictionOf(req *ModelRequest) (*ModelResponse, error) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, 
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
 			s.url+"/getInflictions", bytes.NewBuffer(rawRequest))
 		if err != nil {
 			cancel()

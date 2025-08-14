@@ -2,7 +2,10 @@ run:
   timeout: 5m
 linters-settings:
   gci:
-    local-prefixes: github.com/smell-of-curry/pokebedrock-hub
+    sections:
+      - standard
+      - default
+      - prefix(github.com/smell-of-curry/pokebedrock-hub)
 linters:
   enable:
     - gci
