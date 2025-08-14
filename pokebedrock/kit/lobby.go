@@ -12,11 +12,11 @@ import (
 const (
 	// speedEffectDuration is the duration for speed effects in lobby
 	speedEffectDuration = 24 * time.Hour
-	
+
 	// Lobby-specific constants
-	compassSlot         = 8     // Slot for compass item
-	speedEffectLevel    = 5     // Speed effect level
-	defaultFlightSpeed  = 0.2   // Default flight speed
+	compassSlot        = 8   // Slot for compass item
+	speedEffectLevel   = 5   // Speed effect level
+	defaultFlightSpeed = 0.2 // Default flight speed
 )
 
 // Lobby ...

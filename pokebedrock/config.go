@@ -15,11 +15,11 @@ import (
 
 const (
 	// Default timeout and duration constants
-	defaultAFKTimeout        = 10 * time.Minute
-	defaultMaxWaitTime       = 10 * time.Minute
-	defaultQueueTimeout      = 15 * time.Minute
-	defaultMaxRestartTime    = 20 * time.Minute
-	defaultRestartCooldown   = 5 * time.Minute
+	defaultAFKTimeout      = 10 * time.Minute
+	defaultMaxWaitTime     = 10 * time.Minute
+	defaultQueueTimeout    = 15 * time.Minute
+	defaultMaxRestartTime  = 20 * time.Minute
+	defaultRestartCooldown = 5 * time.Minute
 )
 
 // Config holds the server configuration, including paths, translations, and service-related settings.

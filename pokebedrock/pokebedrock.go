@@ -41,9 +41,9 @@ const (
 
 	// defaultChunkLoaderCount is the number of chunk loaders to create
 	defaultChunkLoaderCount = 10
-	
+
 	// Ticking intervals
-	serverUpdateInterval = 10  // Update servers every 10 ticks
+	serverUpdateInterval  = 10 // Update servers every 10 ticks
 	slapperUpdateInterval = 5  // Update slappers every 5 ticks
 )
 

@@ -9,7 +9,7 @@ import (
 const (
 	// cleanupInterval is how often expired identities are cleaned up
 	cleanupInterval = 5 * time.Minute
-	
+
 	// DefaultAuthDuration is the default duration for authentication tokens
 	DefaultAuthDuration = 5 * time.Minute
 )
