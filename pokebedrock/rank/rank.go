@@ -90,15 +90,15 @@ func InitializeRanks(config RankConfig) {
 		Manager:              {DisplayName: "Manager", Color: "purple", Prefix: true, RoleID: config.ManagerRoleID},
 		Owner:                {DisplayName: "Owner", Color: "dark-red", Prefix: true, RoleID: config.OwnerRoleID},
 	}
-	
+
 	// Rebuild the role to rank mapping
 	rolesToRanks = make(map[string]Rank)
 	for r, info := range rankInfos {
-		rolesToRanks[info.RoleID] = r
+		if info.RoleID != "" {
+			rolesToRanks[info.RoleID] = r
+		}
 	}
 }
-
-
 
 // Name returns the human-readable name of the rank.
 func (r Rank) Name() string {
