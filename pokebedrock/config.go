@@ -17,6 +17,7 @@ const (
 	// Default timeout and duration constants
 	defaultAFKTimeout      = 10 * time.Minute
 	defaultMaxWaitTime     = 10 * time.Minute
+	defaultBackoffInterval = 1 * time.Minute
 	defaultQueueTimeout    = 15 * time.Minute
 	defaultMaxRestartTime  = 20 * time.Minute
 	defaultRestartCooldown = 5 * time.Minute
@@ -100,7 +101,7 @@ func DefaultConfig() Config {
 	c.Service.GinAuthenticationKey = "secret-key"
 
 	c.RestartManager.MaxWaitTime = util.Duration(defaultMaxWaitTime)
-	c.RestartManager.BackoffInterval = util.Duration(1 * time.Minute)
+	c.RestartManager.BackoffInterval = util.Duration(defaultBackoffInterval)
 	c.RestartManager.RestartCooldown = util.Duration(defaultRestartCooldown)
 	c.RestartManager.QueueTimeout = util.Duration(defaultQueueTimeout)
 	c.RestartManager.MaxRestartTime = util.Duration(defaultMaxRestartTime)
