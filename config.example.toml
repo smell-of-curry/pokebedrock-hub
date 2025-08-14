@@ -44,3 +44,26 @@ BackoffInterval = "3m" # Backoff interval between retries.
 RestartCooldown = "5m" # Minimum time between restarts for the same server.
 QueueTimeout = "30m" # Time after which queue entries expire.
 MaxRestartTime = "20m" # Maximum time a server is allowed to be in restarting state before auto-advancing the queue.
+
+[Ranks]
+# Discord Role IDs for different ranks
+TrainerRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+ServerBoosterRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+SupporterRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+PremiumRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+ContentCreatorRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+MonthlyTournamentMVPRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+RetiredStaffRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+HelperRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+TeamRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+TranslatorRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+DevelopmentTeamRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+TrailModelerRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+ModelerRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+HeadModelerRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+ModeratorRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+SeniorModeratorRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+HeadModeratorRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+AdminRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+ManagerRoleID = "xxxxxxxxxxxxxxxxxxxxx"
+OwnerRoleID = "xxxxxxxxxxxxxxxxxxxxx"

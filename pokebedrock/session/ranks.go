@@ -11,15 +11,16 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
 
 // Channel for async rank updates and shutdown
 var (
-	rankUpdateCh = make(chan rankUpdate, 100)
+	rankUpdateCh = make(chan rankUpdate, internal.DefaultChannelBufferSize)
 	// rankLoadQueue is a buffered channel for loading player ranks
-	rankLoadQueue = make(chan rankLoadRequest, 50)
+	rankLoadQueue = make(chan rankLoadRequest, internal.SmallChannelBufferSize)
 	// Used to signal worker shutdown
 	rankLoadWorkerShutdown = make(chan struct{})
 )
@@ -227,9 +228,9 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 		return
 	}
 
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(internal.DefaultTimeout)
 
-	ticker := time.NewTicker(300 * time.Millisecond)
+	ticker := time.NewTicker(internal.ShortRetryDelayMs * time.Millisecond)
 	defer ticker.Stop()
 
 	for {

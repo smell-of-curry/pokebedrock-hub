@@ -13,6 +13,16 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/util"
 )
 
+const (
+	// Default timeout and duration constants
+	defaultAFKTimeout      = 10 * time.Minute
+	defaultMaxWaitTime     = 10 * time.Minute
+	defaultBackoffInterval = 1 * time.Minute
+	defaultQueueTimeout    = 15 * time.Minute
+	defaultMaxRestartTime  = 20 * time.Minute
+	defaultRestartCooldown = 5 * time.Minute
+)
+
 // Config holds the server configuration, including paths, translations, and service-related settings.
 type Config struct {
 	PokeBedrock struct {
@@ -43,6 +53,28 @@ type Config struct {
 		QueueTimeout    util.Duration
 		MaxRestartTime  util.Duration
 	}
+	Ranks struct {
+		TrainerRoleID              string
+		ServerBoosterRoleID        string
+		SupporterRoleID            string
+		PremiumRoleID              string
+		ContentCreatorRoleID       string
+		MonthlyTournamentMVPRoleID string
+		RetiredStaffRoleID         string
+		HelperRoleID               string
+		TeamRoleID                 string
+		TranslatorRoleID           string
+		DevelopmentTeamRoleID      string
+		TrailModelerRoleID         string
+		ModelerRoleID              string
+		HeadModelerRoleID          string
+		ModeratorRoleID            string
+		SeniorModeratorRoleID      string
+		HeadModeratorRoleID        string
+		AdminRoleID                string
+		ManagerRoleID              string
+		OwnerRoleID                string
+	}
 	server.UserConfig
 }
 
@@ -54,7 +86,7 @@ func DefaultConfig() Config {
 	c.PokeBedrock.LogLevel = "info" // Default to info level in production
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.SlapperPath = "resources/slapper"
-	c.PokeBedrock.AFKTimeout = util.Duration(10 * time.Minute)
+	c.PokeBedrock.AFKTimeout = util.Duration(defaultAFKTimeout)
 
 	c.Service.GinAddress = ":8080"
 
@@ -68,11 +100,11 @@ func DefaultConfig() Config {
 
 	c.Service.GinAuthenticationKey = "secret-key"
 
-	c.RestartManager.MaxWaitTime = util.Duration(10 * time.Minute)
-	c.RestartManager.BackoffInterval = util.Duration(1 * time.Minute)
-	c.RestartManager.RestartCooldown = util.Duration(5 * time.Minute)
-	c.RestartManager.QueueTimeout = util.Duration(15 * time.Minute)
-	c.RestartManager.MaxRestartTime = util.Duration(20 * time.Minute)
+	c.RestartManager.MaxWaitTime = util.Duration(defaultMaxWaitTime)
+	c.RestartManager.BackoffInterval = util.Duration(defaultBackoffInterval)
+	c.RestartManager.RestartCooldown = util.Duration(defaultRestartCooldown)
+	c.RestartManager.QueueTimeout = util.Duration(defaultQueueTimeout)
+	c.RestartManager.MaxRestartTime = util.Duration(defaultMaxRestartTime)
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")

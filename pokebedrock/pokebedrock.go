@@ -32,6 +32,21 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
 )
 
+const (
+	// defaultWorldTime is the default time to set in the world (6000 = noon)
+	defaultWorldTime = 6000
+
+	// worldLoadRadius is the maximum radius to load around spawn
+	worldLoadRadius = 9999999
+
+	// defaultChunkLoaderCount is the number of chunk loaders to create
+	defaultChunkLoaderCount = 10
+
+	// Ticking intervals
+	serverUpdateInterval  = 10 // Update servers every 10 ticks
+	slapperUpdateInterval = 5  // Update slappers every 5 ticks
+)
+
 // PokeBedrock represents the main server struct.
 // It holds configuration, logging, and manages various server components.
 type PokeBedrock struct {
@@ -58,6 +73,30 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Initialize rank system with configuration
+	rank.InitializeRanks(rank.RankConfig{
+		TrainerRoleID:              conf.Ranks.TrainerRoleID,
+		ServerBoosterRoleID:        conf.Ranks.ServerBoosterRoleID,
+		SupporterRoleID:            conf.Ranks.SupporterRoleID,
+		PremiumRoleID:              conf.Ranks.PremiumRoleID,
+		ContentCreatorRoleID:       conf.Ranks.ContentCreatorRoleID,
+		MonthlyTournamentMVPRoleID: conf.Ranks.MonthlyTournamentMVPRoleID,
+		RetiredStaffRoleID:         conf.Ranks.RetiredStaffRoleID,
+		HelperRoleID:               conf.Ranks.HelperRoleID,
+		TeamRoleID:                 conf.Ranks.TeamRoleID,
+		TranslatorRoleID:           conf.Ranks.TranslatorRoleID,
+		DevelopmentTeamRoleID:      conf.Ranks.DevelopmentTeamRoleID,
+		TrailModelerRoleID:         conf.Ranks.TrailModelerRoleID,
+		ModelerRoleID:              conf.Ranks.ModelerRoleID,
+		HeadModelerRoleID:          conf.Ranks.HeadModelerRoleID,
+		ModeratorRoleID:            conf.Ranks.ModeratorRoleID,
+		SeniorModeratorRoleID:      conf.Ranks.SeniorModeratorRoleID,
+		HeadModeratorRoleID:        conf.Ranks.HeadModeratorRoleID,
+		AdminRoleID:                conf.Ranks.AdminRoleID,
+		ManagerRoleID:              conf.Ranks.ManagerRoleID,
+		OwnerRoleID:                conf.Ranks.OwnerRoleID,
+	})
 
 	poke := &PokeBedrock{
 		log:  log,
@@ -110,17 +149,17 @@ func (poke *PokeBedrock) Start() {
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
-	l := world.NewLoader(10, w, world.NopViewer{})
+	l := world.NewLoader(defaultChunkLoaderCount, w, world.NopViewer{})
 	w.Exec(func(tx *world.Tx) {
 		l.Move(tx, w.Spawn().Vec3Middle())
-		l.Load(tx, 9999999)
+		l.Load(tx, worldLoadRadius)
 	})
 
 	w.StopWeatherCycle()
 	w.StopRaining()
 	w.StopThundering()
 	w.SetDefaultGameMode(world.GameModeAdventure)
-	w.SetTime(6000)
+	w.SetTime(defaultWorldTime)
 	w.StopTime()
 	w.SetTickRange(0)
 
@@ -360,9 +399,9 @@ func (poke *PokeBedrock) startTicking() {
 				queue.QueueManager.Update(tx)
 
 				switch {
-				case f(10):
+				case f(serverUpdateInterval):
 					srv.UpdateAll()
-				case f(5):
+				case f(slapperUpdateInterval):
 					slapper.UpdateAll(tx)
 				case f(1):
 					poke.doAFKCheck(tx)

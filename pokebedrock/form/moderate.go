@@ -113,7 +113,7 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 			return
 		}
 
-		expiry = time.Now().UnixMilli() + 1000*60*int64(exp)
+		expiry = time.Now().UnixMilli() + time.Minute.Milliseconds()*int64(exp)
 	}
 
 	reason := c.Reason.Value()

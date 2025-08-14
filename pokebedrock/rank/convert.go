@@ -7,7 +7,9 @@ var rolesToRanks = make(map[string]Rank)
 
 func init() {
 	for r, info := range rankInfos {
-		rolesToRanks[info.RoleID] = r
+		if info.RoleID != "" {
+			rolesToRanks[info.RoleID] = r
+		}
 	}
 }
 

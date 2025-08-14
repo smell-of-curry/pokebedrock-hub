@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
+
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 )
 
 // globalService ...
@@ -43,10 +45,10 @@ func NewService(log *slog.Logger, url, key string) {
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   3 * time.Second,
-			KeepAlive: 30 * time.Second,
+			KeepAlive: internal.LongOperationTimeoutSec * time.Second,
 		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
+		MaxIdleConns:          internal.DefaultChannelBufferSize,
+		IdleConnTimeout:       3 * internal.LongOperationTimeoutSec * time.Second,
 		TLSHandshakeTimeout:   3 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		MaxIdleConnsPerHost:   maxConcurrentRequests * 2, // Allow more idle connections per host
@@ -67,7 +69,7 @@ func NewService(log *slog.Logger, url, key string) {
 
 const (
 	maxRetries     = 1
-	retryDelay     = 300 * time.Millisecond
+	retryDelay     = internal.ShortRetryDelayMs * time.Millisecond
 	requestTimeout = 2 * time.Second
 
 	// Maximum number of concurrent API requests
@@ -289,7 +291,7 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 }
 
 // SendDetailsOfQueue is a buffered channel for queueing player detail requests
-var SendDetailsOfQueue = make(chan playerDetailsRequest, 100)
+var SendDetailsOfQueue = make(chan playerDetailsRequest, internal.DefaultChannelBufferSize)
 
 // Used to signal worker shutdown
 var detailsWorkerShutdown = make(chan struct{})

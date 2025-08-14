@@ -12,9 +12,18 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
+)
+
+const (
+	// highPriorityQueueThreshold is the position threshold for "Almost your turn" message
+	highPriorityQueueThreshold = 3
+
+	// mediumPriorityQueueThreshold is the position threshold for "Short wait" message
+	mediumPriorityQueueThreshold = 10
 )
 
 // QueueManager ...
@@ -235,7 +244,7 @@ func (m *Manager) Update(tx *world.Tx) {
 			m.AddToQueue(transfer.entry)
 		} else {
 			// Transfer was successful, send player data to authentication factory.
-			authentication.GlobalFactory().Set(p.Name(), p.XUID(), time.Minute*5)
+			authentication.GlobalFactory().Set(p.Name(), p.XUID(), authentication.DefaultAuthDuration)
 		}
 	}
 
@@ -245,7 +254,7 @@ func (m *Manager) Update(tx *world.Tx) {
 	}
 
 	// Process a limited number of boss bar updates per tick to avoid spikes
-	m.processBossBarUpdates(tx, 20)
+	m.processBossBarUpdates(tx, internal.ProcessingBatchSize)
 }
 
 // queueAllBossBars adds all current players in queue to the pending update set.
@@ -306,9 +315,9 @@ func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 		switch {
 		case position == 1:
 			waitMsg = "You're next in line!"
-		case position <= 3:
+		case position <= highPriorityQueueThreshold:
 			waitMsg = "Almost your turn"
-		case position <= 10:
+		case position <= mediumPriorityQueueThreshold:
 			waitMsg = "Short wait"
 		default:
 			waitMsg = "Longer wait"

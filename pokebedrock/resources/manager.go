@@ -20,6 +20,9 @@ const (
 	repoOwner = "smell-of-curry"
 	repoName  = "pokebedrock-res"
 	apiURL    = "https://api.github.com/repos/%s/%s/releases/latest"
+
+	// DirectoryPermissions is the standard permission for creating directories
+	directoryPermissions = 0755
 )
 
 // GithubRelease ...
@@ -81,7 +84,7 @@ func (m *Manager) UnpackedPath() string {
 // CheckAndUpdate checks for updates and downloads if necessary.
 func (m *Manager) CheckAndUpdate() error {
 	// Ensure directory exists
-	if err := os.MkdirAll(m.resourceDir, 0755); err != nil {
+	if err := os.MkdirAll(m.resourceDir, directoryPermissions); err != nil {
 		return fmt.Errorf("failed to create resource directory: %w", err)
 	}
 
@@ -290,7 +293,7 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		}
 	}
 
-	if err := os.MkdirAll(unpackPath, 0755); err != nil {
+	if err := os.MkdirAll(unpackPath, directoryPermissions); err != nil {
 		return fmt.Errorf("failed to create unpack directory: %w", err)
 	}
 
@@ -318,13 +321,13 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		}
 
 		if file.FileInfo().IsDir() {
-			if err := os.MkdirAll(path, 0755); err != nil {
+			if err := os.MkdirAll(path, directoryPermissions); err != nil {
 				return fmt.Errorf("failed to create directory: %w", err)
 			}
 			continue
 		}
 
-		if err = os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		if err = os.MkdirAll(filepath.Dir(path), directoryPermissions); err != nil {
 			return fmt.Errorf("failed to create directories: %w", err)
 		}
 

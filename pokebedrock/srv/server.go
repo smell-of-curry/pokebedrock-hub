@@ -9,6 +9,11 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv/ping"
 )
 
+const (
+	// maxRetries is the maximum number of ping failures before assuming server is offline
+	maxRetries = 5
+)
+
 // Server represents a Minecraft server with configuration, retries, and online status.
 // It provides methods for interacting with server properties and monitoring its status.
 type Server struct {
@@ -36,7 +41,7 @@ func (s *Server) pingServer() {
 	if err != nil {
 		s.retries.Inc()
 
-		if s.Retries() > 5 {
+		if s.Retries() > maxRetries {
 			s.assumeOffline()
 			s.log.Debug("server assumed offline after multiple failures", "name", s.Name(), "address", s.Address())
 			s.retries.Store(0)

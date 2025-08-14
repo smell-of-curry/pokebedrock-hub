@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+const (
+	// cleanupInterval is how often expired identities are cleaned up
+	cleanupInterval = 5 * time.Minute
+
+	// DefaultAuthDuration is the default duration for authentication tokens
+	DefaultAuthDuration = 5 * time.Minute
+)
+
 // globalFactory is the singleton instance of the Factory used throughout the application.
 var globalFactory *Factory
 
@@ -18,7 +26,7 @@ func init() {
 	globalFactory = &Factory{
 		data: make(map[string]PlayerIdentity),
 	}
-	go globalFactory.startCleanup(time.Minute * 5)
+	go globalFactory.startCleanup(cleanupInterval)
 }
 
 // Factory provides a thread-safe storage for player identities.

@@ -7,6 +7,11 @@ import (
 	"github.com/sandertv/go-raknet"
 )
 
+const (
+	// minPongFragments is the minimum number of fragments expected in a pong response
+	minPongFragments = 7
+)
+
 // RakNetResponse represents the response data for a RakNet ping.
 // It contains information about the server's game type, player count, and other details.
 type RakNetResponse struct {
@@ -30,7 +35,7 @@ func Ping(address string) (RakNetResponse, error) {
 	}
 
 	frag := splitPong(string(raw))
-	if len(frag) < 7 {
+	if len(frag) < minPongFragments {
 		return RakNetResponse{}, fmt.Errorf("invalid pong data")
 	}
 
