@@ -139,7 +139,7 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 				return
 			}
 
-			err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
+			err := moderation.GlobalService().AddInfliction(&moderation.ModelRequest{
 				Name:             c.target,
 				InflictionStatus: moderation.InflictionStatusCurrent,
 				Infliction:       infliction,
@@ -248,7 +248,7 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
 			prosecutor = e.(*player.Player)
 
-			err := moderation.GlobalService().RemoveInfliction(moderation.ModelRequest{
+			err := moderation.GlobalService().RemoveInfliction(&moderation.ModelRequest{
 				Name:             r.target,
 				InflictionStatus: moderation.InflictionStatusCurrent,
 				Infliction:       infliction,
