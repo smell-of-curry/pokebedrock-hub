@@ -191,6 +191,8 @@ func (poke *PokeBedrock) setupGin() error {
 		// If player (xuid) has a rank of mod or above bypass authentication
 		roles, err := rank.GlobalService().RolesOfXUID(xuid)
 		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get roles"})
+
 			return
 		}
 
