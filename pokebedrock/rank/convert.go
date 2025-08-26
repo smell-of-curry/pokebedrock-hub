@@ -1,6 +1,8 @@
 // Package rank provides a conversion between external role IDs and in-game ranks.
 package rank
 
+import "sort"
+
 // rolesToRanks maps external role IDs to in-game ranks.
 // It is built automatically from rankInfos.
 var rolesToRanks = make(map[string]Rank)
@@ -24,4 +26,19 @@ func RolesToRanks(roles []string) []Rank {
 	}
 
 	return ranks
+}
+
+// GetHighestRank returns the highest rank of a player based on their roles.
+func GetHighestRank(roles []string) Rank {
+	ranks := RolesToRanks(roles)
+
+	if len(ranks) == 0 {
+		return UnLinked
+	}
+
+	sort.SliceStable(ranks, func(i, j int) bool {
+		return ranks[i] < ranks[j]
+	})
+
+	return ranks[len(ranks)-1]
 }

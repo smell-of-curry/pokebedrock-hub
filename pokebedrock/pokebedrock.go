@@ -188,6 +188,19 @@ func (poke *PokeBedrock) setupGin() error {
 			return
 		}
 
+		// If player (xuid) has a rank of mod or above bypass authentication
+		roles, err := rank.GlobalService().RolesOfXUID(xuid)
+		if err != nil {
+			return
+		}
+
+		highestRank := rank.GetHighestRank(roles)
+		if highestRank >= rank.Moderator {
+			c.JSON(http.StatusOK, gin.H{"allowed": true})
+
+			return
+		}
+
 		req, exists := authentication.GlobalFactory().Of(xuid)
 		if !exists {
 			c.JSON(http.StatusNotFound, gin.H{"reason": "no player found"})
@@ -474,4 +487,9 @@ func (poke *PokeBedrock) Close() {
 	session.StopInflictionWorker()
 
 	close(poke.c)
+
+	poke.log.Debug("Stopping Server...")
+	poke.srv.Close()
+
+	poke.log.Debug("Server stopped")
 }
