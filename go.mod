@@ -7,7 +7,7 @@ require (
 	github.com/df-mc/atomic v1.10.0
 	github.com/df-mc/dragonfly v0.10.6-0.20250812035922-b7aa3a4b058d
 	github.com/df-mc/npc v1.0.5
-	github.com/getsentry/sentry-go v0.35.1
+	github.com/getsentry/sentry-go v0.35.2
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.0.2
