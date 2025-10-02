@@ -12,7 +12,7 @@ require (
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.0.2
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
-	github.com/sandertv/gophertunnel v1.49.0
+	github.com/sandertv/gophertunnel v1.50.0
 	github.com/schollz/progressbar/v3 v3.18.0
 	golang.org/x/text v0.29.0
 )
@@ -24,6 +24,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/df-mc/goleveldb v1.1.9 // indirect
+	github.com/df-mc/jsonc v1.0.5 // indirect
 	github.com/df-mc/worldupgrader v1.0.19 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
@@ -46,7 +47,6 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/muhammadmuzzammil1998/jsonc v1.0.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/fasthash v1.0.3 // indirect
