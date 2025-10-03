@@ -10,7 +10,7 @@ require (
 	github.com/getsentry/sentry-go v0.35.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-gl/mathgl v1.2.0
-	github.com/restartfu/gophig v0.0.2
+	github.com/restartfu/gophig v0.1.0
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
 	github.com/sandertv/gophertunnel v1.50.0
 	github.com/schollz/progressbar/v3 v3.18.0
@@ -37,6 +37,7 @@ require (
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
