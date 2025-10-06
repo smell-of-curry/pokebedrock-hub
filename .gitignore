@@ -13,3 +13,7 @@ config.toml
 
 # Testing resources
 /tests/
+
+# Binaries
+*.exe
+pokebedrock-hub
