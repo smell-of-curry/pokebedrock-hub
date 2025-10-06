@@ -3,5 +3,14 @@
   "identifier": "sapphire",
   "address": "79.137.98.209:19136",
   "beta_lock": false,
-  "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/refs/heads/main/textures/ui/server_logos/sapphire.png"
+  "npc": {
+    "scale": 1.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "position": {
+      "x": 8.5,
+      "y": 96.0,
+      "z": -1.0
+    }
+  }
 }

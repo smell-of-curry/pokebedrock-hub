@@ -13,6 +13,7 @@ import (
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"golang.org/x/text/language"
 
@@ -164,7 +165,6 @@ func (poke *PokeBedrock) handleWorld() {
 	w.SetTickRange(0)
 
 	poke.loadServers()
-	poke.loadSlappers()
 
 	go poke.startTicking()
 }
@@ -367,23 +367,26 @@ func (poke *PokeBedrock) loadServers() {
 			srv.NewServer(poke.log, cfg),
 		)
 	}
-
 	srv.UpdateAll()
-}
 
-// loadSlappers loads and spawns all NPC entities (slappers) from the configuration.
-// It reads slapper configurations from the specified path and summons them in the world.
-// Panics if slapper configurations cannot be read.
-func (poke *PokeBedrock) loadSlappers() {
 	w := poke.World()
+	slapperConfigs := lo.Map(cfgs, func(c srv.Config, _ int) slapper.Config {
+		return slapper.Config{
+			Name:       c.Name,
+			Identifier: c.Identifier,
 
-	cfgs, err := slapper.ReadAll(poke.conf.PokeBedrock.SlapperPath)
-	if err != nil {
-		panic(err)
-	}
-
+			Scale: c.NPC.Scale,
+			Yaw:   c.NPC.Yaw,
+			Pitch: c.NPC.Pitch,
+			Position: struct {
+				X float64
+				Y float64
+				Z float64
+			}(c.NPC.Position),
+		}
+	})
 	<-w.Exec(func(tx *world.Tx) {
-		slapper.SummonAll(cfgs, tx, poke.resManager)
+		slapper.SummonAll(slapperConfigs, tx, poke.resManager)
 	})
 }
 

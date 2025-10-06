@@ -1,11 +1,11 @@
 package srv
 
 import (
+	"fmt"
 	"log/slog"
 	"strconv"
 
 	"github.com/df-mc/atomic"
-
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv/ping"
 )
 
@@ -86,7 +86,7 @@ func (s *Server) Identifier() string {
 
 // Icon returns the server's icon (e.g., URL or base64 data) from its configuration.
 func (s *Server) Icon() string {
-	return s.Config().Icon
+	return fmt.Sprintf("textures/ui/server_logos/%s", s.Config().Identifier)
 }
 
 // Address returns the server's address from its configuration.

@@ -12,9 +12,10 @@ import (
 	"github.com/df-mc/dragonfly/server/player/chat"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/form"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
@@ -69,6 +70,10 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 	msg := locale.Translate("welcome.hub")
 	for l := range strings.SplitSeq(msg, "<new-line>") {
 		p.Message(l)
+	}
+
+	for _, s := range slapper.All() {
+		s.SendAnimation(p)
 	}
 }
 

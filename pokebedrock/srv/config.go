@@ -14,10 +14,18 @@ import (
 type Config struct {
 	Name       string `json:"name"`
 	Identifier string `json:"identifier"`
-	Icon       string `json:"icon"`
+	Address    string `json:"address"`
 	BetaLock   bool   `json:"beta_lock"`
-
-	Address string `json:"address"`
+	NPC        struct {
+		Scale    float64 `json:"scale"`
+		Yaw      float64 `json:"yaw"`
+		Pitch    float64 `json:"pitch"`
+		Position struct {
+			X float64 `json:"x"`
+			Y float64 `json:"y"`
+			Z float64 `json:"z"`
+		} `json:"position"`
+	} `json:"npc"`
 }
 
 // ReadAll reads all JSON configuration files from the specified path and returns a slice of Config.

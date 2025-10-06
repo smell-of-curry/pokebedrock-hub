@@ -3,5 +3,14 @@
   "identifier": "black",
   "address": "40.160.19.215:19136",
   "beta_lock": false,
-  "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/refs/heads/main/textures/ui/server_logos/black.png"
+  "npc": {
+    "scale": 1.5,
+    "yaw": -180.0,
+    "pitch": 0.0,
+    "position": {
+      "x": 8.5,
+      "y": 96.0,
+      "z": 18.0
+    }
+  }
 }

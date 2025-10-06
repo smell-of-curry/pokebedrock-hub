@@ -3,6 +3,7 @@ package slapper
 import (
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/skin"
@@ -20,8 +21,10 @@ import (
 type Slapper struct {
 	conf       *Config
 	resManager *resources.Manager
-	skin       skin.Skin
-	handle     *world.EntityHandle
+
+	skin      skin.Skin
+	animation world.EntityAnimation
+	handle    *world.EntityHandle
 }
 
 // NewSlapper creates and returns a new Slapper instance with the provided configuration and resource manager.
@@ -30,6 +33,8 @@ func NewSlapper(conf *Config, resManager *resources.Manager) *Slapper {
 	s := &Slapper{
 		conf:       conf,
 		resManager: resManager,
+
+		animation: world.NewEntityAnimation(fmt.Sprintf("animation.hub_npc_%s.idle", conf.Identifier)),
 	}
 	s.preloadSkin()
 
@@ -40,8 +45,8 @@ func NewSlapper(conf *Config, resManager *resources.Manager) *Slapper {
 func (s *Slapper) preloadSkin() {
 	// Convert paths to full filesystem paths
 	unpackedPath := s.resManager.UnpackedPath()
-	texturePath := filepath.Join(unpackedPath, "textures", "entity", "hub_npcs", s.conf.ServerIdentifier) + ".png"
-	geometryPath := filepath.Join(unpackedPath, "models", "entity", "hub_npcs", s.conf.ServerIdentifier) + ".geo.json"
+	texturePath := filepath.Join(unpackedPath, "textures", "entity", "hub_npcs", s.conf.Identifier) + ".png"
+	geometryPath := filepath.Join(unpackedPath, "models", "entity", "hub_npcs", s.conf.Identifier) + ".geo.json"
 
 	s.skin = npc.MustSkin(
 		npc.MustParseTexture(texturePath),
@@ -99,7 +104,22 @@ func (s *Slapper) update(tx *world.Tx) {
 	p.SetNameTag(fmt.Sprintf("%s\n%s", s.conf.Name, status))
 }
 
+// SendAnimation ...
+func (s *Slapper) SendAnimation(p *player.Player) {
+	e, exists := s.handle.Entity(p.Tx())
+	if !exists {
+		return
+	}
+	sess := player_session(p)
+	if sess == nil {
+		return
+	}
+	time.AfterFunc(time.Second, func() {
+		sess.ViewEntityAnimation(e, s.animation)
+	})
+}
+
 // Server retrieves the server associated with the slapper based on its configured server identifier.
 func (s *Slapper) Server() *srv.Server {
-	return srv.FromIdentifier(s.conf.ServerIdentifier)
+	return srv.FromIdentifier(s.conf.Identifier)
 }

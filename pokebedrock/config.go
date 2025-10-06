@@ -26,12 +26,11 @@ const (
 // Config holds the server configuration, including paths, translations, and service-related settings.
 type Config struct {
 	PokeBedrock struct {
-		SentryDsn   string
-		LogLevel    string // Can be "debug", "info", "warn", "error"
-		ServerPath  string
-		SlapperPath string
-		LocalePath  string
-		AFKTimeout  util.Duration
+		SentryDsn  string
+		LogLevel   string // Can be "debug", "info", "warn", "error"
+		ServerPath string
+		LocalePath string
+		AFKTimeout util.Duration
 	}
 	Service struct {
 		GinAddress           string
@@ -85,7 +84,6 @@ func DefaultConfig() Config {
 	c.PokeBedrock.SentryDsn = ""
 	c.PokeBedrock.LogLevel = "info" // Default to info level in production
 	c.PokeBedrock.ServerPath = "resources/servers"
-	c.PokeBedrock.SlapperPath = "resources/slapper"
 	c.PokeBedrock.AFKTimeout = util.Duration(defaultAFKTimeout)
 
 	c.Service.GinAddress = ":8080"

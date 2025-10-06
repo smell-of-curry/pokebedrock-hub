@@ -1,7 +1,16 @@
 {
-    "name": "PokeBedrock §dMoon §r(US)",
-    "identifier": "moon",
-    "address": "40.160.13.133:19136",
-    "beta_lock": false,
-    "icon": "https://raw.githubusercontent.com/smell-of-curry/pokebedrock-res/refs/heads/main/textures/ui/server_logos/moon.png"
+  "name": "PokeBedrock §dMoon §r(US)",
+  "identifier": "moon",
+  "address": "40.160.13.133:19136",
+  "beta_lock": false,
+  "npc": {
+    "scale": 1.5,
+    "yaw": 90.0,
+    "pitch": 0.0,
+    "position": {
+      "x": 17.0,
+      "y": 96.0,
+      "z": 8.5
+    }
   }
+}

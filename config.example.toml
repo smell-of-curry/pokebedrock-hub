@@ -2,7 +2,6 @@
 SentryDsn = '' # DSN for Sentry.
 LogLevel = 'debug' # Log level.
 ServerPath = 'resources/servers' # Path to the servers folder.
-SlapperPath = 'resources/slapper' # Path to the slapper folder.
 LocalePath = 'resources/locales' # Path to the locales folder.
 AFKTimeout = "10m" # The duration for a player to be considered afk.
 
