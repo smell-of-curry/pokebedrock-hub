@@ -18,7 +18,7 @@ import (
 
 const (
 	repoOwner = "smell-of-curry"
-	repoName  = "pokebedrock-res"
+	repoName  = "pokebedrock-hub-res"
 	apiURL    = "https://api.github.com/repos/%s/%s/releases/latest"
 
 	// DirectoryPermissions is the standard permission for creating directories

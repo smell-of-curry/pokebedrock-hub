@@ -45,8 +45,8 @@ func NewSlapper(conf *Config, resManager *resources.Manager) *Slapper {
 func (s *Slapper) preloadSkin() {
 	// Convert paths to full filesystem paths
 	unpackedPath := s.resManager.UnpackedPath()
-	texturePath := filepath.Join(unpackedPath, "textures", "entity", "hub_npcs", s.conf.Identifier) + ".png"
-	geometryPath := filepath.Join(unpackedPath, "models", "entity", "hub_npcs", s.conf.Identifier) + ".geo.json"
+	texturePath := filepath.Join(unpackedPath, "textures", "entity", "npcs", s.conf.Identifier) + ".png"
+	geometryPath := filepath.Join(unpackedPath, "models", "entity", "npcs", s.conf.Identifier) + ".geo.json"
 
 	s.skin = npc.MustSkin(
 		npc.MustParseTexture(texturePath),

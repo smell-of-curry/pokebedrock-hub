@@ -86,7 +86,7 @@ func (s *Server) Identifier() string {
 
 // Icon returns the server's icon (e.g., URL or base64 data) from its configuration.
 func (s *Server) Icon() string {
-	return fmt.Sprintf("textures/ui/server_logos/%s", s.Config().Identifier)
+	return fmt.Sprintf("textures/ui/logos/%s", s.Config().Identifier)
 }
 
 // Address returns the server's address from its configuration.

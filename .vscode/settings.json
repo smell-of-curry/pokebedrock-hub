@@ -5,6 +5,7 @@
     "cfgs",
     "Colourf",
     "cooldown",
+    "gophertunnel",
     "gophig",
     "mcpack",
     "Messagef",
@@ -13,6 +14,7 @@
     "pokebedrock",
     "progressbar",
     "raknet",
+    "sandertv",
     "xuid"
   ],
   "go.lintTool": "golangci-lint",
