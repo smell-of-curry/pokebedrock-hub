@@ -1,3 +1,6 @@
+# IDE specific
+/.idea/
+
 # Config file
 config.toml
 
@@ -7,3 +10,6 @@ config.toml
 !/resources/slapper/
 !/resources/servers/
 !/resources/locales/
+
+# Testing resources
+/tests/
