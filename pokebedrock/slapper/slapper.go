@@ -34,7 +34,7 @@ func NewSlapper(conf *Config, resManager *resources.Manager) *Slapper {
 		conf:       conf,
 		resManager: resManager,
 
-		animation: world.NewEntityAnimation(fmt.Sprintf("animation.hub_npc_%s.idle", conf.Identifier)),
+		animation: world.NewEntityAnimation(fmt.Sprintf("animation.npc_%s.idle", conf.Identifier)),
 	}
 	s.preloadSkin()
 

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
@@ -176,7 +177,7 @@ func RolesError(err error) string {
 		return locale.Translate("error.account_not_linked")
 	case errors.Is(err, ErrTimeout):
 		return locale.Translate("error.timeout_fetching_roles")
-	case errors.Is(err, ErrServer):
+	case errors.Is(err, ErrServer) || strings.Contains(err.Error(), "actively refused"):
 		return locale.Translate("error.server_error_fetching_roles")
 	default:
 		return fmt.Sprintf("Failed to fetch roles %s", err)
