@@ -11,10 +11,11 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.1.0
+	github.com/samber/lo v1.51.0
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
 	github.com/sandertv/gophertunnel v1.50.1
 	github.com/schollz/progressbar/v3 v3.18.0
-	golang.org/x/text v0.29.0
+	golang.org/x/text v0.30.0
 )
 
 require (
@@ -54,7 +55,6 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/samber/lo v1.51.0 // indirect
 	github.com/segmentio/fasthash v1.0.3 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
