@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.8
+	github.com/df-mc/dragonfly v0.10.9
 	github.com/df-mc/npc v1.0.5
 	github.com/getsentry/sentry-go v0.35.3
 	github.com/gin-gonic/gin v1.11.0
@@ -13,7 +13,7 @@ require (
 	github.com/restartfu/gophig v0.1.0
 	github.com/samber/lo v1.51.0
 	github.com/sandertv/go-raknet v1.14.3-0.20250305181847-6af3e95113d6
-	github.com/sandertv/gophertunnel v1.50.1
+	github.com/sandertv/gophertunnel v1.51.0
 	github.com/schollz/progressbar/v3 v3.18.0
 	golang.org/x/text v0.30.0
 )
@@ -41,7 +41,7 @@ require (
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
