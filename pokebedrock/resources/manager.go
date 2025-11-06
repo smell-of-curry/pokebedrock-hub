@@ -3,7 +3,9 @@ package resources
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,19 +13,47 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/schollz/progressbar/v3"
 )
 
 const (
-	repoOwner = "smell-of-curry"
-	repoName  = "pokebedrock-hub-res"
-	apiURL    = "https://api.github.com/repos/%s/%s/releases/latest"
+	repoOwner   = "smell-of-curry"
+	apiURL      = "https://api.github.com/repos/%s/%s/releases/latest"
+	httpTimeout = 5 * time.Minute
 
 	// DirectoryPermissions is the standard permission for creating directories
 	directoryPermissions = 0755
 )
+
+type packSpec struct {
+	owner string
+	repo  string
+	dir   string
+}
+
+var httpClient = &http.Client{Timeout: httpTimeout}
+
+func httpGet(url string) (*http.Response, context.CancelFunc, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+	req.Header.Set("User-Agent", "pokebedrock-hub/1.0")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+
+	return resp, cancel, nil
+}
 
 // GithubRelease ...
 type GithubRelease struct {
@@ -66,6 +96,7 @@ type EntityDefinition struct {
 type Manager struct {
 	log         *slog.Logger
 	resourceDir string
+	packs       []packSpec
 }
 
 // NewManager creates a new resource pack manager.
@@ -73,12 +104,39 @@ func NewManager(log *slog.Logger, resourceDir string) *Manager {
 	return &Manager{
 		log:         log,
 		resourceDir: resourceDir,
+		packs: []packSpec{
+			{owner: repoOwner, repo: "pokebedrock-hub-res", dir: "unpacked"},
+			{owner: repoOwner, repo: "pokebedrock-res", dir: "pokebedrock-res"},
+		},
 	}
 }
 
 // UnpackedPath returns the path where the resource pack is unpacked.
 func (m *Manager) UnpackedPath() string {
-	return filepath.Join(m.resourceDir, "unpacked")
+	if len(m.packs) == 0 {
+		return filepath.Join(m.resourceDir, "unpacked")
+	}
+
+	return m.packPath(m.packs[0])
+}
+
+func (m *Manager) packPath(p packSpec) string {
+	return filepath.Join(m.resourceDir, p.dir)
+}
+
+func (m *Manager) cleanupMcpacks(pack packSpec) {
+	pattern := filepath.Join(m.resourceDir, fmt.Sprintf("%s-*.mcpack", pack.repo))
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		m.log.Warn("failed to glob mcpack files", "pattern", pattern, "error", err)
+		return
+	}
+
+	for _, path := range matches {
+		if removeErr := os.Remove(path); removeErr != nil && !os.IsNotExist(removeErr) {
+			m.log.Warn("failed to remove stale mcpack", "path", path, "error", removeErr)
+		}
+	}
 }
 
 // CheckAndUpdate checks for updates and downloads if necessary.
@@ -88,28 +146,43 @@ func (m *Manager) CheckAndUpdate() error {
 		return fmt.Errorf("failed to create resource directory: %w", err)
 	}
 
-	// Get current version
-	currentVersion, err := m.CurrentVersion()
-	if err != nil {
-		m.log.Info("No valid resource pack found, will download", "error", err)
+	for _, pack := range m.packs {
+		m.cleanupMcpacks(pack)
+		if err := m.checkAndUpdatePack(pack); err != nil {
+			return err
+		}
 	}
 
-	// Get latest release info
-	release, err := m.LatestRelease()
+	return nil
+}
+
+func (m *Manager) checkAndUpdatePack(pack packSpec) error {
+	packLog := m.log.With("pack", pack.repo)
+
+	currentVersion, err := m.currentVersion(pack)
+	if err != nil {
+		packLog.Info("No valid resource pack found, will download", "error", err)
+	}
+
+	release, err := m.latestRelease(pack)
 	if err != nil {
 		return fmt.Errorf("failed to get latest release: %w", err)
 	}
 
-	if currentVersion == strings.TrimPrefix(release.TagName, "v") && m.isResourcePackValid() {
-		m.log.Info("Resource pack is up to date", "version", currentVersion)
+	releaseVersion := strings.TrimPrefix(release.TagName, "v")
+
+	if currentVersion == releaseVersion && m.isResourcePackValid(pack) {
+		packLog.Info("Resource pack is up to date", "version", currentVersion)
 		return nil
 	}
 
-	// Ask for update if there's an existing version
 	if currentVersion != "" {
 		update := false
 		prompt := &survey.Confirm{
-			Message: fmt.Sprintf("Resource pack update available (%s -> %s). Update now?", currentVersion, release.TagName),
+			Message: fmt.Sprintf(
+				"Resource pack %s update available (%s -> %s). Update now?",
+				pack.repo, currentVersion, release.TagName,
+			),
 			Default: true,
 		}
 		if err = survey.AskOne(prompt, &update); err != nil {
@@ -120,45 +193,39 @@ func (m *Manager) CheckAndUpdate() error {
 		}
 	}
 
-	// Download new version
-	if err = m.downloadResourcePack(release); err != nil {
+	if err = m.downloadResourcePack(pack, release); err != nil {
 		return fmt.Errorf("failed to download resource pack: %w", err)
 	}
 
-	m.log.Info("Successfully updated resource pack", "tag-name", release.TagName)
+	packLog.Info("Successfully updated resource pack", "tag-name", release.TagName)
 	return nil
 }
 
 // CurrentVersion gets the current version of the resource pack.
 // It tries to read from manifest.json if available, otherwise falls back to checking .mcpack files.
 func (m *Manager) CurrentVersion() (string, error) {
-	// First try to read from manifest.json in the unpacked directory
-	manifestPath := filepath.Join(m.UnpackedPath(), "manifest.json")
+	if len(m.packs) == 0 {
+		return "", fmt.Errorf("no resource packs configured")
+	}
+
+	return m.currentVersion(m.packs[0])
+}
+
+func (m *Manager) currentVersion(pack packSpec) (string, error) {
+	manifestPath := filepath.Join(m.packPath(pack), "manifest.json")
 	if _, err := os.Stat(manifestPath); err == nil {
-		// Manifest exists, read version from it
-		manifest, err := m.ReadManifest()
+		manifest, err := m.readManifest(pack)
 		if err == nil && len(manifest.Header.Version) >= 3 {
-			// Convert version array to string format
-			version := fmt.Sprintf("%d.%d.%d",
+			return fmt.Sprintf("%d.%d.%d",
 				manifest.Header.Version[0],
 				manifest.Header.Version[1],
-				manifest.Header.Version[2])
-			return version, nil
+				manifest.Header.Version[2]), nil
 		}
 	}
 
-	// Fall back to checking .mcpack files
-	files, err := os.ReadDir(m.resourceDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to read resource directory: %w", err)
-	}
-
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), "pokebedrock-res-") && strings.HasSuffix(file.Name(), ".mcpack") {
-			version := strings.TrimPrefix(file.Name(), "pokebedrock-res-")
-			version = strings.TrimSuffix(version, ".mcpack")
-			return version, nil
-		}
+	versionFile := filepath.Join(m.packPath(pack), ".version")
+	if data, err := os.ReadFile(versionFile); err == nil {
+		return strings.TrimSpace(string(data)), nil
 	}
 
 	return "", fmt.Errorf("no resource pack found")
@@ -166,7 +233,15 @@ func (m *Manager) CurrentVersion() (string, error) {
 
 // ReadManifest reads the manifest.json file from the unpacked resource pack
 func (m *Manager) ReadManifest() (*ManifestJSON, error) {
-	manifestPath := filepath.Join(m.UnpackedPath(), "manifest.json")
+	if len(m.packs) == 0 {
+		return nil, fmt.Errorf("no resource packs configured")
+	}
+
+	return m.readManifest(m.packs[0])
+}
+
+func (m *Manager) readManifest(pack packSpec) (*ManifestJSON, error) {
+	manifestPath := filepath.Join(m.packPath(pack), "manifest.json")
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read manifest.json: %w", err)
@@ -181,18 +256,27 @@ func (m *Manager) ReadManifest() (*ManifestJSON, error) {
 }
 
 // isResourcePackValid checks if the unpacked resource pack is valid by looking for manifest.json
-func (m *Manager) isResourcePackValid() bool {
-	manifestPath := filepath.Join(m.UnpackedPath(), "manifest.json")
+func (m *Manager) isResourcePackValid(pack packSpec) bool {
+	manifestPath := filepath.Join(m.packPath(pack), "manifest.json")
 	_, err := os.Stat(manifestPath)
 	return err == nil
 }
 
 // LatestRelease ...
 func (m *Manager) LatestRelease() (*GithubRelease, error) {
-	resp, err := http.Get(fmt.Sprintf(apiURL, repoOwner, repoName))
+	if len(m.packs) == 0 {
+		return nil, fmt.Errorf("no resource packs configured")
+	}
+
+	return m.latestRelease(m.packs[0])
+}
+
+func (m *Manager) latestRelease(pack packSpec) (*GithubRelease, error) {
+	resp, cancel, err := httpGet(fmt.Sprintf(apiURL, pack.owner, pack.repo))
 	if err != nil {
 		return nil, err
 	}
+	defer cancel()
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -207,48 +291,60 @@ func (m *Manager) LatestRelease() (*GithubRelease, error) {
 }
 
 // downloadResourcePack ...
-func (m *Manager) downloadResourcePack(release *GithubRelease) error {
+func (m *Manager) downloadResourcePack(pack packSpec, release *GithubRelease) (err error) {
+	packLog := m.log.With("pack", pack.repo)
+
 	if len(release.Assets) == 0 {
 		return fmt.Errorf("no assets found in release")
 	}
 
-	resp, err := http.Get(release.Assets[0].BrowserDownloadURL)
+	resp, cancel, err := httpGet(release.Assets[0].BrowserDownloadURL)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+	defer cancel()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download failed with status: %d", resp.StatusCode)
 	}
 
-	// Clean up old files
-	if err = os.RemoveAll(m.UnpackedPath()); err != nil {
-		m.log.Warn("failed to clean up old unpacked files", "error", err)
-	}
+	packPath := filepath.Join(m.resourceDir, fmt.Sprintf("%s-%s.mcpack", pack.repo, release.TagName))
 
-	// Create mcpack file
-	packPath := filepath.Join(m.resourceDir, fmt.Sprintf("pokebedrock-res-%s.mcpack", release.TagName))
 	out, err := os.Create(packPath)
 	if err != nil {
 		return err
 	}
 
-	// Download the file
+	defer func() {
+		if err != nil {
+			if removeErr := os.Remove(packPath); removeErr != nil {
+				packLog.Warn("failed to clean up pack after error", "error", removeErr)
+			}
+		}
+	}()
+
 	if _, err = io.Copy(out, resp.Body); err != nil {
+		out.Close()
 		return err
 	}
 
-	// Unzip the resource pack
-	if err = m.unzipResourcePack(packPath); err != nil {
+	if err = out.Close(); err != nil {
 		return err
 	}
 
-	out.Close()
+	if err = m.unzipResourcePack(pack, packPath); err != nil {
+		return err
+	}
 
-	// Delete the .mcpack file after successful unpacking
 	if err = os.Remove(packPath); err != nil {
-		m.log.Warn("failed to delete .mcpack file after unpacking", "error", err)
+		packLog.Warn("failed to delete .mcpack file after unpacking", "error", err)
+	}
+
+	versionFile := filepath.Join(m.packPath(pack), ".version")
+	releaseVersion := strings.TrimPrefix(release.TagName, "v")
+	if err = os.WriteFile(versionFile, []byte(releaseVersion), 0600); err != nil {
+		packLog.Warn("failed to write version file", "error", err)
 	}
 
 	return nil
@@ -256,8 +352,12 @@ func (m *Manager) downloadResourcePack(release *GithubRelease) error {
 
 // AlreadyUnpacked checks if the resource pack is already unpacked and matches the version.
 func (m *Manager) AlreadyUnpacked(version string) bool {
-	// Check if unpacked directory exists
-	unpackPath := m.UnpackedPath()
+	if len(m.packs) == 0 {
+		return false
+	}
+
+	pack := m.packs[0]
+	unpackPath := m.packPath(pack)
 	if _, err := os.Stat(unpackPath); os.IsNotExist(err) {
 		return false
 	}
@@ -273,31 +373,28 @@ func (m *Manager) AlreadyUnpacked(version string) bool {
 }
 
 // unzipResourcePack extracts the resource pack to the unpacked directory
-func (m *Manager) unzipResourcePack(packPath string) error {
+func (m *Manager) unzipResourcePack(pack packSpec, packPath string) error {
+	packLog := m.log.With("pack", pack.repo)
 	reader, err := zip.OpenReader(packPath)
 	if err != nil {
 		return fmt.Errorf("failed to open resource pack: %w", err)
 	}
 	defer reader.Close()
 
-	// Get version from pack path for logging
-	version := strings.TrimPrefix(filepath.Base(packPath), "pokebedrock-res-")
-	version = strings.TrimSuffix(version, ".mcpack")
+	version := strings.TrimSuffix(filepath.Base(packPath), ".mcpack")
+	if prefix := pack.repo + "-"; strings.HasPrefix(version, prefix) {
+		version = strings.TrimPrefix(version, prefix)
+	}
 
-	// Check if unpacked directory exists
-	unpackPath := m.UnpackedPath()
-	if _, err := os.Stat(unpackPath); !os.IsNotExist(err) {
-		// Delete the unpacked directory to ensure clean state
-		if err := os.RemoveAll(unpackPath); err != nil {
-			m.log.Warn("failed to clean up old unpacked directory", "error", err)
-		}
+	unpackPath := m.packPath(pack)
+	if err := os.RemoveAll(unpackPath); err != nil {
+		packLog.Warn("failed to clean up old unpacked directory", "error", err)
 	}
 
 	if err := os.MkdirAll(unpackPath, directoryPermissions); err != nil {
 		return fmt.Errorf("failed to create unpack directory: %w", err)
 	}
 
-	// Count total files for progress bar
 	totalFiles := 0
 	for _, file := range reader.File {
 		if !file.FileInfo().IsDir() {
@@ -305,60 +402,109 @@ func (m *Manager) unzipResourcePack(packPath string) error {
 		}
 	}
 
-	// Create progress bar
-	bar := progressbar.Default(int64(totalFiles), "Unzipping resource pack")
+	bar := progressbar.Default(int64(totalFiles), fmt.Sprintf("Unzipping %s", pack.repo))
 
 	for _, file := range reader.File {
 		if strings.Contains(file.Name, "..") {
-			m.log.Warn("skipping file with invalid path", "file", file.Name)
+			packLog.Warn("skipping file with invalid path", "file", file.Name)
+
 			continue
 		}
 		path := filepath.Join(unpackPath, file.Name)
-		relPath, err := filepath.Rel(unpackPath, filepath.Clean(path))
-		if err != nil || strings.HasPrefix(relPath, "..") {
-			m.log.Warn("skipping file with invalid path", "file", file.Name)
+		relPath, relErr := filepath.Rel(unpackPath, filepath.Clean(path))
+		if relErr != nil || strings.HasPrefix(relPath, "..") {
+			packLog.Warn("skipping file with invalid path", "file", file.Name)
+
 			continue
 		}
 
 		if file.FileInfo().IsDir() {
-			if err := os.MkdirAll(path, directoryPermissions); err != nil {
-				return fmt.Errorf("failed to create directory: %w", err)
+			if mkErr := os.MkdirAll(path, directoryPermissions); mkErr != nil {
+				return fmt.Errorf("failed to create directory: %w", mkErr)
 			}
+
 			continue
 		}
 
-		if err = os.MkdirAll(filepath.Dir(path), directoryPermissions); err != nil {
-			return fmt.Errorf("failed to create directories: %w", err)
+		if dirErr := os.MkdirAll(filepath.Dir(path), directoryPermissions); dirErr != nil {
+			return fmt.Errorf("failed to create directories: %w", dirErr)
 		}
 
-		outFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		if err != nil {
-			return fmt.Errorf("failed to create file: %w", err)
+		outFile, fileErr := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+		if fileErr != nil {
+			return fmt.Errorf("failed to create file: %w", fileErr)
 		}
 
-		rc, err := file.Open()
-		if err != nil {
+		rc, openErr := file.Open()
+		if openErr != nil {
 			outFile.Close()
-			return fmt.Errorf("failed to open zip file: %w", err)
+			return fmt.Errorf("failed to open zip file: %w", openErr)
 		}
 
-		_, err = io.Copy(outFile, rc)
+		_, copyErr := io.Copy(outFile, rc)
 		outFile.Close()
 		rc.Close()
-		if err != nil {
-			return fmt.Errorf("failed to copy file contents: %w", err)
+		if copyErr != nil {
+			return fmt.Errorf("failed to copy file contents: %w", copyErr)
 		}
 
-		if err = bar.Add(1); err != nil {
-			m.log.Warn("failed to update progress bar", "error", err)
+		if addErr := bar.Add(1); addErr != nil {
+			packLog.Warn("failed to update progress bar", "error", addErr)
 		}
 	}
 
-	// Validate the unpacked resource pack
-	if !m.isResourcePackValid() {
+	if !m.isResourcePackValid(pack) {
 		return fmt.Errorf("unpacked resource pack is invalid: manifest.json not found")
 	}
 
-	m.log.Info("Successfully unpacked resource pack", "version", version)
+	packLog.Info("Successfully unpacked resource pack", "version", version)
 	return nil
+}
+
+// FindFile searches all managed packs for the given relative path and returns the first match.
+func (m *Manager) FindFile(relParts ...string) (string, error) {
+	rel := filepath.Join(relParts...)
+	var lastErr error
+
+	for _, pack := range m.packs {
+		candidate, err := m.FindFileInPack(pack.repo, relParts...)
+		if err == nil {
+			return candidate, nil
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			lastErr = err
+			continue
+		}
+
+		return "", err
+	}
+
+	if lastErr != nil {
+		return "", lastErr
+	}
+
+	return "", fmt.Errorf("file %s not found in managed packs", rel)
+}
+
+// FindFileInPack searches a specific pack for the given relative path parts.
+func (m *Manager) FindFileInPack(packName string, relParts ...string) (string, error) {
+	rel := filepath.Join(relParts...)
+	for _, pack := range m.packs {
+		if pack.repo != packName {
+			continue
+		}
+
+		candidate := filepath.Join(m.packPath(pack), rel)
+		if _, err := os.Stat(candidate); err != nil {
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("file %s not found in pack %s: %w", rel, packName, err)
+			}
+
+			return "", fmt.Errorf("failed to stat file %s in pack %s: %w", rel, packName, err)
+		}
+
+		return candidate, nil
+	}
+
+	return "", fmt.Errorf("pack %s not managed", packName)
 }

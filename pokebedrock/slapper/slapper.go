@@ -2,7 +2,6 @@ package slapper
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
@@ -43,10 +42,27 @@ func NewSlapper(conf *Config, resManager *resources.Manager) *Slapper {
 
 // preloadSkin loads the skin texture and model from file paths based on the slapper's configuration.
 func (s *Slapper) preloadSkin() {
-	// Convert paths to full filesystem paths
-	unpackedPath := s.resManager.UnpackedPath()
-	texturePath := filepath.Join(unpackedPath, "textures", "entity", "npcs", s.conf.Identifier) + ".png"
-	geometryPath := filepath.Join(unpackedPath, "models", "entity", "npcs", s.conf.Identifier) + ".geo.json"
+	texturePath, err := s.resManager.FindFileInPack(
+		"pokebedrock-hub-res",
+		"textures",
+		"entity",
+		"npcs",
+		s.conf.Identifier+".png",
+	)
+	if err != nil {
+		panic(fmt.Sprintf("slapper %s missing texture: %v", s.conf.Identifier, err))
+	}
+
+	geometryPath, err := s.resManager.FindFileInPack(
+		"pokebedrock-hub-res",
+		"models",
+		"entity",
+		"npcs",
+		s.conf.Identifier+".geo.json",
+	)
+	if err != nil {
+		panic(fmt.Sprintf("slapper %s missing geometry: %v", s.conf.Identifier, err))
+	}
 
 	s.skin = npc.MustSkin(
 		npc.MustParseTexture(texturePath),
