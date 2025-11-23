@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.10-0.20251030151444-930c985297ef
+	github.com/df-mc/dragonfly v0.10.10-0.20251116050402-3f4cdb9c8cd5
 	github.com/df-mc/npc v1.0.5
 	github.com/getsentry/sentry-go v0.35.3
 	github.com/gin-gonic/gin v1.11.0
@@ -72,3 +72,5 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/sandertv/gophertunnel => github.com/cjmustard/gophertunnel v0.0.0-20251122112034-b2310355920a
