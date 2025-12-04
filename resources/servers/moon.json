@@ -3,6 +3,34 @@
   "identifier": "moon",
   "address": "40.160.13.133:19136",
   "beta_lock": false,
+  "parkour": {
+    "name": "Extreme Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": 90.0,
+      "pitch": 0,
+      "position": {
+        "x": 123.5,
+        "y": 96,
+        "z": 4.5
+      }
+    },
+    "leaderboard": {
+      "x": 120.5,
+      "y": 96.0,
+      "z": 15.5
+    },
+    "start": {
+      "x": 125.5,
+      "y": 96,
+      "z": 8.5
+    },
+    "end": {
+      "x": 198.5,
+      "y": 180,
+      "z": 8.5
+    }
+  },
   "npc": {
     "scale": 1.5,
     "yaw": 90.0,

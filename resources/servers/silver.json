@@ -3,6 +3,34 @@
   "identifier": "silver",
   "address": "40.160.19.240:19132",
   "beta_lock": false,
+  "parkour": {
+    "name": "Medium Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": -90.0,
+      "pitch": 0,
+      "position": {
+        "x": -106.5,
+        "y": 96,
+        "z": 12.5
+      }
+    },
+    "leaderboard": {
+      "x": -103.5,
+      "y": 96.0,
+      "z": 1.5
+    },
+    "start": {
+      "x": -108.5,
+      "y": 96,
+      "z": 8.5
+    },
+    "end": {
+      "x": -168.5,
+      "y": 205,
+      "z": -1.5
+    }
+  },
   "npc": {
     "scale": 1.5,
     "yaw": -90.0,

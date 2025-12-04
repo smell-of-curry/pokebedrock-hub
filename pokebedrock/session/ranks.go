@@ -76,7 +76,7 @@ func updatePlayer(update rankUpdate, message, color string) {
 		}
 
 		msg := text.Colourf("<%s>%s</%s>", color, message, color)
-		p.SendTip(msg)
+		p.SendJukeboxPopup(msg)
 		p.Message(msg)
 	})
 
@@ -209,7 +209,7 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 					return
 				}
 
-				p.SendTip(locale.Translate("rank.fetching"))
+				p.SendJukeboxPopup(locale.Translate("rank.fetching"))
 			})
 		}()
 	default:
@@ -221,7 +221,7 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 					return
 				}
 
-				p.SendTip(locale.Translate("rank.update.queue.full"))
+				p.SendJukeboxPopup(locale.Translate("rank.update.queue.full"))
 			})
 		}()
 
@@ -265,7 +265,7 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 							return
 						}
 
-						p.SendTip(locale.Translate("rank.fetch.timeout"))
+						p.SendJukeboxPopup(locale.Translate("rank.fetch.timeout"))
 					})
 				}()
 
@@ -354,7 +354,7 @@ func (r *Ranks) QueueLoad(xuid string, handle *world.EntityHandle) {
 					return
 				}
 
-				p.SendTip(locale.Translate("rank.queue.added"))
+				p.SendJukeboxPopup(locale.Translate("rank.queue.added"))
 			})
 		}
 	default:
@@ -366,7 +366,7 @@ func (r *Ranks) QueueLoad(xuid string, handle *world.EntityHandle) {
 					return
 				}
 
-				p.SendTip(locale.Translate("rank.update.queue.full"))
+				p.SendJukeboxPopup(locale.Translate("rank.update.queue.full"))
 			})
 		}
 	}

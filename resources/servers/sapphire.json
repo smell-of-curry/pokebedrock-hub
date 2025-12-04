@@ -3,6 +3,34 @@
   "identifier": "sapphire",
   "address": "79.137.98.209:19136",
   "beta_lock": false,
+  "parkour": {
+    "name": "Hard Water Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": 0,
+      "pitch": 0,
+      "position": {
+        "x": 4.5,
+        "y": 96,
+        "z": -106.5
+      }
+    },
+    "leaderboard": {
+      "x": 15.5,
+      "y": 96.0,
+      "z": -103.5
+    },
+    "start": {
+      "x": 8.5,
+      "y": 96,
+      "z": -108.5
+    },
+    "end": {
+      "x": 3.5,
+      "y": 199,
+      "z": -179.5
+    }
+  },
   "npc": {
     "scale": 1.5,
     "yaw": 0.0,

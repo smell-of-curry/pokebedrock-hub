@@ -3,6 +3,34 @@
   "identifier": "ruby",
   "address": "79.137.98.209:19132",
   "beta_lock": false,
+  "parkour": {
+    "name": "Hard Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": 45.0,
+      "pitch": 0,
+      "position": {
+        "x": 88.5,
+        "y": 96,
+        "z": -75.5
+      }
+    },
+    "leaderboard": {
+      "x": 92.5,
+      "y": 96.0,
+      "z": -67.5
+    },
+    "start": {
+      "x": 91.5,
+      "y": 96,
+      "z": -74.5
+    },
+    "end": {
+      "x": 105.5,
+      "y": 200,
+      "z": -98.5
+    }
+  },
   "npc": {
     "scale": 1.5,
     "yaw": 45.0,

@@ -15,13 +15,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 	"github.com/sandertv/gophertunnel/minecraft/text"
-	"golang.org/x/text/language"
-
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/hider"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/moderation"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/parkour"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
@@ -31,6 +31,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -165,7 +166,8 @@ func (poke *PokeBedrock) handleWorld() {
 	w.SetTickRange(0)
 
 	poke.loadServers()
-
+	poke.loadParkour(w)
+	poke.loadHider(w)
 	go poke.startTicking()
 }
 
@@ -334,6 +336,7 @@ func (poke *PokeBedrock) loadCommands() {
 	cmd.Register(command.NewModerate(rank.Moderator))
 	cmd.Register(command.NewKick(rank.Moderator))
 	cmd.Register(command.NewList(rank.Trainer))
+	cmd.Register(command.NewParkourReset(rank.HeadModerator))
 }
 
 // loadServices loads all the services.
@@ -388,6 +391,44 @@ func (poke *PokeBedrock) loadServers() {
 	<-w.Exec(func(tx *world.Tx) {
 		slapper.SummonAll(slapperConfigs, tx, poke.resManager)
 	})
+}
+
+// loadParkour initialises the parkour manager with the provided world.
+func (poke *PokeBedrock) loadParkour(w *world.World) {
+	parkour.NewManager(poke.log, w, parkour.Config{
+		LeaderboardPath:  poke.conf.Parkour.LeaderboardPath,
+		CountdownSeconds: poke.conf.Parkour.CountdownSeconds,
+		CompletionRadius: poke.conf.Parkour.CompletionRadius,
+		Courses: lo.Map(srv.All(), func(s *srv.Server, _ int) parkour.CourseConfig {
+			conf := s.Config().Parkour
+			return parkour.CourseConfig{
+				Name:       conf.Name,
+				Identifier: s.Identifier(),
+				NPC: parkour.NPCConfig{
+					Scale: conf.NPC.Scale,
+					Yaw:   conf.NPC.Yaw,
+					Pitch: conf.NPC.Pitch,
+					Position: parkour.PositionConfig{
+						X: conf.NPC.Position.X, Y: conf.NPC.Position.Y, Z: conf.NPC.Position.Z,
+					},
+				},
+				Leaderboard: parkour.PositionConfig{
+					X: conf.Leaderboard.X, Y: conf.Leaderboard.Y, Z: conf.Leaderboard.Z,
+				},
+				Start: parkour.PositionConfig{
+					X: conf.Start.X, Y: conf.Start.Y, Z: conf.Start.Z,
+				},
+				End: parkour.PositionConfig{
+					X: conf.End.X, Y: conf.End.Y, Z: conf.End.Z,
+				},
+			}
+		}),
+	})
+}
+
+// loadHider initialises the player visibility toggle manager.
+func (poke *PokeBedrock) loadHider(w *world.World) {
+	hider.NewManager(w)
 }
 
 // startTicking begins the periodic ticking process for the server.
