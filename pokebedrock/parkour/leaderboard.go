@@ -278,7 +278,7 @@ func (m *Manager) leaderboardTextContent(course CourseConfig) string {
 	lines := make([]string, 0, 11)
 	lines = append(lines, text.Colourf("<yellow>Top 10 for %s</yellow>", course.Name))
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 9; i++ {
 		if i < len(top) {
 			entry := top[i]
 
