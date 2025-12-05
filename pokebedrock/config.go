@@ -21,6 +21,9 @@ const (
 	defaultQueueTimeout    = 15 * time.Minute
 	defaultMaxRestartTime  = 20 * time.Minute
 	defaultRestartCooldown = 5 * time.Minute
+
+	defaultParkourCountdownSeconds = 5
+	defaultParkourCompletionRadius = 1.25
 )
 
 // Config holds the server configuration, including paths, translations, and service-related settings.
@@ -51,6 +54,11 @@ type Config struct {
 		RestartCooldown util.Duration
 		QueueTimeout    util.Duration
 		MaxRestartTime  util.Duration
+	}
+	Parkour struct {
+		LeaderboardPath  string
+		CountdownSeconds int
+		CompletionRadius float64
 	}
 	Ranks struct {
 		TrainerRoleID              string
@@ -103,6 +111,10 @@ func DefaultConfig() Config {
 	c.RestartManager.RestartCooldown = util.Duration(defaultRestartCooldown)
 	c.RestartManager.QueueTimeout = util.Duration(defaultQueueTimeout)
 	c.RestartManager.MaxRestartTime = util.Duration(defaultMaxRestartTime)
+
+	c.Parkour.LeaderboardPath = "resources/parkour/leaderboard.json"
+	c.Parkour.CountdownSeconds = defaultParkourCountdownSeconds
+	c.Parkour.CompletionRadius = defaultParkourCompletionRadius
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")

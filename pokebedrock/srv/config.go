@@ -16,16 +16,29 @@ type Config struct {
 	Identifier string `json:"identifier"`
 	Address    string `json:"address"`
 	BetaLock   bool   `json:"beta_lock"`
-	NPC        struct {
-		Scale    float64 `json:"scale"`
-		Yaw      float64 `json:"yaw"`
-		Pitch    float64 `json:"pitch"`
-		Position struct {
-			X float64 `json:"x"`
-			Y float64 `json:"y"`
-			Z float64 `json:"z"`
-		} `json:"position"`
-	} `json:"npc"`
+	Parkour    struct {
+		Name        string         `json:"name"`
+		NPC         NPCConfig      `json:"npc"`
+		Leaderboard PositionConfig `json:"leaderboard"`
+		Start       PositionConfig `json:"start"`
+		End         PositionConfig `json:"end"`
+	} `json:"parkour"`
+	NPC NPCConfig `json:"npc"`
+}
+
+// NPCConfig ...
+type NPCConfig struct {
+	Scale    float64        `json:"scale"`
+	Yaw      float64        `json:"yaw"`
+	Pitch    float64        `json:"pitch"`
+	Position PositionConfig `json:"position"`
+}
+
+// PositionConfig ...
+type PositionConfig struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	Z float64 `json:"z"`
 }
 
 // ReadAll reads all JSON configuration files from the specified path and returns a slice of Config.

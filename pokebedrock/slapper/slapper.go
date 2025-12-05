@@ -139,3 +139,13 @@ func (s *Slapper) SendAnimation(p *player.Player) {
 func (s *Slapper) Server() *srv.Server {
 	return srv.FromIdentifier(s.conf.Identifier)
 }
+
+// Skin returns the skin of the Slapper.
+func (s *Slapper) Skin() skin.Skin {
+	return s.skin
+}
+
+// Handle returns the Entity Handle of the Slapper.
+func (s *Slapper) Handle() *world.EntityHandle {
+	return s.handle
+}

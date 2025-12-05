@@ -12,14 +12,15 @@ import (
 	"github.com/df-mc/dragonfly/server/player/chat"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
-
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/form"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/hider"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/parkour"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 )
 
 // PlayerHandler ...
@@ -75,6 +76,8 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 	for _, s := range slapper.All() {
 		s.SendAnimation(p)
 	}
+
+	hider.Global().HandleJoin(p)
 }
 
 // HandleItemUse ...
@@ -82,29 +85,37 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 	p := ctx.Val()
 	it, _ := p.HeldItems()
 
-	if id, ok := it.Value("lobby"); ok {
-		switch id {
-		case 0:
+	if id, exists := it.Value("lobby"); exists {
+		action, _ := id.(string)
+		switch action {
+		case "navigator":
 			p.SendForm(form.NewServerNavigator())
-		case 1:
+		case "spawn":
 			w := p.Tx().World()
 			p.Teleport(w.Spawn().Vec3Middle())
-		case 2:
+		case "sync-rank":
 			lastFetch := h.Ranks().LastRankFetch()
 			if time.Since(lastFetch) < time.Second*5 {
 				remaining := time.Second*5 - time.Since(lastFetch)
-				p.SendTip(locale.Translate("rank.refetch.wait", fmt.Sprintf("%.1f", remaining.Seconds())))
-
+				p.SendJukeboxPopup(locale.Translate("rank.refetch.wait", fmt.Sprintf("%.1f", remaining.Seconds())))
 				return
 			}
 
 			h.ranks.SetLastRankFetch(time.Now())
-			p.SendTip(locale.Translate("rank.fetching"))
+			p.SendJukeboxPopup(locale.Translate("rank.fetching"))
 
 			go func() {
 				h.Ranks().Load(p.XUID(), p.H())
 			}()
+		case "toggle-visibility":
+			hider.Global().Toggle(p)
 		}
+		return
+	}
+
+	if id, exists := it.Value("parkour"); exists {
+		action, _ := id.(string)
+		parkour.Global().HandleItemUse(p, action)
 	}
 }
 
@@ -178,10 +189,18 @@ func (h *PlayerHandler) HandleMove(ctx *player.Context, pos mgl64.Vec3, rot cube
 		return
 	}
 
+	parkour.Global().HandleMove(p, pos)
+
 	movement := h.movement
 	movement.SetLastMoveTime(time.Now())
 	movement.SetLastPosition(pos)
 	movement.SetLastRotation(rot)
+}
+
+// HandleQuit ...
+func (h *PlayerHandler) HandleQuit(p *player.Player) {
+	parkour.Global().HandleQuit(p)
+	hider.Global().HandleQuit(p)
 }
 
 // Ranks ...
