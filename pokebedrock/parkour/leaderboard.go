@@ -22,7 +22,7 @@ type leaderboard struct {
 	Courses map[string]courseData `json:"courses"`
 
 	path string
-	mu   sync.Mutex
+	mu   sync.RWMutex
 }
 
 // courseData ...
@@ -130,8 +130,8 @@ func (l *leaderboard) update(courseID, xuid, name, rankName string, dur time.Dur
 
 // best ...
 func (l *leaderboard) best(courseID, xuid string) time.Duration {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 	course, exists := l.Courses[courseID]
 	if !exists {
 		return 0
@@ -145,8 +145,8 @@ func (l *leaderboard) best(courseID, xuid string) time.Duration {
 
 // top ...
 func (l *leaderboard) top(courseID string) []Entry {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 	course, exists := l.Courses[courseID]
 	if !exists {
 		return nil
@@ -271,14 +271,18 @@ func (m *Manager) NPCHandles() []*world.EntityHandle {
 	return handles
 }
 
+const leaderboardSize = 9
+
 // leaderboardTextContent ...
 func (m *Manager) leaderboardTextContent(course CourseConfig) string {
 	top := m.lb.top(course.Identifier)
 
-	lines := make([]string, 0, 11)
-	lines = append(lines, text.Colourf("<yellow>Top 10 for %s</yellow>", course.Name))
+	lines := make([]string, 0, leaderboardSize+1)
+	lines = append(lines,
+		text.Colourf("<yellow>Top %d for %s</yellow>", leaderboardSize, course.Name),
+	)
 
-	for i := 0; i < 9; i++ {
+	for i := 0; i < leaderboardSize; i++ {
 		if i < len(top) {
 			entry := top[i]
 

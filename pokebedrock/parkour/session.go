@@ -56,11 +56,10 @@ func (m *Manager) ensureSession(p *player.Player) *Session {
 
 // stopCountdown ...
 func (s *Session) stopCountdown() {
-	if s.countdownStop == nil {
-		return
+	if channel := s.countdownStop; channel != nil {
+		s.countdownStop = nil
+		close(channel)
 	}
-	close(s.countdownStop)
-	s.countdownStop = nil
 }
 
 // beginCountdown ...
