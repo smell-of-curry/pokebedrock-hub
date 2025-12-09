@@ -3,6 +3,34 @@
   "identifier": "sun",
   "address": "40.160.13.133:19132",
   "beta_lock": false,
+  "parkour": {
+    "name": "Extreme Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": -200.0,
+      "pitch": 0,
+      "position": {
+        "x": 92.5,
+        "y": 96,
+        "z": 88.5
+      }
+    },
+    "leaderboard": {
+      "x": 84.5,
+      "y": 96.0,
+      "z": 92.5
+    },
+    "start": {
+      "x": 91.5,
+      "y": 96,
+      "z": 91.5
+    },
+    "end": {
+      "x": 110.5,
+      "y": 200,
+      "z": 116.5
+    }
+  },
   "npc": {
     "scale": 1.5,
     "yaw": -200.0,

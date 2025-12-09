@@ -3,6 +3,34 @@
   "identifier": "black",
   "address": "40.160.19.215:19136",
   "beta_lock": false,
+  "parkour": {
+    "name": "Easy Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": -180.0,
+      "pitch": 0,
+      "position": {
+        "x": 12.5,
+        "y": 96,
+        "z": 123.5
+      }
+    },
+    "leaderboard": {
+      "x": 1.5,
+      "y": 96.0,
+      "z": 120.5
+    },
+    "start": {
+      "x": 8.5,
+      "y": 96,
+      "z": 125.5
+    },
+    "end": {
+      "x": 7.5,
+      "y": 197,
+      "z": 177.5
+    }
+  },
   "npc": {
     "scale": 1.5,
     "yaw": -180.0,
