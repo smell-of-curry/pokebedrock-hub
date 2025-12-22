@@ -24,8 +24,9 @@ type Session struct {
 	startPos         mgl64.Vec3
 	endPos           mgl64.Vec3
 	completionRadius float64
-	checkpoint       mgl64.Vec3
-	runStart         time.Time
+	checkpoint        mgl64.Vec3
+	runStart          time.Time
+	checkpointElapsed time.Duration
 	rankName         string
 
 	countdownStop chan struct{}

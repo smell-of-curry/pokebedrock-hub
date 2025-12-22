@@ -176,6 +176,8 @@ func (m *Manager) checkCheckpoint(p *player.Player, pos mgl64.Vec3, sess *Sessio
 	checkpoint := blockPos.Vec3().Add(mgl64.Vec3{0.5, 0, 0.5})
 	if _, ok := tx.Block(blockPos).(block.PressurePlate); ok && !sess.checkpoint.ApproxEqual(checkpoint) {
 		sess.checkpoint = checkpoint
+		sess.checkpointElapsed = time.Since(sess.runStart) + sess.checkpointElapsed
+		sess.runStart = time.Now()
 		p.SendJukeboxPopup(text.Colourf("<green>Checkpoint saved.</green>"))
 	}
 }
@@ -191,7 +193,7 @@ func (m *Manager) checkFinish(p *player.Player, pos mgl64.Vec3, sess *Session) {
 	}
 
 	sess.state = stateIdle
-	duration := time.Since(sess.runStart)
+	duration := time.Since(sess.runStart) + sess.checkpointElapsed
 	m.handleFinish(p, sess, duration)
 }
 
