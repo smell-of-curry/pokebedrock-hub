@@ -175,7 +175,7 @@ func (h *PlayerHandler) HandleItemDrop(ctx *player.Context, _ item.Stack) {
 }
 
 // HandleItemDamage ...
-func (h *PlayerHandler) HandleItemDamage(ctx *player.Context, _ item.Stack, _ int) {
+func (h *PlayerHandler) HandleItemDamage(ctx *player.Context, _ item.Stack, _ *int) {
 	ctx.Cancel()
 }
 
