@@ -27,7 +27,12 @@ func (r rankAllower) Allow(s cmd.Source) bool {
 		return false
 	}
 
-	return h.Ranks().HighestRank() >= r.rank
+	ranks := h.Ranks()
+	if ranks == nil {
+		return false
+	}
+
+	return ranks.HighestRank() >= r.rank
 }
 
 // rankHandler ...
