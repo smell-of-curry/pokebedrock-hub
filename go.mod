@@ -13,7 +13,7 @@ require (
 	github.com/restartfu/gophig v0.1.0
 	github.com/samber/lo v1.52.0
 	github.com/sandertv/go-raknet v1.14.3-0.20251222161826-51e403c0c769
-	github.com/sandertv/gophertunnel v1.52.2
+	github.com/sandertv/gophertunnel v1.53.0
 	github.com/schollz/progressbar/v3 v3.19.0
 	golang.org/x/text v0.32.0
 )
@@ -25,6 +25,9 @@ require (
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
+	github.com/df-mc/go-playfab v1.0.0 // indirect
+	github.com/df-mc/go-xsapi v1.0.1 // indirect
 	github.com/df-mc/goleveldb v1.1.9 // indirect
 	github.com/df-mc/jsonc v1.0.5 // indirect
 	github.com/df-mc/worldupgrader v1.0.20 // indirect
