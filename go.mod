@@ -11,7 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-gl/mathgl v1.2.0
 	github.com/restartfu/gophig v0.1.0
-	github.com/samber/lo v1.52.0
+	github.com/samber/lo v1.53.0
 	github.com/sandertv/go-raknet v1.15.1-0.20260112202637-beca0b10c217
 	github.com/sandertv/gophertunnel v1.54.0
 	github.com/schollz/progressbar/v3 v3.19.0
