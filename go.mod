@@ -15,7 +15,7 @@ require (
 	github.com/sandertv/go-raknet v1.15.1-0.20260112202637-beca0b10c217
 	github.com/sandertv/gophertunnel v1.54.0
 	github.com/schollz/progressbar/v3 v3.19.0
-	golang.org/x/text v0.34.0
+	golang.org/x/text v0.35.0
 )
 
 require (
