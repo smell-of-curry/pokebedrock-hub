@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.11-0.20260211105526-1ec432bade04
+	github.com/df-mc/dragonfly v0.10.12
 	github.com/df-mc/npc v1.0.5
 	github.com/getsentry/sentry-go v0.44.1
 	github.com/gin-gonic/gin v1.12.0
@@ -13,7 +13,7 @@ require (
 	github.com/restartfu/gophig v0.1.0
 	github.com/samber/lo v1.53.0
 	github.com/sandertv/go-raknet v1.15.1-0.20260112202637-beca0b10c217
-	github.com/sandertv/gophertunnel v1.55.0
+	github.com/sandertv/gophertunnel v1.55.1
 	github.com/schollz/progressbar/v3 v3.19.0
 	golang.org/x/text v0.35.0
 )
@@ -22,7 +22,7 @@ require (
 	github.com/brentp/intintmap v0.0.0-20251106190759-56907b1f8479 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
-	github.com/bytedance/sonic/loader v0.5.0 // indirect
+	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
