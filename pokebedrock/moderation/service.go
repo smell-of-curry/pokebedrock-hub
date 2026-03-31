@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ func GlobalService() *Service {
 	return globalService
 }
 
-// Service represents a service for interacting with a moderation API.
+// Service represents a service for interacting with the players-service moderation API.
 // It holds the configuration for the service such as the URL, key, HTTP client, and logger.
 type Service struct {
 	url    string
@@ -38,9 +39,9 @@ type Service struct {
 }
 
 // NewService initializes a new global service instance with the provided logger, URL, and authorization key.
-// This function configures the HTTP client and sets up the service.
+// url should be the players service base URL (e.g. http://players:4002).
+// key is the x-api-key value for authenticating with the players service.
 func NewService(log *slog.Logger, url, key string) {
-	// Create a custom HTTP transport with optimized connection pooling
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -51,12 +52,12 @@ func NewService(log *slog.Logger, url, key string) {
 		IdleConnTimeout:       3 * internal.LongOperationTimeoutSec * time.Second,
 		TLSHandshakeTimeout:   3 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
-		MaxIdleConnsPerHost:   maxConcurrentRequests * 2, // Allow more idle connections per host
-		MaxConnsPerHost:       maxConcurrentRequests * 3, // Limit max connections per host
+		MaxIdleConnsPerHost:   maxConcurrentRequests * 2,
+		MaxConnsPerHost:       maxConcurrentRequests * 3,
 	}
 
 	globalService = &Service{
-		url:    url,
+		url:    strings.TrimRight(url, "/"),
 		key:    key,
 		closed: false,
 		client: &http.Client{
@@ -72,36 +73,35 @@ const (
 	retryDelay     = internal.ShortRetryDelayMs * time.Millisecond
 	requestTimeout = 2 * time.Second
 
-	// Maximum number of concurrent API requests
 	maxConcurrentRequests = 5
 )
 
+// setAuthHeaders sets the x-api-key header used by the players service.
+func (s *Service) setAuthHeaders(req *http.Request) {
+	req.Header.Set("x-api-key", s.key)
+}
+
 // InflictionOfPlayer retrieves the inflictions for a given player by their XUID.
-// This function internally calls `InflictionOfXUID` with the player's XUID.
 func (s *Service) InflictionOfPlayer(p *player.Player) (*ModelResponse, error) {
 	return s.InflictionOfXUID(p.XUID())
 }
 
 // InflictionOfXUID retrieves the inflictions for a specific XUID.
-// This function makes a request to the service and returns the player's current and past inflictions.
 func (s *Service) InflictionOfXUID(xuid string) (*ModelResponse, error) {
-	return s.InflictionOf(ModelRequest{XUID: xuid})
+	params := url.Values{}
+	params.Set("xuid", xuid)
+	return s.inflictionOf(params)
 }
 
 // InflictionOfName retrieves the inflictions for a player based on their name.
-// This function makes a request to the service and returns the player's current and past inflictions.
 func (s *Service) InflictionOfName(name string) (*ModelResponse, error) {
-	return s.InflictionOf(ModelRequest{Name: name})
+	params := url.Values{}
+	params.Set("name", name)
+	return s.inflictionOf(params)
 }
 
-// InflictionOf makes a request to the service to retrieve the inflictions based on a given request model.
-// It handles retries, timeouts, and different server response codes, including parsing the response.
-func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
-	rawRequest, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
+// inflictionOf makes a GET request to /api/players/inflictions with the given query params.
+func (s *Service) inflictionOf(params url.Values) (*ModelResponse, error) {
 	var lastErr error
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
@@ -115,27 +115,23 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/getInflictions", bytes.NewBuffer(rawRequest))
+		endpoint := s.url + "/api/players/inflictions?" + params.Encode()
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 		if err != nil {
 			cancel()
-
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
-		httpReq.Header.Set("authorization", s.key)
-		httpReq.Header.Set("Content-Type", "application/json")
+		s.setAuthHeaders(httpReq)
 
 		resp, err := s.client.Do(httpReq)
-
 		cancel()
 
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
-
 			if isTemporaryError(err) {
 				continue
 			}
-
 			return nil, lastErr
 		}
 
@@ -143,23 +139,33 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 
 		switch resp.StatusCode {
 		case http.StatusOK:
-			var response ModelResponse
-			if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			var apiResp apiInflictionsResponse
+			if err = json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 				return nil, err
 			}
 
-			s.log.Debug(fmt.Sprintf("Fetched inflictions of xuid=%s,name=%s and response=%+v", req.XUID, req.Name, response))
+			result := &ModelResponse{
+				CurrentInflictions: make([]Infliction, 0, len(apiResp.Active)),
+				PastInflictions:    make([]Infliction, 0, len(apiResp.Inactive)),
+			}
+			for _, a := range apiResp.Active {
+				result.CurrentInflictions = append(result.CurrentInflictions, apiInflictionToInternal(a))
+			}
+			for _, a := range apiResp.Inactive {
+				result.PastInflictions = append(result.PastInflictions, apiInflictionToInternal(a))
+			}
 
-			return &response, nil
+			s.log.Debug(fmt.Sprintf("Fetched inflictions via players service, active=%d inactive=%d", len(apiResp.Active), len(apiResp.Inactive)))
+
+			return result, nil
 		case http.StatusTooManyRequests:
 			lastErr = fmt.Errorf("rate limited")
-
 			time.Sleep(time.Duration(attempt+1) * retryDelay)
-
 			continue
+		case http.StatusNotFound:
+			return &ModelResponse{}, nil
 		default:
 			body, _ := io.ReadAll(resp.Body)
-
 			return nil, fmt.Errorf("failed to get inflictions: %s", string(body))
 		}
 	}
@@ -167,10 +173,15 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 	return nil, lastErr
 }
 
-// AddInfliction adds a new infliction (e.g., ban, mute) to the player.
-// It sends a request to the service and retries in case of temporary errors.
-func (s *Service) AddInfliction(req ModelRequest) error {
-	rawRequest, err := json.Marshal(req)
+// AddInfliction creates a new infliction via the players service.
+// userCtx identifies the target player; infliction holds the punishment details.
+func (s *Service) AddInfliction(userCtx UserContext, infliction Infliction) error {
+	apiReq := apiCreateRequest{
+		UserContext: userCtx,
+		Infliction:  internalToAPICreate(infliction),
+	}
+
+	rawRequest, err := json.Marshal(apiReq)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
@@ -187,56 +198,45 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/addInfliction", bytes.NewBuffer(rawRequest))
-		s.log.Debug(fmt.Sprintf("Adding infliction on url=%s,request=%+v", s.url+"/addInfliction", bytes.NewBuffer(rawRequest)))
+		endpoint := s.url + "/api/inflictions"
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(rawRequest))
+		s.log.Debug(fmt.Sprintf("Adding infliction on url=%s", endpoint))
 
 		if err != nil {
 			cancel()
-
 			return fmt.Errorf("failed to create request: %w", err)
 		}
 
-		httpReq.Header.Set("authorization", s.key)
+		s.setAuthHeaders(httpReq)
 		httpReq.Header.Set("Content-Type", "application/json")
 
 		resp, err := s.client.Do(httpReq)
-
 		cancel()
 
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
-
 			if isTemporaryError(err) {
 				continue
 			}
-
 			return lastErr
 		}
 
 		defer resp.Body.Close()
 
-		if resp.StatusCode == http.StatusNoContent {
-			s.log.Debug(fmt.Sprintf("Successfully added or updated infliction for xuid=%s,name=%s", req.XUID, req.Name))
-
+		if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
+			s.log.Debug(fmt.Sprintf("Successfully added infliction for %+v", userCtx))
 			return nil
 		}
 
 		body, _ := io.ReadAll(resp.Body)
-
 		return fmt.Errorf("failed to add infliction: %s", string(body))
 	}
 
 	return lastErr
 }
 
-// RemoveInfliction removes an existing infliction (e.g., un-ban, un-mute) from a player.
-// It sends a request to the service to remove the infliction and retries on temporary errors.
-func (s *Service) RemoveInfliction(req ModelRequest) error {
-	rawRequest, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
-	}
-
+// RemoveInfliction removes an existing infliction by its UUID via the players service.
+func (s *Service) RemoveInfliction(inflictionID string) error {
 	var lastErr error
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
@@ -249,41 +249,34 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, s.url+"/removeInfliction", bytes.NewBuffer(rawRequest))
+		endpoint := s.url + "/api/inflictions/" + inflictionID
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
 		if err != nil {
 			cancel()
-
 			return fmt.Errorf("failed to create request: %w", err)
 		}
 
-		httpReq.Header.Set("authorization", s.key)
-		httpReq.Header.Set("Content-Type", "application/json")
+		s.setAuthHeaders(httpReq)
 
 		resp, err := s.client.Do(httpReq)
-
 		cancel()
 
 		if err != nil {
 			lastErr = fmt.Errorf("request failed: %w", err)
-
 			if isTemporaryError(err) {
 				continue
 			}
-
 			return lastErr
 		}
 
 		defer resp.Body.Close()
 
-		if resp.StatusCode == http.StatusNoContent {
-			s.log.Debug(fmt.Sprintf("Successfully removed infliction for xuid=%s,name=%s", req.XUID, req.Name))
-
+		if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK {
+			s.log.Debug(fmt.Sprintf("Successfully removed infliction id=%s", inflictionID))
 			return nil
 		}
 
 		body, _ := io.ReadAll(resp.Body)
-
 		return fmt.Errorf("failed to remove infliction: %s", string(body))
 	}
 
@@ -308,80 +301,66 @@ func init() {
 
 // playerDetailsWorker processes queued player detail requests with rate limiting
 func playerDetailsWorker() {
-	// Create a semaphore using a buffered channel to limit concurrent requests
 	semaphore := make(chan struct{}, maxConcurrentRequests)
-
-	// Track active requests to ensure we can shut down cleanly
 	activeRequests := make(chan struct{}, maxConcurrentRequests)
 
 	for {
 		select {
 		case <-detailsWorkerShutdown:
-			// Wait for all active requests to finish before exiting
 			for range len(activeRequests) {
 				<-activeRequests
 			}
-
 			return
 		case req, ok := <-SendDetailsOfQueue:
 			if !ok {
-				// Channel closed, exit worker
 				return
 			}
 
-			// Acquire semaphore slot (blocks if maxConcurrentRequests are already running)
 			select {
 			case semaphore <- struct{}{}:
-				// Track active request
 				activeRequests <- struct{}{}
 
-				// Process request in a goroutine
 				go func(p *player.Player) {
 					defer func() {
-						// Release semaphore slot when done
 						<-semaphore
-						// Mark request as complete
 						<-activeRequests
 					}()
 
-					// Skip if service is closed
 					s := GlobalService()
 					if s == nil || s.closed {
 						return
 					}
 
-					req := PlayerDetails{
-						Name: p.Name(),
+					body := apiUpsertPlayer{
 						XUID: p.XUID(),
-						IP:   strings.Split(p.Addr().String(), ":")[0],
+						Name: p.Name(),
+						IPs:  []string{strings.Split(p.Addr().String(), ":")[0]},
 					}
 
-					rawRequest, err := json.Marshal(req)
+					rawRequest, err := json.Marshal(body)
 					if err != nil {
 						s.log.Error(fmt.Sprintf("failed to marshal request: %v", err))
-
 						return
 					}
 
 					ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 					defer cancel()
 
-					httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url+"/playerDetails", bytes.NewBuffer(rawRequest))
-					s.log.Debug(fmt.Sprintf("Sending details on url=%s,request=%+v", s.url+"/playerDetails", bytes.NewBuffer(rawRequest)))
+					endpoint := s.url + "/api/players"
+					httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(rawRequest))
+					s.log.Debug(fmt.Sprintf("Sending player details to %s", endpoint))
 
 					if err != nil {
 						s.log.Error(fmt.Sprintf("failed to create new request: %v", err))
-
 						return
 					}
 
 					httpReq.Header.Set("Content-Type", "application/json")
-					httpReq.Header.Set("authorization", s.key)
+					s.setAuthHeaders(httpReq)
 
 					resp, err := s.client.Do(httpReq)
 					if err != nil {
 						s.log.Error(fmt.Sprintf("request failed: %v", err))
-
 						return
 					}
 					defer resp.Body.Close()
@@ -389,25 +368,21 @@ func playerDetailsWorker() {
 					s.log.Info(fmt.Sprintf("Sent player details of %s, status: %d", p.Name(), resp.StatusCode))
 				}(req.player)
 			case <-detailsWorkerShutdown:
-				// Worker is shutting down, don't start new requests
 				return
 			}
 		}
 	}
 }
 
-// SendDetailsOf queues a request to send player details to the API
+// SendDetailsOf queues a request to send player details to the players service (upsert).
 func (s *Service) SendDetailsOf(p *player.Player) {
 	if s.closed {
 		return
 	}
 
-	// Queue the request instead of processing it immediately
 	select {
 	case SendDetailsOfQueue <- playerDetailsRequest{player: p}:
-		// Successfully queued
 	default:
-		// Queue is full, log warning
 		s.log.Error(fmt.Sprintf("Player details queue is full, skipping request for %s", p.Name()))
 	}
 }
@@ -416,19 +391,13 @@ func (s *Service) SendDetailsOf(p *player.Player) {
 func (s *Service) Stop() {
 	s.log.Debug("Stopping moderation service and workers...")
 	s.closed = true
-
-	// Signal the worker to shutdown
 	close(detailsWorkerShutdown)
-
-	// Give workers time to finish active requests (up to 3 seconds)
 	timeout := time.NewTimer(3 * time.Second)
 	<-timeout.C
 }
 
 // isTemporaryError checks if an error is temporary and can be retried.
-// It checks for context deadline exceeded errors and network-related errors (e.g., timeout, temporary issues).
 func isTemporaryError(err error) bool {
-	// Check for context deadline exceeded errors
 	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}

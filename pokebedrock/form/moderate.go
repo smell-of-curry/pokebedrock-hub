@@ -139,11 +139,10 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 				return
 			}
 
-			err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
-				Name:             c.target,
-				InflictionStatus: moderation.InflictionStatusCurrent,
-				Infliction:       infliction,
-			})
+			err := moderation.GlobalService().AddInfliction(
+				moderation.UserContext{Name: c.target},
+				infliction,
+			)
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s' %s.</red>", c.target, err.Error()))
 
@@ -188,7 +187,7 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 }
 
 // RemoveInfliction represents a form for removing existing inflictions from a player.
-// It contains the target player name and a map of inflictions to their display labels.
+// It contains the target player name and a map of button labels to infliction objects.
 type RemoveInfliction struct {
 	target        string
 	inflictionMap map[string]moderation.Infliction
@@ -248,11 +247,7 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
 			prosecutor = e.(*player.Player)
 
-			err := moderation.GlobalService().RemoveInfliction(moderation.ModelRequest{
-				Name:             r.target,
-				InflictionStatus: moderation.InflictionStatusCurrent,
-				Infliction:       infliction,
-			})
+			err := moderation.GlobalService().RemoveInfliction(infliction.ID)
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while removing infliction on '%s'.</red>", r.target))
 

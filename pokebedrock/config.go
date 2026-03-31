@@ -96,8 +96,8 @@ func DefaultConfig() Config {
 
 	c.Service.GinAddress = ":8080"
 
-	c.Service.RolesURL = "http://127.0.0.1:4000/api/roles"
-	c.Service.ModerationURL = "http://127.0.0.1:4000/api/moderation"
+	c.Service.RolesURL = "http://127.0.0.1:4000"
+	c.Service.ModerationURL = "http://players:4002"
 	c.Service.ModerationKey = "secret-key"
 
 	// Default VPN cache path
