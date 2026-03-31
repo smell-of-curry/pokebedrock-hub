@@ -39,7 +39,6 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
 	for _, target := range k.Target {
 		victim := target.(*player.Player)
 
-		// Create the kick infliction
 		infliction := moderation.Infliction{
 			Type:          moderation.InflictionKicked,
 			DateInflicted: time.Now().UnixMilli(),
@@ -47,17 +46,14 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
 			Prosecutor:    p.Name(),
 		}
 
-		// Add the infliction to the moderation service
-		err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
-			Name:             victim.Name(),
-			InflictionStatus: moderation.InflictionStatusCurrent,
-			Infliction:       infliction,
-		})
+		err := moderation.GlobalService().AddInfliction(
+			moderation.UserContext{Name: victim.Name()},
+			infliction,
+		)
 		if err != nil {
 			o.Error("Error while syncing kick globally", "error", err)
 		}
 
-		// Kick the player
 		victim.Disconnect(text.Colourf("<red>You've been kicked. Reason: %s</red>", reason))
 		o.Print("Successfully kicked from world", "target", k.Target, "reason", reason)
 	}
