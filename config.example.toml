@@ -3,7 +3,11 @@ SentryDsn = '' # DSN for Sentry.
 LogLevel = 'debug' # Log level.
 ServerPath = 'resources/servers' # Path to the servers folder.
 LocalePath = 'resources/locales' # Path to the locales folder.
-AFKTimeout = "10m" # The duration for a player to be considered afk.
+AFKTimeout = "10m" # Idle duration at which a player becomes eligible to be kicked for AFK.
+AFKWarnApproaching = "4m" # Idle duration at which players get a soft "AFK in 1 minute" warning (always sent).
+AFKMarkAFK = "5m" # Idle duration at which players are told they are now AFK (always sent).
+AFKFinalWarning = "9m" # Idle duration at which players get the near-capacity hard warning (only when over threshold).
+AFKFullnessThreshold = 0.90 # Fraction (0..1) of MaxCount at/above which AFK players start getting kicked, longest-AFK first.
 
 [Network]
 Address = ':19132' # Address to bind to.

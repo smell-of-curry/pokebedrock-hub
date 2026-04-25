@@ -15,12 +15,16 @@ import (
 
 const (
 	// Default timeout and duration constants
-	defaultAFKTimeout      = 10 * time.Minute
-	defaultMaxWaitTime     = 10 * time.Minute
-	defaultBackoffInterval = 1 * time.Minute
-	defaultQueueTimeout    = 15 * time.Minute
-	defaultMaxRestartTime  = 20 * time.Minute
-	defaultRestartCooldown = 5 * time.Minute
+	defaultAFKTimeout         = 10 * time.Minute
+	defaultAFKWarnApproaching = 4 * time.Minute
+	defaultAFKMarkAFK         = 5 * time.Minute
+	defaultAFKFinalWarning    = 9 * time.Minute
+	defaultAFKFullnessThresh  = 0.90
+	defaultMaxWaitTime        = 10 * time.Minute
+	defaultBackoffInterval    = 1 * time.Minute
+	defaultQueueTimeout       = 15 * time.Minute
+	defaultMaxRestartTime     = 20 * time.Minute
+	defaultRestartCooldown    = 5 * time.Minute
 
 	defaultParkourCountdownSeconds = 5
 	defaultParkourCompletionRadius = 1.25
@@ -33,7 +37,24 @@ type Config struct {
 		LogLevel   string // Can be "debug", "info", "warn", "error"
 		ServerPath string
 		LocalePath string
+		// AFKTimeout is how long a player must be idle before becoming
+		// eligible to be kicked for being AFK. The kick itself only fires
+		// when the hub is at or above AFKFullnessThreshold full.
 		AFKTimeout util.Duration
+		// AFKWarnApproaching is how long a player must be idle before
+		// receiving the "AFK in 1 minute" soft warning. Always sent.
+		AFKWarnApproaching util.Duration
+		// AFKMarkAFK is how long a player must be idle before being told
+		// they are now AFK. Always sent.
+		AFKMarkAFK util.Duration
+		// AFKFinalWarning is how long a player must be idle before
+		// receiving the near-capacity hard warning. Only sent when fullness
+		// >= AFKFullnessThreshold.
+		AFKFinalWarning util.Duration
+		// AFKFullnessThreshold is the fraction (0..1) of the hub's MaxCount
+		// at or above which AFK players will start getting kicked,
+		// longest-AFK first.
+		AFKFullnessThreshold float64
 	}
 	Service struct {
 		GinAddress           string
@@ -93,6 +114,10 @@ func DefaultConfig() Config {
 	c.PokeBedrock.LogLevel = "info" // Default to info level in production
 	c.PokeBedrock.ServerPath = "resources/servers"
 	c.PokeBedrock.AFKTimeout = util.Duration(defaultAFKTimeout)
+	c.PokeBedrock.AFKWarnApproaching = util.Duration(defaultAFKWarnApproaching)
+	c.PokeBedrock.AFKMarkAFK = util.Duration(defaultAFKMarkAFK)
+	c.PokeBedrock.AFKFinalWarning = util.Duration(defaultAFKFinalWarning)
+	c.PokeBedrock.AFKFullnessThreshold = defaultAFKFullnessThresh
 
 	c.Service.GinAddress = ":8080"
 
