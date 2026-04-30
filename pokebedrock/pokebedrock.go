@@ -6,6 +6,7 @@ package pokebedrock
 import (
 	"log/slog"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
@@ -490,20 +491,87 @@ func (poke *PokeBedrock) World() *world.World {
 	return poke.srv.World()
 }
 
-// doAFKCheck ...
-func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
-	for ent := range tx.Players() {
-		p := ent.(*player.Player)
+// afkCandidate pairs a player with their handler's movement tracker and their
+// current idle duration so the evaluator can sort and filter without
+// re-reading state more than once.
+type afkCandidate struct {
+	p   *player.Player
+	m   *session.Movement
+	dur time.Duration
+}
 
+// doAFKCheck sends progressive AFK warnings and, when the hub is near
+// capacity, kicks the longest-AFK players first until fullness drops below
+// the configured threshold. Soft warnings fire regardless of fullness; only
+// the final warning and the actual kicks are gated on fullness.
+func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
+	cfg := poke.conf.PokeBedrock
+
+	var cands []afkCandidate
+	for ent := range tx.Players() {
+		p, ok := ent.(*player.Player)
+		if !ok {
+			continue
+		}
 		h, ok := p.Handler().(*handler.PlayerHandler)
 		if !ok {
 			continue
 		}
-
 		m := h.Movement()
-		if time.Since(m.LastMoveTime()) > time.Duration(poke.conf.PokeBedrock.AFKTimeout) {
-			p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))
+		cands = append(cands, afkCandidate{p: p, m: m, dur: time.Since(m.LastMoveTime())})
+	}
+	if len(cands) == 0 {
+		return
+	}
+
+	// Soft warnings always fire. Flags are reset on movement so they re-arm
+	// once a player comes back and goes idle again.
+	for _, c := range cands {
+		if c.dur >= time.Duration(cfg.AFKWarnApproaching) && !c.m.WarnedApproaching() {
+			c.p.Message(text.Colourf("<yellow>You will be marked AFK in 1 minute. Move to reset your timer.</yellow>"))
+			c.m.SetWarnedApproaching(true)
 		}
+		if c.dur >= time.Duration(cfg.AFKMarkAFK) && !c.m.MarkedAFK() {
+			c.p.Message(text.Colourf("<gold>You are now AFK. Move to reset your timer.</gold>"))
+			c.m.SetMarkedAFK(true)
+		}
+	}
+
+	maxPlayers := poke.conf.UserConfig.Players.MaxCount
+	if maxPlayers <= 0 {
+		return
+	}
+	fullness := float64(len(cands)) / float64(maxPlayers)
+	if fullness < cfg.AFKFullnessThreshold {
+		return
+	}
+
+	for _, c := range cands {
+		if c.dur >= time.Duration(cfg.AFKFinalWarning) && !c.m.WarnedFinal() {
+			c.p.Message(text.Colourf("<red>Server is near capacity. Move now or you will be kicked for being AFK.</red>"))
+			c.m.SetWarnedFinal(true)
+		}
+	}
+
+	eligible := cands[:0:0]
+	for _, c := range cands {
+		if c.dur >= time.Duration(cfg.AFKTimeout) {
+			eligible = append(eligible, c)
+		}
+	}
+	if len(eligible) == 0 {
+		return
+	}
+	sort.Slice(eligible, func(i, j int) bool { return eligible[i].dur > eligible[j].dur })
+
+	thresholdCount := int(float64(maxPlayers) * cfg.AFKFullnessThreshold)
+	remaining := len(cands)
+	for _, c := range eligible {
+		if remaining < thresholdCount {
+			return
+		}
+		c.p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))
+		remaining--
 	}
 }
 
