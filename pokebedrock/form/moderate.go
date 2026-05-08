@@ -132,18 +132,20 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 	}
 
 	h := prosecutor.H()
+
 	go func() {
+		err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
+			Name:             c.target,
+			InflictionStatus: moderation.InflictionStatusCurrent,
+			Infliction:       infliction,
+		})
+
 		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
-			prosecutor = e.(*player.Player)
-			if prosecutor == nil {
+			prosecutor, ok := e.(*player.Player)
+			if !ok || prosecutor == nil {
 				return
 			}
 
-			err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
-				Name:             c.target,
-				InflictionStatus: moderation.InflictionStatusCurrent,
-				Infliction:       infliction,
-			})
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s' %s.</red>", c.target, err.Error()))
 
@@ -179,8 +181,8 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 				case moderation.InflictionKicked:
 					victim.Disconnect(text.Colourf("<red>You've been kicked."))
 				case moderation.InflictionBanned:
-					victim.Disconnect(text.Colourf("<red>You've been banned! Reason: %s, Expiry Date: %d, Prosecutor: %s</red>",
-						infliction.Reason, infliction.ExpiryDate, infliction.Prosecutor))
+					victim.Disconnect(text.Colourf("<red>You've been banned! Reason: %s, Expiry Date: %s, Prosecutor: %s</red>",
+						infliction.Reason, formatExpiry(infliction.ExpiryDate), infliction.Prosecutor))
 				}
 			}
 		})
@@ -212,7 +214,7 @@ func NewRemoveInfliction(target string) form.Menu {
 	} else {
 		for _, inf := range resp.CurrentInflictions {
 			name := fmt.Sprintf("[%s] - Reason: %s", string(inf.Type), inf.Reason)
-			description := fmt.Sprintf("By: %s, Till: %d", inf.Prosecutor, inf.ExpiryDate)
+			description := fmt.Sprintf("By: %s, Till: %s", inf.Prosecutor, formatExpiry(inf.ExpiryDate))
 			label := fmt.Sprintf("%s\n%s", name, description)
 			inflictionMap[label] = inf
 
@@ -245,14 +247,18 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 
 	h := prosecutor.H()
 	go func() {
-		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
-			prosecutor = e.(*player.Player)
+		err := moderation.GlobalService().RemoveInfliction(moderation.ModelRequest{
+			Name:             r.target,
+			InflictionStatus: moderation.InflictionStatusCurrent,
+			Infliction:       infliction,
+		})
 
-			err := moderation.GlobalService().RemoveInfliction(moderation.ModelRequest{
-				Name:             r.target,
-				InflictionStatus: moderation.InflictionStatusCurrent,
-				Infliction:       infliction,
-			})
+		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
+			prosecutor, ok := e.(*player.Player)
+			if !ok {
+				return
+			}
+
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while removing infliction on '%s'.</red>", r.target))
 
@@ -288,4 +294,15 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 // It requires an Inflictions method that returns the player's infliction state container.
 type inflictionHandler interface {
 	Inflictions() *session.Inflictions
+}
+
+// formatExpiry renders the expiry timestamp from a moderation infliction
+// in a human-readable form. ExpiryDate is a *int64 (nil = permanent), so a
+// raw `%d` formatter prints the pointer address.
+func formatExpiry(expiry *int64) string {
+	if expiry == nil || *expiry == 0 {
+		return "permanent"
+	}
+
+	return time.UnixMilli(*expiry).UTC().Format(time.RFC3339)
 }

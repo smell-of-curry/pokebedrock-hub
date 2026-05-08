@@ -2,6 +2,7 @@
 package command
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/cmd"
@@ -36,29 +37,33 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
 		reason = "No reason provided"
 	}
 
+	prosecutorName := p.Name()
+
 	for _, target := range k.Target {
 		victim := target.(*player.Player)
+		victimName := victim.Name()
 
 		// Create the kick infliction
 		infliction := moderation.Infliction{
 			Type:          moderation.InflictionKicked,
 			DateInflicted: time.Now().UnixMilli(),
 			Reason:        reason,
-			Prosecutor:    p.Name(),
+			Prosecutor:    prosecutorName,
 		}
 
-		// Add the infliction to the moderation service
-		err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
-			Name:             victim.Name(),
-			InflictionStatus: moderation.InflictionStatusCurrent,
-			Infliction:       infliction,
-		})
-		if err != nil {
-			o.Error("Error while syncing kick globally", "error", err)
-		}
+		// Sync to the moderation service off the world transaction goroutine.
+		go func(name string) {
+			if err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
+				Name:             name,
+				InflictionStatus: moderation.InflictionStatusCurrent,
+				Infliction:       infliction,
+			}); err != nil {
+				slog.Default().Error("error while syncing kick globally", "target", name, "error", err)
+			}
+		}(victimName)
 
 		// Kick the player
 		victim.Disconnect(text.Colourf("<red>You've been kicked. Reason: %s</red>", reason))
-		o.Print("Successfully kicked from world", "target", k.Target, "reason", reason)
+		o.Print("Successfully kicked from world", "target", victimName, "reason", reason)
 	}
 }

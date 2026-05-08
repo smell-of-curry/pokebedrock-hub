@@ -2,11 +2,9 @@ package queue
 
 import (
 	"container/heap"
-	"sort"
 	"sync"
 	"time"
 
-	"github.com/df-mc/atomic"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/bossbar"
 	"github.com/df-mc/dragonfly/server/world"
@@ -19,252 +17,280 @@ import (
 )
 
 const (
-	// highPriorityQueueThreshold is the position threshold for "Almost your turn" message
+	// highPriorityQueueThreshold is the position threshold for "Almost your turn" message.
 	highPriorityQueueThreshold = 3
 
-	// mediumPriorityQueueThreshold is the position threshold for "Short wait" message
+	// mediumPriorityQueueThreshold is the position threshold for "Short wait" message.
 	mediumPriorityQueueThreshold = 10
 )
 
-// QueueManager ...
+// QueueManager is the global queue manager instance.
 var QueueManager *Manager
 
-// init ...
 func init() {
 	QueueManager = NewManager()
 }
 
-// Transfer represents a player waiting to be transferred to a server
+// Transfer represents a player waiting to be transferred to a server.
 type Transfer struct {
 	player *player.Player
 	entry  *Entry
 	server *srv.Server
 }
 
-// Manager ...
+// Manager owns the priority queue of players waiting to join downstream
+// servers and orchestrates per-tick transfer processing.
 type Manager struct {
-	queue atomic.Value[PriorityQueue]
+	mu sync.Mutex
+	pq PriorityQueue
 
-	// pending boss bar updates deduplicated by entity handle
 	pendingMu       sync.Mutex
 	pendingBossBars map[*world.EntityHandle]struct{}
 }
 
-// NewManager ...
+// NewManager creates a new queue manager.
 func NewManager() *Manager {
 	m := &Manager{
-		queue: *atomic.NewValue(PriorityQueue{}),
+		pq:              PriorityQueue{},
+		pendingBossBars: make(map[*world.EntityHandle]struct{}),
 	}
-	m.pendingBossBars = make(map[*world.EntityHandle]struct{})
-	q := m.queue.Load()
-	heap.Init(&q)
-	m.queue.Store(q)
+	heap.Init(&m.pq)
 
 	return m
 }
 
-// AddPlayer adds a player to the queue for a specific server.
-// If the player is already in a queue, they are removed from it first.
+// AddPlayer adds a player to the queue for a specific server. If the player
+// is already queued they are removed first.
 //
-// Note about queue priority:
-// Players are prioritized by rank first, then by join time.
-// This means a player with a higher rank (e.g., Admin) will always be placed
-// ahead of players with lower ranks (e.g., Trainer), regardless of how long
-// the lower-ranked players have been waiting.
-func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, srv *srv.Server) {
-	// First check if player is already in queue
-	m.RemovePlayer(p)
-
-	// Verify server exists
-	if srv == nil {
+// Players are prioritized by rank, then by join time. A higher rank is
+// always served before a lower rank, regardless of how long the lower-ranked
+// player has waited.
+func (m *Manager) AddPlayer(p *player.Player, r rank.Rank, server *srv.Server) {
+	if server == nil {
 		p.Message(locale.Translate("queue.nonexistent.server"))
 
 		return
 	}
 
-	// Create queue entry
 	entry := &Entry{
 		joinTime: time.Now(),
 		handle:   p.H(),
 		rank:     r,
-		srv:      srv,
+		srv:      server,
 	}
 
-	// Add to queue
-	m.AddToQueue(entry)
+	m.mu.Lock()
+	m.removeByHandleLocked(p.H())
+	heap.Push(&m.pq, entry)
+	m.mu.Unlock()
 
-	// Queue boss bar updates (processed incrementally per tick)
 	m.queueAllBossBars()
 
-	// Inform player about their queue status and explain priority system
-	status := srv.Status()
-
+	status := server.Status()
 	switch {
 	case status.Online && status.PlayerCount < status.MaxPlayerCount:
-		p.Message(locale.Translate("queue.added.success", srv.Name()))
+		p.Message(locale.Translate("queue.added.success", server.Name()))
 	case !status.Online:
-		p.Message(locale.Translate("queue.added.offline", srv.Name()))
+		p.Message(locale.Translate("queue.added.offline", server.Name()))
 	default:
 		p.Message(locale.Translate("queue.added.full",
-			srv.Name(), status.PlayerCount, status.MaxPlayerCount))
+			server.Name(), status.PlayerCount, status.MaxPlayerCount))
 	}
 
-	// Explain queue priority system to the player
 	p.Message(locale.Translate("queue.priority.note"))
 }
 
-// RemovePlayer ...
+// RemovePlayer removes a player from the queue if present and
+// clears their boss bar.
 func (m *Manager) RemovePlayer(p *player.Player) {
-	for i, entry := range m.Queue() {
-		if entry.handle == p.H() {
-			m.RemoveFromQueue(i)
-			p.Messagef("%s", locale.Translate("queue.removed", entry.srv.Name()))
+	var serverName string
 
-			break
-		}
+	m.mu.Lock()
+	if removed := m.removeByHandleLocked(p.H()); removed != nil && removed.srv != nil {
+		serverName = removed.srv.Name()
+	}
+	m.mu.Unlock()
+
+	if serverName != "" {
+		p.Messagef("%s", locale.Translate("queue.removed", serverName))
 	}
 
 	p.RemoveBossBar()
 	m.queueAllBossBars()
 }
 
-// NextPlayer ...
-func (m *Manager) NextPlayer() *Entry {
-	queue := m.Queue()
-	if len(queue) == 0 {
-		return nil
+// removeByHandleLocked removes the entry with the given handle, returning it
+// if found. Caller must hold m.mu.
+func (m *Manager) removeByHandleLocked(h *world.EntityHandle) *Entry {
+	for i, entry := range m.pq {
+		if entry != nil && entry.handle == h {
+			removed := heap.Remove(&m.pq, i).(*Entry)
+
+			return removed
+		}
 	}
 
-	entry := heap.Pop(&queue).(*Entry)
-	m.queue.Store(queue)
-
-	return entry
+	return nil
 }
 
-// Update ...
-func (m *Manager) Update(tx *world.Tx) {
-	queue := m.Queue()
-	if len(queue) == 0 {
+// removeEntryLocked removes the given entry by identity. Caller must hold
+// m.mu. Indices are kept correct by heap.Swap, so this is safe even after
+// other concurrent removals via heap operations.
+func (m *Manager) removeEntryLocked(entry *Entry) {
+	if entry == nil || entry.index < 0 || entry.index >= len(m.pq) {
 		return
 	}
 
-	// Instead of modifying the queue during iteration,
-	// we'll track changes and apply them afterward
-	var entriesToRemove []int
+	if m.pq[entry.index] != entry {
+		// Index is stale; fall back to a linear scan.
+		for i, e := range m.pq {
+			if e == entry {
+				heap.Remove(&m.pq, i)
 
-	var playersToTransfer []*Transfer
-
-	// First pass: check queue entries and mark for removal/transfer
-	for i, entry := range queue {
-		// Skip already marked entries
-		if i < 0 || i >= len(queue) {
-			continue
+				return
+			}
 		}
 
-		// Check for nil entries
+		return
+	}
+
+	heap.Remove(&m.pq, entry.index)
+}
+
+// NextPlayer pops the highest-priority entry from the queue, returning nil
+// when the queue is empty.
+func (m *Manager) NextPlayer() *Entry {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.pq.Len() == 0 {
+		return nil
+	}
+
+	return heap.Pop(&m.pq).(*Entry)
+}
+
+// snapshot returns a shallow copy of the current queue suitable for read-only
+// iteration outside the lock. Entry pointers are shared so callers must not
+// mutate Entry fields without re-locking.
+func (m *Manager) snapshot() []*Entry {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	out := make([]*Entry, len(m.pq))
+	copy(out, m.pq)
+
+	return out
+}
+
+// Update is invoked once per server tick. It performs all queue maintenance:
+// removes stale entries, transfers up to one eligible player to their
+// destination server, and schedules boss bar refreshes for affected players.
+func (m *Manager) Update(tx *world.Tx) {
+	queueSnap := m.snapshot()
+	if len(queueSnap) == 0 {
+		return
+	}
+
+	var (
+		toRemove        []*Entry
+		toTransfer      *Transfer
+		invalidEntries  []*Entry
+		invalidMessages []string
+	)
+
+	for _, entry := range queueSnap {
 		if entry == nil || entry.handle == nil {
-			entriesToRemove = append(entriesToRemove, i)
+			toRemove = append(toRemove, entry)
 
 			continue
 		}
 
-		// Verify p still exists
 		ent, ok := entry.handle.Entity(tx)
 		if !ok {
-			entriesToRemove = append(entriesToRemove, i)
+			toRemove = append(toRemove, entry)
 
 			continue
 		}
 
 		p := ent.(*player.Player)
 
-		// Verify server still exists and is valid
 		s := entry.srv
 		if s == nil {
-			entriesToRemove = append(entriesToRemove, i)
-
-			p.Message(locale.Translate("queue.destination.invalid"))
+			invalidEntries = append(invalidEntries, entry)
+			invalidMessages = append(invalidMessages, "queue.destination.invalid")
+			toRemove = append(toRemove, entry)
+			_ = p
 
 			continue
 		}
 
-		// Check server status
 		st := s.Status()
 		if !st.Online {
-			// Skip offline servers but keep p in queue
 			continue
 		}
-
-		// Check if there's capacity in the server
 		if st.PlayerCount >= st.MaxPlayerCount {
-			// Server is full, keep p in queue
 			continue
 		}
-
-		// Admin bypass - allow admins to join immediately regardless of server capacity
-		// Others still need to wait for available slots
 		if st.PlayerCount >= st.MaxPlayerCount-5 && entry.rank < rank.Admin {
-			// Server is near capacity, only admins can bypass
 			continue
 		}
 
-		// Mark for transfer
-		playersToTransfer = append(playersToTransfer, &Transfer{
-			player: p,
-			entry:  entry,
-			server: s,
-		})
+		toTransfer = &Transfer{player: p, entry: entry, server: s}
+		toRemove = append(toRemove, entry)
 
-		entriesToRemove = append(entriesToRemove, i)
-
-		// Only process one transfer per tick
 		break
 	}
 
-	// Second pass: remove entries marked for removal (in reverse order to maintain indices)
-	sort.Sort(sort.Reverse(sort.IntSlice(entriesToRemove)))
+	if len(toRemove) > 0 {
+		m.mu.Lock()
+		for _, entry := range toRemove {
+			m.removeEntryLocked(entry)
+		}
+		m.mu.Unlock()
+	}
 
-	for _, i := range entriesToRemove {
-		if i >= 0 && i < len(m.Queue()) {
-			m.RemoveFromQueue(i)
+	for i, entry := range invalidEntries {
+		ent, ok := entry.handle.Entity(tx)
+		if !ok {
+			continue
+		}
+		if p, ok := ent.(*player.Player); ok {
+			p.Message(locale.Translate(invalidMessages[i]))
 		}
 	}
 
-	// Third pass: process transfers
-	for _, transfer := range playersToTransfer {
-		p, server := transfer.player, transfer.server
+	if toTransfer != nil {
+		p, server := toTransfer.player, toTransfer.server
 
-		// Notify the player they're being transferred
 		p.Message(locale.Translate("connection.connecting", server.Name()))
 
-		// Transfer the player
 		if err := p.Transfer(server.Address()); err != nil {
-			// If transfer fails, add player back to queue
 			p.Message(locale.Translate("connection.failed", err))
-			m.AddToQueue(transfer.entry)
+			m.mu.Lock()
+			heap.Push(&m.pq, toTransfer.entry)
+			m.mu.Unlock()
 		} else {
-			// Transfer was successful, send player data to authentication factory.
 			authentication.GlobalFactory().Set(p.Name(), p.XUID(), authentication.DefaultAuthDuration)
 		}
 	}
 
-	// If queue changed, schedule a full boss bar refresh
-	if len(entriesToRemove) > 0 || len(playersToTransfer) > 0 {
+	if len(toRemove) > 0 || toTransfer != nil {
 		m.queueAllBossBars()
 	}
 
-	// Process a limited number of boss bar updates per tick to avoid spikes
 	m.processBossBarUpdates(tx, internal.ProcessingBatchSize)
 }
 
 // queueAllBossBars adds all current players in queue to the pending update set.
 func (m *Manager) queueAllBossBars() {
-	q := m.Queue()
-	if len(q) == 0 {
+	queueSnap := m.snapshot()
+	if len(queueSnap) == 0 {
 		return
 	}
+
 	m.pendingMu.Lock()
-	for _, entry := range q {
+	for _, entry := range queueSnap {
 		if entry != nil && entry.handle != nil {
 			m.pendingBossBars[entry.handle] = struct{}{}
 		}
@@ -272,23 +298,21 @@ func (m *Manager) queueAllBossBars() {
 	m.pendingMu.Unlock()
 }
 
-// processBossBarUpdates processes up to maxCount pending boss bar updates using
-// O(n) position computation per player, avoiding full sort spikes.
+// processBossBarUpdates processes up to maxCount pending boss bar updates.
+// Position is computed in O(n) per player against the current queue snapshot,
+// avoiding full sort spikes.
 func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 	if maxCount <= 0 {
 		return
 	}
 
-	// Take a small batch of handles to process
 	batch := make([]*world.EntityHandle, 0, maxCount)
 
 	m.pendingMu.Lock()
-	i := 0
 	for h := range m.pendingBossBars {
 		batch = append(batch, h)
 		delete(m.pendingBossBars, h)
-		i++
-		if i >= maxCount {
+		if len(batch) >= maxCount {
 			break
 		}
 	}
@@ -298,6 +322,8 @@ func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 		return
 	}
 
+	queueSnap := m.snapshot()
+
 	for _, h := range batch {
 		ent, ok := h.Entity(tx)
 		if !ok {
@@ -305,9 +331,8 @@ func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 		}
 
 		p := ent.(*player.Player)
-		position := m.GetQueuePosition(p)
+		position := positionFor(queueSnap, h)
 		if position < 1 {
-			// Not in queue anymore
 			continue
 		}
 
@@ -323,65 +348,32 @@ func (m *Manager) processBossBarUpdates(tx *world.Tx, maxCount int) {
 			waitMsg = "Longer wait"
 		}
 
-		bar := bossbar.New(locale.Translate("queue.position", position, waitMsg))
-		p.SendBossBar(bar)
+		p.SendBossBar(bossbar.New(locale.Translate("queue.position", position, waitMsg)))
 	}
 }
 
-// AddToQueue ...
-func (m *Manager) AddToQueue(entry *Entry) {
-	q := m.Queue()
-	heap.Push(&q, entry)
-	m.queue.Store(q)
-}
-
-// RemoveFromQueue ...
-func (m *Manager) RemoveFromQueue(i int) {
-	q := m.Queue()
-	heap.Remove(&q, i)
-	m.queue.Store(q)
-}
-
-// Queue ...
-func (m *Manager) Queue() PriorityQueue {
-	return m.queue.Load()
-}
-
-// GetQueuePosition returns a player's position in the queue, or -1 if not in queue.
-// The position is calculated based on the priority order (rank, then join time).
-func (m *Manager) GetQueuePosition(p *player.Player) int {
-	queue := m.Queue()
-	if len(queue) == 0 {
-		return -1
-	}
-
-	// First check if player is in the queue at all
-	playerHandle := p.H()
-	playerEntry := (*Entry)(nil)
-
+// positionFor computes a player's 1-indexed priority position within the
+// supplied queue snapshot, returning -1 if the player is not in the queue.
+func positionFor(queue []*Entry, h *world.EntityHandle) int {
+	var self *Entry
 	for _, entry := range queue {
-		if entry.handle == playerHandle {
-			playerEntry = entry
+		if entry != nil && entry.handle == h {
+			self = entry
 
 			break
 		}
 	}
-
-	if playerEntry == nil {
-		return -1 // Player not in queue
+	if self == nil {
+		return -1
 	}
 
-	// Count how many players are ahead of this player based on priority
 	position := 1
-
 	for _, entry := range queue {
-		if entry == playerEntry {
-			continue // Skip self
+		if entry == nil || entry == self {
+			continue
 		}
-
-		// Same priority rules as queue - check if this entry has higher priority
-		if entry.rank > playerEntry.rank ||
-			(entry.rank == playerEntry.rank && entry.joinTime.Before(playerEntry.joinTime)) {
+		if entry.rank > self.rank ||
+			(entry.rank == self.rank && entry.joinTime.Before(self.joinTime)) {
 			position++
 		}
 	}
@@ -389,11 +381,19 @@ func (m *Manager) GetQueuePosition(p *player.Player) int {
 	return position
 }
 
-// IsPlayerInQueue checks if a player is already in the queue.
+// GetQueuePosition returns a player's 1-indexed position in the queue, or -1
+// if the player is not queued.
+func (m *Manager) GetQueuePosition(p *player.Player) int {
+	return positionFor(m.snapshot(), p.H())
+}
+
+// IsPlayerInQueue returns true if the given player has an entry in the queue.
 func (m *Manager) IsPlayerInQueue(p *player.Player) bool {
-	queue := m.Queue()
-	for _, entry := range queue {
-		if entry.handle == p.H() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, entry := range m.pq {
+		if entry != nil && entry.handle == p.H() {
 			return true
 		}
 	}
@@ -401,7 +401,18 @@ func (m *Manager) IsPlayerInQueue(p *player.Player) bool {
 	return false
 }
 
-// QueueSize returns the current size of the queue.
+// QueueSize returns the number of entries currently in the queue.
 func (m *Manager) QueueSize() int {
-	return m.Queue().Len()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.pq.Len()
+}
+
+// Queue returns a snapshot of the current queue for read-only use.
+//
+// Deprecated callers that mutated the returned slice are no longer
+// supported; mutations will not be reflected in the manager.
+func (m *Manager) Queue() []*Entry {
+	return m.snapshot()
 }
