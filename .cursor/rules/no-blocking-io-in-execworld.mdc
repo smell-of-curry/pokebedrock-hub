@@ -1,0 +1,92 @@
+---
+description: Never run HTTP, disk, or other blocking I/O inside ExecWorld / world transaction goroutines
+globs: pokebedrock/**/*.go
+alwaysApply: false
+---
+
+# No Blocking I/O on the World Transaction Goroutine
+
+In Dragonfly, callbacks passed to `EntityHandle.ExecWorld(...)` and the `Run`
+methods of `cmd.Command` execute on the **world's transaction goroutine**.
+Anything blocking that runs there freezes world ticks for every player and
+has been observed to surface runtime crashes inside `net/http`.
+
+## The rule
+
+Inside any of the following contexts, do **not** call HTTP clients, sleep,
+wait on channels, hold long mutexes, or do disk I/O:
+
+- `handle.ExecWorld(func(tx *world.Tx, e world.Entity) { ... })`
+- `cmd.Command.Run(src, output, *world.Tx)`
+- `world.Tx`-receiving callbacks generally
+
+## Pattern: fetch first, apply via ExecWorld
+
+When you need both data from a player **and** an HTTP/disk call:
+
+```go
+// ❌ BAD - HTTP call blocks the world transaction goroutine
+handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
+    p := e.(*player.Player)
+    resp, err := moderation.GlobalService().InflictionOfPlayer(p) // blocks!
+    // ...apply state...
+})
+```
+
+```go
+// ✅ GOOD - capture cheaply, do I/O off-thread, re-enter ExecWorld to apply
+var xuid string
+handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
+    if p, ok := e.(*player.Player); ok {
+        xuid = p.XUID()
+    }
+})
+if xuid == "" {
+    return
+}
+
+resp, err := moderation.GlobalService().InflictionOfXUID(xuid)
+if err != nil || resp == nil {
+    return
+}
+
+handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
+    p, ok := e.(*player.Player)
+    if !ok {
+        return
+    }
+    // apply resp to p
+})
+```
+
+## Pattern: command Run methods
+
+`cmd.Command.Run` runs on the transaction goroutine. Disconnect / mutate the
+victim inline, but fire HTTP sync to external services from a goroutine.
+
+```go
+// ❌ BAD
+func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
+    moderation.GlobalService().AddInfliction(...) // blocks the tx goroutine
+    victim.Disconnect(...)
+}
+
+// ✅ GOOD
+func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
+    name := victim.Name()
+    go func() {
+        if err := moderation.GlobalService().AddInfliction(...); err != nil {
+            slog.Default().Error("kick sync failed", "target", name, "error", err)
+        }
+    }()
+    victim.Disconnect(...)
+}
+```
+
+## Reference implementations
+
+- `pokebedrock/session/ranks.go` (`rankWorker`) — HTTP runs on the worker
+  goroutine; `ExecWorld` is used only for popups, messages, and `SetNameTag`.
+- `pokebedrock/session/inflictions.go` (`processInflictionRequest`) — captures
+  XUID via `ExecWorld`, performs HTTP off-thread, re-enters `ExecWorld` to
+  apply effects.
