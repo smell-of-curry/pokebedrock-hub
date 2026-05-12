@@ -2,10 +2,12 @@ module github.com/smell-of-curry/pokebedrock-hub
 
 go 1.26.0
 
+toolchain go1.26.3
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.13-0.20260505191230-b9a408ac6b28
+	github.com/df-mc/dragonfly v0.10.14-0.20260510204731-7869803a7484
 	github.com/df-mc/npc v1.0.5
 	github.com/getsentry/sentry-go v0.46.2
 	github.com/gin-gonic/gin v1.12.0
@@ -72,5 +74,3 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/df-mc/dragonfly => github.com/didntpot/dragonfly v0.0.0-20260506120944-c864c1ab8c0b
