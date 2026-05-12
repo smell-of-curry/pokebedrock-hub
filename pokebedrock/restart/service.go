@@ -7,6 +7,8 @@ import (
 	"maps"
 	"sync"
 	"time"
+
+	"github.com/df-mc/atomic"
 )
 
 // globalService holds the global restart manager service instance.
@@ -18,10 +20,15 @@ func GlobalService() *Service {
 }
 
 // Service manages server restart coordination and permissions.
+//
+// closed is an atomic.Bool because Stop() is invoked from the main
+// shutdown path while RequestRestart and the cleanup goroutine read it
+// concurrently.
 type Service struct {
 	log    *slog.Logger
 	config Config
-	closed bool
+	closed atomic.Bool
+	done   chan struct{}
 	mu     sync.RWMutex
 
 	state ServerState
@@ -52,7 +59,7 @@ func NewService(log *slog.Logger, config Config) {
 	globalService = &Service{
 		log:    log,
 		config: config,
-		closed: false,
+		done:   make(chan struct{}),
 		state: ServerState{
 			CurrentlyRestarting:  "",
 			Queue:                make([]QueueEntry, 0),
@@ -72,7 +79,7 @@ func NewService(log *slog.Logger, config Config) {
 
 // RequestRestart handles a restart request from a downstream server.
 func (s *Service) RequestRestart(req Request) Response {
-	if s.closed {
+	if s.closed.Load() {
 		return Response{
 			Status:  StatusDeny,
 			Message: "Restart manager service is closed",
@@ -246,16 +253,20 @@ func (s *Service) processQueue() {
 }
 
 // cleanupExpiredEntries removes expired entries from the queue periodically.
+//
+// The loop selects on s.done so Stop() can shut the goroutine down
+// promptly rather than waiting up to a full ticker interval.
 func (s *Service) cleanupExpiredEntries() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for {
-		if s.closed {
+		select {
+		case <-s.done:
 			return
+		case <-ticker.C:
 		}
 
-		<-ticker.C
 		s.mu.Lock()
 		now := time.Now()
 
@@ -331,11 +342,15 @@ func (s *Service) GetStateJSON() ([]byte, error) {
 	return json.MarshalIndent(state, "", "  ")
 }
 
+// stopOnce protects the done channel from being closed twice if Stop is
+// called more than once.
+var stopOnce sync.Once
+
 // Stop stops the restart manager service.
 func (s *Service) Stop() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.closed = true
+	s.closed.Store(true)
+	stopOnce.Do(func() {
+		close(s.done)
+	})
 	s.log.Debug("Restart Manager service stopped")
 }

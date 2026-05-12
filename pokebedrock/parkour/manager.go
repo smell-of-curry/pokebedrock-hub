@@ -121,20 +121,17 @@ func (m *Manager) StartCourse(p *player.Player, courseID string, rankName string
 	p.Teleport(sess.startPos)
 	p.SetImmobile()
 
-	sess.beginCountdown(m.cfg.CountdownSeconds, func(remaining int) {
-		p.SendJukeboxPopup(text.Colourf("<yellow>Starting in %d...</yellow>", remaining))
-	}, func() {
-		p.H().ExecWorld(func(_ *world.Tx, e world.Entity) {
-			p, exists := e.(*player.Player)
-			if !exists {
-				return
-			}
+	sess.beginCountdown(m.cfg.CountdownSeconds,
+		func(p *player.Player, remaining int) {
+			p.SendJukeboxPopup(text.Colourf("<yellow>Starting in %d...</yellow>", remaining))
+		},
+		func(_ *world.Tx, p *player.Player) {
 			sess.state = stateRunning
 			sess.runStart = time.Now()
 			p.SetMobile()
 			p.SendJukeboxPopup(text.Colourf("<green>Go!</green>"))
-		})
-	})
+		},
+	)
 	return nil
 }
 
@@ -150,20 +147,17 @@ func (m *Manager) restartFromCheckpoint(p *player.Player, sess *Session) {
 	p.Teleport(sess.checkpoint)
 	p.SetImmobile()
 
-	sess.beginCountdown(m.cfg.CountdownSeconds, func(remaining int) {
-		p.SendJukeboxPopup(text.Colourf("<yellow>Restarting in %d...</yellow>", remaining))
-	}, func() {
-		p.H().ExecWorld(func(_ *world.Tx, e world.Entity) {
-			p, exists := e.(*player.Player)
-			if !exists {
-				return
-			}
+	sess.beginCountdown(m.cfg.CountdownSeconds,
+		func(p *player.Player, remaining int) {
+			p.SendJukeboxPopup(text.Colourf("<yellow>Restarting in %d...</yellow>", remaining))
+		},
+		func(_ *world.Tx, p *player.Player) {
 			sess.state = stateRunning
 			sess.runStart = time.Now()
 			p.SetMobile()
 			p.SendJukeboxPopup(text.Colourf("<green>Go!</green>"))
-		})
-	})
+		},
+	)
 }
 
 // checkCheckpoint ...

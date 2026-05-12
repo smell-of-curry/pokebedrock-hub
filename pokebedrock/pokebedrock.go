@@ -456,14 +456,13 @@ func (poke *PokeBedrock) startTicking() {
 
 				queue.QueueManager.Update(tx)
 
-				switch {
-				case f(serverUpdateInterval):
+				if f(serverUpdateInterval) {
 					srv.UpdateAll()
-				case f(slapperUpdateInterval):
-					slapper.UpdateAll(tx)
-				case f(1):
-					poke.doAFKCheck(tx)
 				}
+				if f(slapperUpdateInterval) {
+					slapper.UpdateAll(tx)
+				}
+				poke.doAFKCheck(tx)
 			})
 		}
 	}

@@ -25,6 +25,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/df-mc/atomic v1.10.0 h1:0ZuxBKwR/hxcFGorKiHIp+hY7hgY+XBTzhCYD2NqSEg=
 github.com/df-mc/atomic v1.10.0/go.mod h1:Gw9rf+rPIbydMjA329Jn4yjd/O2c/qusw3iNp4tFGSc=
+github.com/df-mc/dragonfly v0.10.14-0.20260510204731-7869803a7484 h1:LLriZZb8G6y40bgoo7wr7RfuP38FR4z2Fbdfxwxp0z8=
+github.com/df-mc/dragonfly v0.10.14-0.20260510204731-7869803a7484/go.mod h1:DqV/SFGs3YWsePK2/0hBuNBhjvkNxUKho3rxvj2p6I8=
 github.com/df-mc/go-playfab v1.0.0 h1:6gVukk3aQbJ934GJFdcZJHVIw9lhauK+KHOevbwJA10=
 github.com/df-mc/go-playfab v1.0.0/go.mod h1:nGOlE+JFGOH5Z0iidEgJapHhndFi/oNk17RN9pKCF+k=
 github.com/df-mc/go-xsapi v1.0.1 h1:H1SbxYr4rXOqZSB8MwiODbDUsHRihxbHf+YOljUWgXw=
@@ -37,8 +39,6 @@ github.com/df-mc/npc v1.0.5 h1:dzh0Yce0sNxbY1waXK0qCNKOnaMJJjkB8nzlWC29EyQ=
 github.com/df-mc/npc v1.0.5/go.mod h1:ufHYi+AlkvTZEDRDu0H7DmuBtAbjqVpOUEqb0VrjlNg=
 github.com/df-mc/worldupgrader v1.0.20 h1:wfJyG3bFeaM/HXy7TCiO4HKVw3Mf3N4gPFmgxMHsKnc=
 github.com/df-mc/worldupgrader v1.0.20/go.mod h1:tsSOLTRm9mpG7VHvYpAjjZrkRHWmSbKZAm9bOLNnlDk=
-github.com/didntpot/dragonfly v0.0.0-20260506120944-c864c1ab8c0b h1:knQYK1CqCoHVEuav7rE75dzdqwiXdbp4QO67MnNJ9q4=
-github.com/didntpot/dragonfly v0.0.0-20260506120944-c864c1ab8c0b/go.mod h1:DqV/SFGs3YWsePK2/0hBuNBhjvkNxUKho3rxvj2p6I8=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/gabriel-vasile/mimetype v1.4.13 h1:46nXokslUBsAJE/wMsp5gtO500a4F3Nkz9Ufpk2AcUM=
 github.com/gabriel-vasile/mimetype v1.4.13/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
