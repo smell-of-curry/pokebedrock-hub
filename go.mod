@@ -13,7 +13,7 @@ require (
 	github.com/restartfu/gophig v0.1.0
 	github.com/samber/lo v1.53.0
 	github.com/sandertv/go-raknet v1.15.1-0.20260112202637-beca0b10c217
-	github.com/sandertv/gophertunnel v1.56.2
+	github.com/sandertv/gophertunnel v1.57.0
 	github.com/schollz/progressbar/v3 v3.19.0
 	golang.org/x/text v0.37.0
 )
@@ -73,4 +73,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/df-mc/dragonfly => github.com/didntpot/dragonfly v0.0.0-20260506120944-c864c1ab8c0b
+replace github.com/df-mc/dragonfly => github.com/didntpot/dragonfly v0.0.0-20260616183412-0adaf744ac6d
