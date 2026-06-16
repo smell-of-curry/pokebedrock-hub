@@ -2,6 +2,8 @@ module github.com/smell-of-curry/pokebedrock-hub
 
 go 1.26.0
 
+toolchain go1.26.3
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
