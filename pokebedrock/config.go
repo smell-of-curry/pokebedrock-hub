@@ -8,6 +8,7 @@ import (
 
 	"github.com/df-mc/dragonfly/server"
 	"github.com/restartfu/gophig"
+	"github.com/restartfu/gophig/codecs"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/util"
@@ -178,7 +179,7 @@ func ParseLogLevel(level string) (slog.Level, error) {
 // If the file doesn't exist, it creates a new one with default values.
 // Returns the loaded configuration and any error encountered.
 func ReadConfig() (Config, error) {
-	g := gophig.NewGophig[Config]("./config.toml", gophig.TOMLMarshaler{}, os.ModePerm)
+	g := gophig.NewGophig[Config]("./config.toml", codecs.TOMLMarshaler{}, os.ModePerm)
 
 	_, err := g.LoadConf()
 	if os.IsNotExist(err) {
