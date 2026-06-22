@@ -12,6 +12,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/queue"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/settings"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
@@ -46,9 +47,15 @@ func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	}
 
 	cfg := f.srv.Config()
+	highestRank := h.Ranks().HighestRank()
+
+	if settings.DowntimeLock() && !h.Ranks().HasRankOrHigher(rank.SeniorModerator) {
+		p.Message(locale.Translate("downtime.lock.denied"))
+
+		return
+	}
 
 	// Check if beta lock is enabled, if so, only Supporters and staff can join
-	highestRank := h.Ranks().HighestRank()
 	if cfg.BetaLock && !(h.Ranks().HasRank(rank.Supporter) || highestRank >= rank.Moderator) {
 		p.Message(locale.Translate("queue.beta.lock"))
 

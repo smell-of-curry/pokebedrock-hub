@@ -10,6 +10,11 @@ config.toml
 !/resources/slapper/
 !/resources/servers/
 !/resources/locales/
+!/resources/world/
+/resources/world/db/LOG
+/resources/world/db/LOCK
+/resources/world/db/*.log
+/resources/world/db/CURRENT.bak
 
 # Testing resources
 /tests/

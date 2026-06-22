@@ -20,6 +20,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/parkour"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/settings"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 )
 
@@ -71,6 +72,12 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 	msg := locale.Translate("welcome.hub")
 	for l := range strings.SplitSeq(msg, "<new-line>") {
 		p.Message(l)
+	}
+
+	if settings.DowntimeLock() {
+		for l := range strings.SplitSeq(locale.Translate("downtime.lock.notice"), "<new-line>") {
+			p.Message(l)
+		}
 	}
 
 	for _, s := range slapper.All() {
@@ -162,6 +169,33 @@ func (h *PlayerHandler) HandleBlockBreak(ctx *player.Context, _ cube.Pos, _ *[]i
 // HandleItemUseOnBlock ...
 func (h *PlayerHandler) HandleItemUseOnBlock(ctx *player.Context, _ cube.Pos, _ cube.Face, _ mgl64.Vec3) {
 	ctx.Cancel()
+}
+
+// HandleItemUseOnEntity ...
+func (h *PlayerHandler) HandleItemUseOnEntity(ctx *player.Context, e world.Entity) {
+	if h.interactHubNPC(ctx.Val(), e) {
+		ctx.Cancel()
+	}
+}
+
+// HandleAttackEntity ...
+func (h *PlayerHandler) HandleAttackEntity(ctx *player.Context, e world.Entity, _ *float64, _ *float64, _ *bool) {
+	if h.interactHubNPC(ctx.Val(), e) {
+		ctx.Cancel()
+	}
+}
+
+func (h *PlayerHandler) interactHubNPC(p *player.Player, e world.Entity) bool {
+	if _, ok := e.(*player.Player); !ok {
+		return false
+	}
+	if slapper.InteractPlayer(p, e) {
+		return true
+	}
+	if m := parkour.Global(); m != nil && m.InteractPlayer(p, e) {
+		return true
+	}
+	return false
 }
 
 // HandleHurt ...

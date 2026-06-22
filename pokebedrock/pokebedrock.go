@@ -27,6 +27,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/restart"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/settings"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
@@ -76,6 +77,8 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	settings.SetDowntimeLock(conf.PokeBedrock.DowntimeLock)
 
 	// Initialize rank system with configuration
 	rank.InitializeRanks(rank.RankConfig{

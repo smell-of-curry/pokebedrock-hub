@@ -26,3 +26,6 @@ error.timeout_fetching_roles=Timeout while fetching roles.
 error.server_error_fetching_roles=Server error while fetching roles.
 
 queue.beta.lock=<red>Beta lock is enabled for this server. Only Supporters and Staff can join.</red>
+
+downtime.lock.notice=<yellow>The network is currently in downtime.</yellow><new-line><grey>Downstream servers are unavailable right now. Sr. Moderator and above may still access them for testing.</grey>
+downtime.lock.denied=<red>The network is in downtime. Downstream servers are only open to Sr. Moderator and above.</red>

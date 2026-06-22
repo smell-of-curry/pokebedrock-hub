@@ -56,6 +56,9 @@ type Config struct {
 		// at or above which AFK players will start getting kicked,
 		// longest-AFK first.
 		AFKFullnessThreshold float64
+		// DowntimeLock blocks non–Sr. Moderator players from joining downstream
+		// servers while the network is in downtime. The hub itself stays open.
+		DowntimeLock bool
 	}
 	Service struct {
 		GinAddress           string
@@ -119,6 +122,7 @@ func DefaultConfig() Config {
 	c.PokeBedrock.AFKMarkAFK = util.Duration(defaultAFKMarkAFK)
 	c.PokeBedrock.AFKFinalWarning = util.Duration(defaultAFKFinalWarning)
 	c.PokeBedrock.AFKFullnessThreshold = defaultAFKFullnessThresh
+	c.PokeBedrock.DowntimeLock = false
 
 	c.Service.GinAddress = ":8080"
 

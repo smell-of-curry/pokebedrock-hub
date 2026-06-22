@@ -1,44 +1,44 @@
 {
-  "name": "PokeBedrock §cRuby §r(EU)",
-  "identifier": "ruby",
-  "address": "79.137.98.209:19132",
+  "name": "PokeBedrock §dPearl §r(US)",
+  "identifier": "pearl",
+  "address": "15.235.226.144:19136",
   "beta_lock": false,
   "parkour": {
-    "name": "Hard Parkour",
+    "name": "Easy Parkour",
     "npc": {
       "scale": 1,
-      "yaw": 325,
+      "yaw": 107,
       "pitch": 0,
       "position": {
-        "x": 68.5,
+        "x": -179.3,
         "y": 51,
-        "z": -214.0
+        "z": -33.9
       }
     },
     "leaderboard": {
-      "x": 72.5,
+      "x": -177.7,
       "y": 52,
-      "z": -217.0
+      "z": -33.9
     },
     "start": {
-      "x": 69.5,
+      "x": -177.5,
       "y": 51,
-      "z": -215.0
+      "z": -32.5
     },
     "end": {
-      "x": 82.5,
+      "x": -198.5,
       "y": 150,
-      "z": -231.5
+      "z": -23.5
     }
   },
   "npc": {
     "scale": 1.5,
-    "yaw": 321,
+    "yaw": 251,
     "pitch": 0.0,
     "position": {
-      "x": -14.7,
+      "x": -9.2,
       "y": 51,
-      "z": -93.6
+      "z": -76.9
     }
   }
 }
