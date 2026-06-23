@@ -17,6 +17,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/schollz/progressbar/v3"
+	"golang.org/x/term"
 )
 
 const (
@@ -177,19 +178,27 @@ func (m *Manager) checkAndUpdatePack(pack packSpec) error {
 	}
 
 	if currentVersion != "" {
-		update := false
-		prompt := &survey.Confirm{
-			Message: fmt.Sprintf(
-				"Resource pack %s update available (%s -> %s). Update now?",
-				pack.repo, currentVersion, release.TagName,
-			),
-			Default: true,
-		}
-		if err = survey.AskOne(prompt, &update); err != nil {
-			return fmt.Errorf("prompt failed: %w", err)
-		}
-		if !update {
-			return nil
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			update := false
+			prompt := &survey.Confirm{
+				Message: fmt.Sprintf(
+					"Resource pack %s update available (%s -> %s). Update now?",
+					pack.repo, currentVersion, release.TagName,
+				),
+				Default: true,
+			}
+			if err = survey.AskOne(prompt, &update); err != nil {
+				return fmt.Errorf("prompt failed: %w", err)
+			}
+			if !update {
+				return nil
+			}
+		} else {
+			packLog.Info(
+				"Resource pack update available; auto-updating (non-interactive)",
+				"from", currentVersion,
+				"to", release.TagName,
+			)
 		}
 	}
 
