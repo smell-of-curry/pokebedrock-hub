@@ -25,6 +25,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Build Linux binary
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: go build -trimpath -ldflags "-s -w" -o pokebedrock-hub .
+
       - name: Build Windows binary
         env:
           GOOS: windows
@@ -38,4 +45,6 @@ jobs:
           tag_name: v0.1.${{ github.run_number }}
           name: v0.1.${{ github.run_number }}
           generate_release_notes: true
-          files: pokebedrock-hub.exe
+          files: |
+            pokebedrock-hub
+            pokebedrock-hub.exe

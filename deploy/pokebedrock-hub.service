@@ -1,0 +1,15 @@
+[Unit]
+Description=PokeBedRock Hub (Dragonfly lobby/proxy)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/pokebedrock-hub
+ExecStart=/home/ubuntu/pokebedrock-hub/start.sh --no-loop
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
