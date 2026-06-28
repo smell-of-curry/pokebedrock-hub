@@ -2,7 +2,7 @@
   "name": "PokeBedrock §0Black §r(US)",
   "identifier": "black",
   "address": "40.160.19.215:19136",
-  "beta_lock": false,
+  "beta_lock": true,
   "parkour": {
     "name": "Easy Parkour",
     "npc": {
@@ -10,25 +10,25 @@
       "yaw": 258,
       "pitch": 0,
       "position": {
-        "x": 135.9,
+        "x": -26.9,
         "y": 51,
-        "z": -49.1
+        "z": 81.5
       }
     },
     "leaderboard": {
-      "x": 136.1,
+      "x": -10.1,
       "y": 52,
-      "z": -54.1
+      "z": -81.1
     },
     "start": {
-      "x": 134.5,
+      "x": -23.5,
       "y": 51,
-      "z": -50.5
+      "z": -81.5
     },
     "end": {
-      "x": 151.5,
-      "y": 150,
-      "z": -42.0
+      "x": -24.5,
+      "y": 152,
+      "z": 133.0
     }
   },
   "npc": {

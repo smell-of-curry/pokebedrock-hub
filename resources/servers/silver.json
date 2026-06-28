@@ -2,7 +2,7 @@
   "name": "PokeBedrock §7Silver §r(US)",
   "identifier": "silver",
   "address": "40.160.19.240:19132",
-  "beta_lock": false,
+  "beta_lock": true,
   "parkour": {
     "name": "Medium Parkour",
     "npc": {
@@ -10,25 +10,25 @@
       "yaw": 180,
       "pitch": 0,
       "position": {
-        "x": -25.5,
+        "x": -178.5,
         "y": 51,
-        "z": 79.5
+        "z": -135
       }
     },
     "leaderboard": {
-      "x": -21.5,
+      "x": -179.5,
       "y": 52,
-      "z": 79.5
+      "z": -128.5
     },
     "start": {
-      "x": -23.5,
+      "x": -178.5,
       "y": 51,
-      "z": 79.5
+      "z": -131.5
     },
     "end": {
-      "x": -23.5,
-      "y": 150,
-      "z": 102.5
+      "x": -241.3,
+      "y": 161,
+      "z": -161.7
     }
   },
   "npc": {

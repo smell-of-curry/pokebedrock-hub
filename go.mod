@@ -7,7 +7,7 @@ toolchain go1.26.3
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.14
+	github.com/df-mc/dragonfly v0.10.15-0.20260628092836-26be2a6ed61b
 	github.com/df-mc/npc v1.0.5
 	github.com/getsentry/sentry-go v0.47.0
 	github.com/gin-gonic/gin v1.12.0
@@ -17,6 +17,7 @@ require (
 	github.com/sandertv/go-raknet v1.15.1-0.20260617115107-703ec9029581
 	github.com/sandertv/gophertunnel v1.57.0
 	github.com/schollz/progressbar/v3 v3.19.0
+	golang.org/x/term v0.44.0
 	golang.org/x/text v0.38.0
 )
 
@@ -70,7 +71,6 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/term v0.44.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -2,7 +2,7 @@
   "name": "PokeBedrock §eGold §r(US)",
   "identifier": "gold",
   "address": "40.160.19.240:19136",
-  "beta_lock": false,
+  "beta_lock": true,
   "parkour": {
     "name": "Medium Parkour",
     "npc": {

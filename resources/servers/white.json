@@ -2,7 +2,7 @@
   "name": "PokeBedrock §fWhite §r(US)",
   "identifier": "white",
   "address": "40.160.19.215:19132",
-  "beta_lock": false,
+  "beta_lock": true,
   "parkour": {
     "name": "Easy Parkour",
     "npc": {

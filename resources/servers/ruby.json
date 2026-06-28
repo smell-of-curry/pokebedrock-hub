@@ -2,7 +2,7 @@
   "name": "PokeBedrock §cRuby §r(EU)",
   "identifier": "ruby",
   "address": "79.137.98.209:19132",
-  "beta_lock": false,
+  "beta_lock": true,
   "parkour": {
     "name": "Hard Parkour",
     "npc": {
@@ -10,24 +10,24 @@
       "yaw": 325,
       "pitch": 0,
       "position": {
-        "x": 68.5,
+        "x": 75.5,
         "y": 51,
-        "z": -214.0
+        "z": -211.0
       }
     },
     "leaderboard": {
-      "x": 72.5,
-      "y": 52,
-      "z": -217.0
-    },
-    "start": {
       "x": 69.5,
-      "y": 51,
+      "y": 52,
       "z": -215.0
     },
+    "start": {
+      "x": 72.5,
+      "y": 51,
+      "z": -213.0
+    },
     "end": {
-      "x": 82.5,
-      "y": 150,
+      "x": 92.5,
+      "y": 155,
       "z": -231.5
     }
   },
