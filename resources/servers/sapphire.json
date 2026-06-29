@@ -2,7 +2,6 @@
   "name": "PokeBedrock §bSapphire §r(EU)",
   "identifier": "sapphire",
   "address": "79.137.98.209:19136",
-  "beta_lock": true,
   "parkour": {
     "name": "Hard Water Parkour",
     "npc": {

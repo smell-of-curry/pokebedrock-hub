@@ -2,7 +2,6 @@
   "name": "PokeBedrock §cRuby §r(EU)",
   "identifier": "ruby",
   "address": "79.137.98.209:19132",
-  "beta_lock": true,
   "parkour": {
     "name": "Hard Parkour",
     "npc": {

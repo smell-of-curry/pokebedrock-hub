@@ -2,7 +2,6 @@
   "name": "PokeBedrock §eSun §r(US)",
   "identifier": "sun",
   "address": "40.160.13.133:19132",
-  "beta_lock": true,
   "parkour": {
     "name": "Extreme Parkour",
     "npc": {

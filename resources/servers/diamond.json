@@ -2,7 +2,6 @@
   "name": "PokeBedrock §bDiamond §r(Asia)",
   "identifier": "diamond",
   "address": "15.235.226.144:19132",
-  "beta_lock": true,
   "parkour": {
     "name": "Easy Parkour",
     "npc": {
