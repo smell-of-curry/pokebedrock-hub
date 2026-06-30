@@ -54,6 +54,13 @@ LeaderboardPath = "resources/parkour/leaderboard.json"
 CountdownSeconds = 5
 CompletionRadius = 1.25
 
+[Watchdog]
+CheckInterval = "30s" # How often to probe world-tick health and process metrics.
+WorldExecTimeout = "10s" # Max time a probe world transaction may take before the world is considered stalled (login-blocking deadlock).
+GoroutineThreshold = 800 # Goroutine count at/above which an alert is raised.
+HeapAllocThresholdBytes = 2147483648 # Heap bytes at/above which an alert is raised (2 GiB). 0 disables the heap probe.
+AlertCooldown = "5m" # Minimum time between repeat Sentry alerts for the same condition.
+
 [Ranks]
 # Discord Role IDs for different ranks
 TrainerRoleID = "xxxxxxxxxxxxxxxxxxxxx"

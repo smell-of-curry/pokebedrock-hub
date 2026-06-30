@@ -33,6 +33,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/watchdog"
 	"golang.org/x/text/language"
 )
 
@@ -59,6 +60,7 @@ type PokeBedrock struct {
 
 	srv        *server.Server
 	resManager *resources.Manager
+	watchdog   *watchdog.Watchdog
 
 	c chan struct{}
 }
@@ -171,8 +173,23 @@ func (poke *PokeBedrock) handleWorld() {
 
 	poke.loadServers()
 	poke.loadParkour(w)
-	poke.loadHider(w)
+	poke.loadHider()
+	poke.loadWatchdog(w)
 	go poke.startTicking()
+}
+
+// loadWatchdog starts the runtime health watchdog that detects world-tick
+// stalls (e.g. a re-entrant World.Exec deadlock that blocks all logins),
+// goroutine pile-ups, and heap pressure, alerting via the logger and Sentry.
+func (poke *PokeBedrock) loadWatchdog(w *world.World) {
+	poke.watchdog = watchdog.New(poke.log, w, watchdog.Config{
+		CheckInterval:      time.Duration(poke.conf.Watchdog.CheckInterval),
+		WorldExecTimeout:   time.Duration(poke.conf.Watchdog.WorldExecTimeout),
+		GoroutineThreshold: poke.conf.Watchdog.GoroutineThreshold,
+		HeapAllocThreshold: poke.conf.Watchdog.HeapAllocThresholdBytes,
+		AlertCooldown:      time.Duration(poke.conf.Watchdog.AlertCooldown),
+	})
+	poke.watchdog.Start()
 }
 
 // setupGin sets up gin for the gobds proxy.
@@ -431,8 +448,8 @@ func (poke *PokeBedrock) loadParkour(w *world.World) {
 }
 
 // loadHider initialises the player visibility toggle manager.
-func (poke *PokeBedrock) loadHider(w *world.World) {
-	hider.NewManager(w)
+func (poke *PokeBedrock) loadHider() {
+	hider.NewManager()
 }
 
 // startTicking begins the periodic ticking process for the server.
@@ -579,6 +596,11 @@ func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
 
 // Close closes the server and all its associated services.
 func (poke *PokeBedrock) Close() {
+	if poke.watchdog != nil {
+		poke.log.Debug("Stopping Watchdog...")
+		poke.watchdog.Stop()
+	}
+
 	poke.log.Debug("Closing Moderation Service...")
 	moderation.GlobalService().Stop()
 

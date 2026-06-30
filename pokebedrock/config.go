@@ -29,6 +29,12 @@ const (
 
 	defaultParkourCountdownSeconds = 5
 	defaultParkourCompletionRadius = 1.25
+
+	defaultWatchdogCheckInterval      = 30 * time.Second
+	defaultWatchdogWorldExecTimeout   = 10 * time.Second
+	defaultWatchdogGoroutineThreshold = 800
+	defaultWatchdogHeapAllocThreshold = 2 << 30 // 2 GiB
+	defaultWatchdogAlertCooldown      = 5 * time.Minute
 )
 
 // Config holds the server configuration, including paths, translations, and service-related settings.
@@ -84,6 +90,23 @@ type Config struct {
 		LeaderboardPath  string
 		CountdownSeconds int
 		CompletionRadius float64
+	}
+	Watchdog struct {
+		// CheckInterval is how often the health watchdog probes the world tick
+		// and process metrics.
+		CheckInterval util.Duration
+		// WorldExecTimeout is how long a probe world transaction may take
+		// before the world is considered stalled (login-blocking deadlock).
+		WorldExecTimeout util.Duration
+		// GoroutineThreshold is the goroutine count at/above which an alert is
+		// raised.
+		GoroutineThreshold int
+		// HeapAllocThresholdBytes is the heap-allocated byte count at/above
+		// which an alert is raised. 0 disables the heap probe.
+		HeapAllocThresholdBytes uint64
+		// AlertCooldown is the minimum time between repeat Sentry alerts for
+		// the same condition.
+		AlertCooldown util.Duration
 	}
 	Ranks struct {
 		TrainerRoleID              string
@@ -145,6 +168,12 @@ func DefaultConfig() Config {
 	c.Parkour.LeaderboardPath = "resources/parkour/leaderboard.json"
 	c.Parkour.CountdownSeconds = defaultParkourCountdownSeconds
 	c.Parkour.CompletionRadius = defaultParkourCompletionRadius
+
+	c.Watchdog.CheckInterval = util.Duration(defaultWatchdogCheckInterval)
+	c.Watchdog.WorldExecTimeout = util.Duration(defaultWatchdogWorldExecTimeout)
+	c.Watchdog.GoroutineThreshold = defaultWatchdogGoroutineThreshold
+	c.Watchdog.HeapAllocThresholdBytes = defaultWatchdogHeapAllocThreshold
+	c.Watchdog.AlertCooldown = util.Duration(defaultWatchdogAlertCooldown)
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")

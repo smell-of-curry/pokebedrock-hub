@@ -1,3 +1,5 @@
+// Package hider manages per-player visibility toggles, letting players hide or
+// show other players in the hub.
 package hider
 
 import (
@@ -16,16 +18,14 @@ import (
 type Manager struct {
 	mu     sync.RWMutex
 	hidden map[string]struct{}
-	w      *world.World
 }
 
 var global *Manager
 
 // NewManager ...
-func NewManager(w *world.World) *Manager {
+func NewManager() *Manager {
 	m := &Manager{
 		hidden: make(map[string]struct{}),
-		w:      w,
 	}
 	global = m
 	return m
@@ -51,23 +51,26 @@ func (m *Manager) Toggle(p *player.Player) {
 }
 
 // HandleJoin ...
+//
+// HandleJoin runs inside the joining player's world transaction, so it must
+// operate on p.Tx() directly. Calling World.Exec here would enqueue a new
+// transaction onto the single world-tick goroutine that is already executing
+// this code, deadlocking it once the (buffered) world queue fills under load.
 func (m *Manager) HandleJoin(p *player.Player) {
 	hidden := m.snapshotHidden()
 	if len(hidden) == 0 {
 		return
 	}
 
-	m.w.Exec(func(tx *world.Tx) {
-		for ent := range tx.Players() {
-			other := ent.(*player.Player)
-			if other == p {
-				continue
-			}
-			if _, ok := hidden[other.UUID().String()]; ok {
-				other.HideEntity(p)
-			}
+	for ent := range p.Tx().Players() {
+		other := ent.(*player.Player)
+		if other == p {
+			continue
 		}
-	})
+		if _, ok := hidden[other.UUID().String()]; ok {
+			other.HideEntity(p)
+		}
+	}
 }
 
 // HandleQuit ...
@@ -76,30 +79,32 @@ func (m *Manager) HandleQuit(p *player.Player) {
 }
 
 // hideAll ...
+//
+// Runs inside p's world transaction (Toggle is called from a packet handler),
+// so it uses p.Tx() directly instead of re-entering World.Exec.
 func (m *Manager) hideAll(p *player.Player) {
 	exempted := m.exemptedPlayers()
-	m.w.Exec(func(tx *world.Tx) {
-		for ent := range tx.Players() {
-			other := ent.(*player.Player)
-			if other == p || slices.Contains(exempted, ent.H()) {
-				continue
-			}
-			p.HideEntity(other)
+	for ent := range p.Tx().Players() {
+		other := ent.(*player.Player)
+		if other == p || slices.Contains(exempted, ent.H()) {
+			continue
 		}
-	})
+		p.HideEntity(other)
+	}
 }
 
 // showAll ...
+//
+// Runs inside p's world transaction (Toggle is called from a packet handler),
+// so it uses p.Tx() directly instead of re-entering World.Exec.
 func (m *Manager) showAll(p *player.Player) {
-	m.w.Exec(func(tx *world.Tx) {
-		for ent := range tx.Players() {
-			other := ent.(*player.Player)
-			if other == p {
-				continue
-			}
-			p.ShowEntity(other)
+	for ent := range p.Tx().Players() {
+		other := ent.(*player.Player)
+		if other == p {
+			continue
 		}
-	})
+		p.ShowEntity(other)
+	}
 }
 
 // hasHidden ...
