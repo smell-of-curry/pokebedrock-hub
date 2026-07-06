@@ -78,6 +78,10 @@ type Config struct {
 		// Defaults to resources/vpnResults.json
 		VpnCachePath string
 		VpnURL       string
+		// VpnWhitelist is a list of CIDR ranges (e.g. "45.230.64.0/22")
+		// that are never treated as VPN/proxy connections. Used for
+		// residential ISP blocks the detection API misclassifies.
+		VpnWhitelist []string
 	}
 	RestartManager struct {
 		MaxWaitTime     util.Duration
@@ -156,6 +160,8 @@ func DefaultConfig() Config {
 	// Default VPN cache path
 	c.Service.VpnCachePath = "resources/vpnResults.json"
 	c.Service.VpnURL = "http://ip-api.com/json"
+	// Megalink S.R.L. (Argentina) — residential ISP flagged as proxy by ip-api.
+	c.Service.VpnWhitelist = []string{"45.230.64.0/22"}
 
 	c.Service.GinAuthenticationKey = "secret-key"
 

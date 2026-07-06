@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,16 +39,37 @@ type Service struct {
 	mu             sync.Mutex
 
 	cache *Cache
+
+	// whitelist holds CIDR ranges that are never treated as proxies,
+	// regardless of what the upstream detection API (or a stale cache
+	// entry) says. Used for residential ISP blocks that ip-api
+	// misclassifies (common with CGNAT ranges).
+	whitelist []netip.Prefix
 }
 
-// NewService initializes a new global service instance with the provided logger, URL.
-func NewService(log *slog.Logger, url, cachePath string) {
+// NewService initializes a new global service instance with the provided
+// logger, URL, cache path and whitelisted CIDR ranges.
+func NewService(log *slog.Logger, url, cachePath string, whitelistCIDRs []string) {
+	whitelist := make([]netip.Prefix, 0, len(whitelistCIDRs))
+
+	for _, c := range whitelistCIDRs {
+		p, err := netip.ParsePrefix(strings.TrimSpace(c))
+		if err != nil {
+			log.Warn("ignoring invalid vpn whitelist cidr", "cidr", c, "error", err)
+
+			continue
+		}
+
+		whitelist = append(whitelist, p.Masked())
+	}
+
 	globalService = &Service{
 		url: url,
 		client: &http.Client{
 			Timeout: requestTimeout,
 		},
-		log: log,
+		log:       log,
+		whitelist: whitelist,
 	}
 
 	// Initialize cache (best-effort)
@@ -68,8 +90,17 @@ const (
 
 // CheckIP determines whether the provided IP address is associated with a VPN connection.
 func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
-	if net.ParseIP(ip) == nil {
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
 		return nil, fmt.Errorf("invalid IP address: %s", ip)
+	}
+
+	// Whitelisted ranges bypass both the cache and the API, so a stale
+	// cached proxy=true entry can never block a whitelisted ISP.
+	for _, p := range s.whitelist {
+		if p.Contains(addr) {
+			return &ResponseModel{Status: StatusSuccess, Proxy: false}, nil
+		}
 	}
 
 	// Fast path: cached result
@@ -100,7 +131,7 @@ func (s *Service) CheckIP(ip string) (*ResponseModel, error) {
 			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
-		url := fmt.Sprintf("%s/%s?fields=status,message,proxy", s.url, ip)
+		url := fmt.Sprintf("%s/%s?fields=status,message,proxy,isp,org", s.url, ip)
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

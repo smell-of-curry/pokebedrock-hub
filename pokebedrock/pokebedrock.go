@@ -374,7 +374,7 @@ func (poke *PokeBedrock) loadCommands() {
 func (poke *PokeBedrock) loadServices() {
 	rank.NewService(poke.log, poke.conf.Service.RolesURL)
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
-	vpn.NewService(poke.log, poke.conf.Service.VpnURL, poke.conf.Service.VpnCachePath)
+	vpn.NewService(poke.log, poke.conf.Service.VpnURL, poke.conf.Service.VpnCachePath, poke.conf.Service.VpnWhitelist)
 
 	// Initialize restart manager service
 	restartConfig := restart.Config{

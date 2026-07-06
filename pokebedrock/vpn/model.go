@@ -12,4 +12,9 @@ type ResponseModel struct {
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`
 	Proxy   bool   `json:"proxy"`
+	// Isp and Org identify the connection's provider. They are only used
+	// for logging denied connections so false positives can be audited;
+	// they are not cached.
+	Isp string `json:"isp,omitempty"`
+	Org string `json:"org,omitempty"`
 }

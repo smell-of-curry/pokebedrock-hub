@@ -1,5 +1,6 @@
 error.inflictions.load=<yellow>There was an error whilst loading your inflictions. Please try relogging and contact support if the issue persists.</yellow>
 error.ban.message=<red>You're banned! Reason: %1, Expiry Date: %2, Prosecutor: %3</red>
+error.vpn.blocked=<red>VPN/Proxy connections are not allowed.</red><new-line><grey>If you believe this is a mistake, or want to play using a VPN, link your Discord account with <aqua>/link</aqua> in the Discord server.</grey>
 
 welcome.hub=<white>Welcome to the <aqua>PokeBedrock Hub!</aqua></white><new-line><grey>If you have priority queue, or want to sync your rank, ensure your Discord is linked.</grey><new-line><grey>Use <aqua>/link</aqua> in the Discord to link your roles.</grey>
 rank.fetching=<grey>Fetching your rank...</grey>
