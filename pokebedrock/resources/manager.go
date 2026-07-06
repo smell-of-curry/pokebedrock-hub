@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/sandertv/gophertunnel/minecraft/resource"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/term"
 )
@@ -469,37 +468,6 @@ func (m *Manager) unzipResourcePack(pack packSpec, packPath string) error {
 
 	packLog.Info("Successfully unpacked resource pack", "version", version)
 	return nil
-}
-
-// URLPacks loads each managed pack from its latest GitHub release asset and
-// returns packs carrying a DownloadURL. Clients then download the pack over
-// HTTPS from GitHub instead of streaming ~100MB through the RakNet game
-// connection, which previously saturated the hub's UDP socket. Clients that
-// fail the HTTP download still fall back to the RakNet transfer, as the full
-// pack content is kept server-side.
-func (m *Manager) URLPacks() ([]*resource.Pack, error) {
-	packs := make([]*resource.Pack, 0, len(m.packs))
-
-	for _, spec := range m.packs {
-		release, err := m.latestRelease(spec)
-		if err != nil {
-			return nil, fmt.Errorf("resolve latest release of %s: %w", spec.repo, err)
-		}
-		if len(release.Assets) == 0 {
-			return nil, fmt.Errorf("release %s of %s has no assets", release.TagName, spec.repo)
-		}
-
-		url := release.Assets[0].BrowserDownloadURL
-		pack, err := resource.ReadURL(url)
-		if err != nil {
-			return nil, fmt.Errorf("read pack %s from %s: %w", spec.repo, url, err)
-		}
-
-		m.log.Info("loaded CDN resource pack", "pack", spec.repo, "url", url, "size", pack.Len())
-		packs = append(packs, pack)
-	}
-
-	return packs, nil
 }
 
 // FindFile searches all managed packs for the given relative path and returns the first match.

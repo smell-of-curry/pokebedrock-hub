@@ -123,16 +123,6 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 		return nil, err
 	}
 
-	// Prefer CDN pack delivery: clients download packs over HTTPS from the
-	// GitHub release assets instead of streaming them through the RakNet game
-	// connection. Falls back to the locally compiled packs (RakNet transfer)
-	// if the release lookup or download fails.
-	if urlPacks, urlErr := resManager.URLPacks(); urlErr != nil {
-		log.Error("failed to load CDN resource packs, falling back to RakNet delivery", "error", urlErr)
-	} else {
-		c.Resources = urlPacks
-	}
-
 	c.ReadOnlyWorld = true
 	c.Generator = func(_ world.Dimension) world.Generator { // ensures that no new chunks are generated.
 		return world.NopGenerator{}
