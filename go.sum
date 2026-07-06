@@ -147,8 +147,8 @@ github.com/sandertv/go-raknet v1.15.1-0.20260617115107-703ec9029581 h1:aPDf3dsQI
 github.com/sandertv/go-raknet v1.15.1-0.20260617115107-703ec9029581/go.mod h1:/yysjwfCXm2+2OY8mBazLzcxJ3irnylKCyG3FLgUPVU=
 github.com/sandertv/gophertunnel v1.57.0 h1:UkgVg1xLCsOSm79rP09WmodGSHgA8M7+l4quL01cIL8=
 github.com/sandertv/gophertunnel v1.57.0/go.mod h1:W4VnrX9AIPIVXNDMEIKMIRj1T80EdOgdqXpGbQpyAbE=
-github.com/schollz/progressbar/v3 v3.19.0 h1:Ea18xuIRQXLAUidVDox3AbwfUhD0/1IvohyTutOIFoc=
-github.com/schollz/progressbar/v3 v3.19.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
+github.com/schollz/progressbar/v3 v3.19.1 h1:iv8BgwOvdML/S3p84uBpy/IMigv4U9594vPZYa2EdrU=
+github.com/schollz/progressbar/v3 v3.19.1/go.mod h1:LFL7jqimKxfhero4K1eCkUr/6R39AgQeiPCJtlTWIW8=
 github.com/segmentio/fasthash v1.0.3 h1:EI9+KE1EwvMLBWwjpRDc+fEM+prwxDYbslddQGtrmhM=
 github.com/segmentio/fasthash v1.0.3/go.mod h1:waKX8l2N8yckOgmSsXJi7x1ZfdKZ4x7KRMzBtS3oedY=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
