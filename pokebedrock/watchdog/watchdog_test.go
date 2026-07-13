@@ -3,6 +3,8 @@ package watchdog
 import (
 	"testing"
 	"time"
+
+	"github.com/df-mc/dragonfly/server/world"
 )
 
 // newTestWatchdog builds a Watchdog with defaults applied but no world, which
@@ -21,6 +23,21 @@ func hasCond(alerts []alert, c condition) bool {
 		}
 	}
 	return false
+}
+
+func TestWorldStalledIgnoresClosedWorld(t *testing.T) {
+	w := world.Config{Synchronous: true}.New()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	wd := &Watchdog{
+		world: w,
+		conf:  Config{WorldExecTimeout: time.Second},
+	}
+	if wd.worldStalled() {
+		t.Fatal("closed world reported as stalled")
+	}
 }
 
 func TestEvaluate(t *testing.T) {

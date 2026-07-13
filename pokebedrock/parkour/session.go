@@ -19,10 +19,9 @@ const (
 
 // Session tracks one player's parkour run.
 //
-// All Session fields are mutated only on the world transaction goroutine.
-// The countdown goroutine never touches the player directly; it routes
-// callbacks through handle.ExecWorld so dragonfly's per-player state is
-// only ever read/written on the Tx goroutine that owns it.
+// All Session fields are mutated only on the world owner. Delayed countdown
+// work is scheduled with player.DoAfter so dragonfly per-player state is only
+// ever read/written on the owner that owns it.
 type Session struct {
 	handle *world.EntityHandle
 
@@ -37,7 +36,8 @@ type Session struct {
 	checkpointElapsed time.Duration
 	rankName          string
 
-	countdownStop chan struct{}
+	countdownTask       *world.Task
+	countdownGeneration uint64
 }
 
 // session ...
@@ -55,8 +55,7 @@ func (m *Manager) session(p *player.Player) *Session {
 
 // ensureSession returns the existing session for p, or creates a new one
 // bound to p's EntityHandle. The handle is captured once at creation so
-// the countdown goroutine can dispatch via ExecWorld without holding a
-// stale *player.Player.
+// delayed countdown tasks can re-enter without holding a stale *player.Player.
 func (m *Manager) ensureSession(p *player.Player) *Session {
 	if sess := m.session(p); sess != nil {
 		return sess
@@ -66,65 +65,70 @@ func (m *Manager) ensureSession(p *player.Player) *Session {
 	return sess
 }
 
-// stopCountdown signals an in-flight countdown goroutine to exit. Safe to
-// call from the Tx goroutine; the countdown goroutine itself never
-// touches countdownStop.
+// stopCountdown cancels an in-flight countdown task. Safe to call from the
+// world owner.
 func (s *Session) stopCountdown() {
-	if channel := s.countdownStop; channel != nil {
-		s.countdownStop = nil
-		close(channel)
+	s.countdownGeneration++
+	if task := s.countdownTask; task != nil {
+		s.countdownTask = nil
+		task.Cancel()
 	}
 }
 
 // beginCountdown starts an N-second countdown that fires tick once per
 // second (counting down from seconds to 1) and then fires onDone.
 //
-// Both callbacks are invoked on the world transaction goroutine via
-// s.handle.ExecWorld, so they receive a valid *player.Player and may
-// safely call methods on it. If the player has left the world by the
-// time a callback runs, ExecWorld drops it and no callback fires. This
-// is the only correct way to schedule per-tick player work from a
-// background goroutine — calling *player.Player methods directly from
-// the countdown goroutine has been observed to corrupt dragonfly's
-// per-session slices and crash the runtime inside gcWriteBarrier.
+// Both callbacks run on the world owner via player.Do / player.DoAfter.
+// If the player has left by the time a callback runs, the task fails and no
+// callback fires.
 func (s *Session) beginCountdown(seconds int, tick func(*player.Player, int), onDone func(*world.Tx, *player.Player)) {
 	s.stopCountdown()
+	generation := s.countdownGeneration
 
 	handle := s.handle
 	if handle == nil {
 		return
 	}
 
-	s.countdownStop = make(chan struct{})
-
-	go func(stop <-chan struct{}, sec int) {
-		for i := sec; i > 0; i-- {
-			select {
-			case <-stop:
+	var scheduleNext func(remaining int)
+	scheduleNext = func(remaining int) {
+		s.countdownTask = player.DoAfter(handle, time.Second, func(tx *world.Tx, p *player.Player) {
+			if generation != s.countdownGeneration {
 				return
-			default:
+			}
+			if remaining > 1 {
+				if tick != nil {
+					tick(p, remaining-1)
+				}
+				scheduleNext(remaining - 1)
+				return
+			}
+			s.countdownTask = nil
+			if onDone != nil {
+				onDone(tx, p)
+			}
+		})
+	}
+
+	if seconds > 0 {
+		player.Do(handle, func(_ *world.Tx, p *player.Player) {
+			if generation != s.countdownGeneration {
+				return
 			}
 			if tick != nil {
-				remaining := i
-				handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-					if p, ok := e.(*player.Player); ok {
-						tick(p, remaining)
-					}
-				})
+				tick(p, seconds)
 			}
-			time.Sleep(time.Second)
-		}
-		select {
-		case <-stop:
+		})
+		scheduleNext(seconds)
+		return
+	}
+
+	player.Do(handle, func(tx *world.Tx, p *player.Player) {
+		if generation != s.countdownGeneration {
 			return
-		default:
-			if onDone != nil {
-				handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-					if p, ok := e.(*player.Player); ok {
-						onDone(tx, p)
-					}
-				})
-			}
 		}
-	}(s.countdownStop, seconds)
+		if onDone != nil {
+			onDone(tx, p)
+		}
+	})
 }

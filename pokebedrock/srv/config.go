@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 )
@@ -83,6 +84,11 @@ func parseConfig(file string) (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("failed to parse file %s: %w", file, err)
 	}
+	address, err := net.ResolveUDPAddr("udp", cfg.Address)
+	if err != nil {
+		return cfg, fmt.Errorf("failed to resolve server address %q: %w", cfg.Address, err)
+	}
+	cfg.Address = address.String()
 
 	return cfg, nil
 }

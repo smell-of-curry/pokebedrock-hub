@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/df-mc/atomic"
-	"github.com/df-mc/dragonfly/server/player"
 
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
@@ -62,11 +61,6 @@ var (
 	ErrTimeout      = fmt.Errorf("request timed out")
 	ErrServer       = fmt.Errorf("server error")
 )
-
-// RolesOfPlayer fetches the roles for the given player.
-func (s *Service) RolesOfPlayer(p *player.Player) ([]string, error) {
-	return s.RolesOfXUID(p.XUID())
-}
 
 // RolesOfXUID fetches the roles for the given XUID, retrying transient
 // failures.

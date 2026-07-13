@@ -25,7 +25,7 @@ const rankWorkerCount = 3
 var (
 	// rankUpdateCh is the single queue of pending rank updates. Workers
 	// consume from this channel and perform the HTTP call off the world's
-	// transaction goroutine; results are applied via ExecWorld.
+	// owner; results are applied via player.Do.
 	rankUpdateCh = make(chan rankUpdate, internal.DefaultChannelBufferSize)
 
 	// rankShutdown signals all rank workers to exit.
@@ -78,16 +78,9 @@ func StopRankChannel() {
 	}
 }
 
-// StopRankLoadWorker is retained for backwards-compatible call sites; the
-// secondary load worker has been removed in favour of a single queue.
-func StopRankLoadWorker() {
-	StopRankChannel()
-}
-
 // rankWorker consumes rankUpdate values from rankUpdateCh and processes
 // them one at a time. The HTTP call is performed on this goroutine, NOT on
-// the world transaction goroutine, per the no-blocking-io-in-execworld
-// rule.
+// the world owner, per the no-blocking-io-on-world-owner rule.
 func rankWorker() {
 	defer rankWorkerWG.Done()
 
@@ -112,10 +105,8 @@ func processRankUpdate(update rankUpdate) {
 	}
 
 	if update.notify {
-		update.handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-			if p, ok := e.(*player.Player); ok {
-				p.SendJukeboxPopup(locale.Translate("rank.fetching"))
-			}
+		player.Do(update.handle, func(_ *world.Tx, p *player.Player) {
+			p.SendJukeboxPopup(locale.Translate("rank.fetching"))
 		})
 	}
 
@@ -124,11 +115,9 @@ func processRankUpdate(update rankUpdate) {
 		update.ranks.SetRanks([]rank.Rank{rank.UnLinked})
 
 		msg := text.Colourf("<red>%s</red>", rank.RolesError(err))
-		update.handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-			if p, ok := e.(*player.Player); ok {
-				p.SendJukeboxPopup(msg)
-				p.Message(msg)
-			}
+		player.Do(update.handle, func(_ *world.Tx, p *player.Player) {
+			p.SendJukeboxPopup(msg)
+			p.Message(msg)
 		})
 
 		return
@@ -146,12 +135,7 @@ func processRankUpdate(update rankUpdate) {
 	highest := update.ranks.HighestRank()
 	syncedMsg := text.Colourf("<green>%s</green>", locale.Translate("rank.synced", highest.Name()))
 
-	update.handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-		p, ok := e.(*player.Player)
-		if !ok {
-			return
-		}
-
+	player.Do(update.handle, func(_ *world.Tx, p *player.Player) {
 		p.SendJukeboxPopup(syncedMsg)
 		p.Message(syncedMsg)
 		p.SetNameTag(highest.NameTag(p.Name()))
@@ -184,12 +168,6 @@ func (r *Ranks) Load(xuid string, handle *world.EntityHandle) {
 	r.enqueue(rankUpdate{xuid: xuid, handle: handle, ranks: r, notify: true})
 }
 
-// QueueLoad enqueues a rank fetch the same as Load. It is retained as a
-// distinct method so existing call sites continue to compile.
-func (r *Ranks) QueueLoad(xuid string, handle *world.EntityHandle) {
-	r.enqueue(rankUpdate{xuid: xuid, handle: handle, ranks: r, notify: true})
-}
-
 func (r *Ranks) enqueue(update rankUpdate) {
 	select {
 	case rankUpdateCh <- update:
@@ -203,10 +181,8 @@ func (r *Ranks) enqueue(update rankUpdate) {
 		return
 	}
 
-	update.handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-		if p, ok := e.(*player.Player); ok {
-			p.SendJukeboxPopup(locale.Translate("rank.update.queue.full"))
-		}
+	player.Do(update.handle, func(_ *world.Tx, p *player.Player) {
+		p.SendJukeboxPopup(locale.Translate("rank.update.queue.full"))
 	})
 }
 

@@ -41,17 +41,12 @@ var inflictionWorkerShutdown = make(chan struct{})
 
 // inflictionRequest represents a queued request to load player inflictions
 type inflictionRequest struct {
+	xuid        string
 	handle      *world.EntityHandle
 	inflictions *Inflictions
 }
 
 var (
-	// inflictionLoadQueue is a buffered channel for queuing rate-limited
-	// infliction loads.
-	inflictionLoadQueue = make(chan inflictionLoadRequest, internal.SmallChannelBufferSize)
-	// inflictionLoadWorkerShutdown signals the loader to exit.
-	inflictionLoadWorkerShutdown = make(chan struct{})
-
 	// inflictionWorkerWG counts running infliction workers so shutdown
 	// can wait deterministically rather than relying on a fixed timer.
 	inflictionWorkerWG sync.WaitGroup
@@ -61,16 +56,9 @@ var (
 	inflictionShutdownOnce sync.Once
 )
 
-// inflictionLoadRequest represents a queued request to load player inflictions.
-type inflictionLoadRequest struct {
-	handle *world.EntityHandle
-	inf    *Inflictions
-}
-
 func init() {
-	inflictionWorkerWG.Add(2)
+	inflictionWorkerWG.Add(1)
 	go inflictionWorker()
-	go inflictionLoadWorker()
 }
 
 // StopInflictionWorker stops all infliction workers gracefully and waits
@@ -78,7 +66,6 @@ func init() {
 func StopInflictionWorker() {
 	inflictionShutdownOnce.Do(func() {
 		close(inflictionWorkerShutdown)
-		close(inflictionLoadWorkerShutdown)
 	})
 
 	done := make(chan struct{})
@@ -97,20 +84,14 @@ func StopInflictionWorker() {
 // limiting.
 //
 // The HTTP request to the moderation service is intentionally performed on
-// this worker goroutine (NOT inside an ExecWorld callback). Running blocking
-// HTTP calls inside ExecWorld serialises them on the world's transaction
-// goroutine, stalling world ticks and has been observed to crash the runtime
-// under load. ExecWorld is used only for cheap reads (capturing the XUID)
-// and writes (applying the resulting inflictions).
+// this worker goroutine (NOT inside a world-owner callback). Running blocking
+// HTTP calls on the owner serialises them and stalls world ticks. player.Do
+// is used only for applying resulting inflictions.
 func inflictionWorker() {
 	defer inflictionWorkerWG.Done()
 
 	semaphore := make(chan struct{}, maxConcurrentInflictionRequests)
 
-	// activeRequestsWG tracks per-request goroutines so shutdown can wait
-	// for them to drain. A WaitGroup is preferable to the previous
-	// fixed-capacity channel which could deadlock if the slot count
-	// drifted from the in-flight count.
 	var activeRequestsWG sync.WaitGroup
 	defer activeRequestsWG.Wait()
 
@@ -127,12 +108,12 @@ func inflictionWorker() {
 			case semaphore <- struct{}{}:
 				activeRequestsWG.Add(1)
 
-				go func(handle *world.EntityHandle, inflictions *Inflictions) {
+				go func(req inflictionRequest) {
 					defer activeRequestsWG.Done()
 					defer func() { <-semaphore }()
 
-					processInflictionRequest(handle, inflictions)
-				}(req.handle, req.inflictions)
+					processInflictionRequest(req)
+				}(req)
 			case <-inflictionWorkerShutdown:
 				return
 			}
@@ -141,8 +122,8 @@ func inflictionWorker() {
 }
 
 // processInflictionRequest fetches inflictions for a player and applies them.
-func processInflictionRequest(handle *world.EntityHandle, inflictions *Inflictions) {
-	if handle == nil {
+func processInflictionRequest(req inflictionRequest) {
+	if req.handle == nil || req.xuid == "" || req.inflictions == nil {
 		return
 	}
 
@@ -151,20 +132,7 @@ func processInflictionRequest(handle *world.EntityHandle, inflictions *Inflictio
 		return
 	}
 
-	// Capture the XUID via a quick ExecWorld read.
-	var xuid string
-	handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-		if p, ok := e.(*player.Player); ok {
-			xuid = p.XUID()
-		}
-	})
-
-	if xuid == "" {
-		// Player is no longer in the world.
-		return
-	}
-
-	resp, err := modSvc.InflictionOfXUID(xuid)
+	resp, err := modSvc.InflictionOfXUID(req.xuid)
 	if err != nil || resp == nil {
 		return
 	}
@@ -173,34 +141,32 @@ func processInflictionRequest(handle *world.EntityHandle, inflictions *Inflictio
 		switch inf.Type {
 		case moderation.InflictionMuted:
 			if inf.ExpiryDate != nil && *inf.ExpiryDate != 0 {
-				inflictions.muteDuration.Store(*inf.ExpiryDate)
+				req.inflictions.muteDuration.Store(*inf.ExpiryDate)
 			}
 
-			inflictions.muted.Store(true)
+			req.inflictions.muted.Store(true)
 		case moderation.InflictionFrozen:
-			inflictions.frozen.Store(true)
+			req.inflictions.frozen.Store(true)
 		}
 	}
 
-	// Apply side effects (e.g. SetImmobile) back on the world goroutine.
-	handle.ExecWorld(func(_ *world.Tx, e world.Entity) {
-		if p, ok := e.(*player.Player); ok {
-			inflictions.handleActiveInflictions(p)
-		}
+	player.Do(req.handle, func(_ *world.Tx, p *player.Player) {
+		req.inflictions.handleActiveInflictions(p)
 	})
 }
 
 // Load queues a request to load the player's inflictions from the moderation service.
-func (i *Inflictions) Load(handle *world.EntityHandle) {
-	// Queue the request instead of processing it immediately
+//
+// @param xuid Player XUID captured on the world owner before scheduling.
+// @param handle Stable entity handle used to re-enter the player after HTTP.
+func (i *Inflictions) Load(xuid string, handle *world.EntityHandle) {
 	select {
 	case InflictionQueue <- inflictionRequest{
+		xuid:        xuid,
 		handle:      handle,
 		inflictions: i,
 	}:
-		// Successfully queued
 	default:
-		// Queue is full, log warning (can't access logger here, so just continue)
 	}
 }
 
@@ -239,58 +205,4 @@ func (i *Inflictions) SetFrozen(frozen bool) {
 // Frozen returns whether the player is frozen or not.
 func (i *Inflictions) Frozen() bool {
 	return i.frozen.Load()
-}
-
-// inflictionLoadWorker processes infliction load requests with rate limiting.
-//
-// Uses a small semaphore (3) so we don't hammer the moderation API on
-// startup or when many players join at once.
-func inflictionLoadWorker() {
-	defer inflictionWorkerWG.Done()
-
-	semaphore := make(chan struct{}, 3)
-
-	var activeRequestsWG sync.WaitGroup
-	defer activeRequestsWG.Wait()
-
-	for {
-		select {
-		case <-inflictionLoadWorkerShutdown:
-			return
-		case req, ok := <-inflictionLoadQueue:
-			if !ok {
-				return
-			}
-
-			select {
-			case semaphore <- struct{}{}:
-			case <-inflictionLoadWorkerShutdown:
-				return
-			}
-
-			activeRequestsWG.Add(1)
-
-			go func(handle *world.EntityHandle, inf *Inflictions) {
-				defer activeRequestsWG.Done()
-				defer func() { <-semaphore }()
-
-				if handle == nil {
-					return
-				}
-
-				inf.Load(handle)
-			}(req.handle, req.inf)
-		}
-	}
-}
-
-// QueueLoad adds the player's handle to the infliction loading queue
-func (i *Inflictions) QueueLoad(handle *world.EntityHandle) {
-	// Avoid blocking the caller if the queue is full
-	select {
-	case inflictionLoadQueue <- inflictionLoadRequest{handle: handle, inf: i}:
-		// Successfully queued
-	default:
-		// Queue is full, log this somewhere if needed
-	}
 }

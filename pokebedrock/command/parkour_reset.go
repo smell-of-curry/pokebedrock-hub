@@ -24,11 +24,11 @@ func NewParkourReset(r rank.Rank) cmd.Command {
 }
 
 // Run ...
-func (p ParkourReset) Run(_ cmd.Source, o *cmd.Output, _ *world.Tx) {
+func (p ParkourReset) Run(_ cmd.Source, o *cmd.Output, tx *world.Tx) {
 	course := strings.TrimSpace(p.Course)
 
 	target, exists := p.XUID.Load()
-	parkour.Global().Reset(course, target)
+	parkour.Global().Reset(tx, course, target)
 
 	if exists {
 		o.Print(text.Colourf("<green>You've reset the '%s' course entries for %s.</green>", course, target))

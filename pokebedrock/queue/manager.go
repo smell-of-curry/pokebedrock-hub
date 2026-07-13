@@ -31,13 +31,6 @@ func init() {
 	QueueManager = NewManager()
 }
 
-// Transfer represents a player waiting to be transferred to a server.
-type Transfer struct {
-	player *player.Player
-	entry  *Entry
-	server *srv.Server
-}
-
 // Manager owns the priority queue of players waiting to join downstream
 // servers and orchestrates per-tick transfer processing.
 type Manager struct {
@@ -194,7 +187,9 @@ func (m *Manager) Update(tx *world.Tx) {
 
 	var (
 		toRemove        []*Entry
-		toTransfer      *Transfer
+		toTransfer      *Entry
+		transferPlayer  *player.Player
+		transferServer  *srv.Server
 		invalidEntries  []*Entry
 		invalidMessages []string
 	)
@@ -236,7 +231,9 @@ func (m *Manager) Update(tx *world.Tx) {
 			continue
 		}
 
-		toTransfer = &Transfer{player: p, entry: entry, server: s}
+		toTransfer = entry
+		transferPlayer = p
+		transferServer = s
 		toRemove = append(toRemove, entry)
 
 		break
@@ -261,17 +258,15 @@ func (m *Manager) Update(tx *world.Tx) {
 	}
 
 	if toTransfer != nil {
-		p, server := toTransfer.player, toTransfer.server
+		transferPlayer.Message(locale.Translate("connection.connecting", transferServer.Name()))
 
-		p.Message(locale.Translate("connection.connecting", server.Name()))
-
-		if err := p.Transfer(server.Address()); err != nil {
-			p.Message(locale.Translate("connection.failed", err))
+		if err := transferPlayer.Transfer(transferServer.Address()); err != nil {
+			transferPlayer.Message(locale.Translate("connection.failed", err))
 			m.mu.Lock()
-			heap.Push(&m.pq, toTransfer.entry)
+			heap.Push(&m.pq, toTransfer)
 			m.mu.Unlock()
 		} else {
-			authentication.GlobalFactory().Set(p.Name(), p.XUID(), authentication.DefaultAuthDuration)
+			authentication.GlobalFactory().Set(transferPlayer.Name(), transferPlayer.XUID(), authentication.DefaultAuthDuration)
 		}
 	}
 
@@ -407,12 +402,4 @@ func (m *Manager) QueueSize() int {
 	defer m.mu.Unlock()
 
 	return m.pq.Len()
-}
-
-// Queue returns a snapshot of the current queue for read-only use.
-//
-// Deprecated callers that mutated the returned slice are no longer
-// supported; mutations will not be reflected in the manager.
-func (m *Manager) Queue() []*Entry {
-	return m.snapshot()
 }

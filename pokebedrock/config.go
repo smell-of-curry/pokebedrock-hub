@@ -99,8 +99,9 @@ type Config struct {
 		// CheckInterval is how often the health watchdog probes the world tick
 		// and process metrics.
 		CheckInterval util.Duration
-		// WorldExecTimeout is how long a probe world transaction may take
+		// WorldExecTimeout is how long a probe world owner task may take
 		// before the world is considered stalled (login-blocking deadlock).
+		// Name retained for deployed config.toml compatibility.
 		WorldExecTimeout util.Duration
 		// GoroutineThreshold is the goroutine count at/above which an alert is
 		// raised.
