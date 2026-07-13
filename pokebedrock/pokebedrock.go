@@ -161,12 +161,6 @@ func (poke *PokeBedrock) Start() {
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
-	l := world.NewLoader(defaultChunkLoaderCount, w, world.NopViewer{})
-	w.Do(func(tx *world.Tx) {
-		l.Move(tx, w.Spawn().Vec3Middle())
-		l.Load(tx, worldLoadRadius)
-	})
-
 	w.StopWeatherCycle()
 	w.StopRaining()
 	w.StopThundering()
@@ -175,8 +169,18 @@ func (poke *PokeBedrock) handleWorld() {
 	w.StopTime()
 	w.SetTickRange(0)
 
+	// Spawn NPCs before the spawn-chunk preload. Preload is a long owner task
+	// (Load drains the whole radius-10 queue); queueing summons behind it made
+	// world.Call hit WorldExecTimeout and skip every slapper/parkour entity.
 	poke.loadServers()
 	poke.loadParkour(w)
+
+	l := world.NewLoader(defaultChunkLoaderCount, w, world.NopViewer{})
+	w.Do(func(tx *world.Tx) {
+		l.Move(tx, w.Spawn().Vec3Middle())
+		l.Load(tx, worldLoadRadius)
+	})
+
 	poke.loadHider()
 	poke.loadWatchdog(w)
 	go poke.startTicking()
@@ -418,9 +422,9 @@ func (poke *PokeBedrock) loadServers() {
 		poke.log.Error("some slappers could not be loaded", "error", loadErr)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(poke.conf.Watchdog.WorldExecTimeout))
-	defer cancel()
-	_, err = world.Call(ctx, w, func(tx *world.Tx) (struct{}, error) {
+	// Startup spawn must finish; do not reuse Watchdog.WorldExecTimeout (often
+	// 0 when [Watchdog] is absent from config.toml → immediate deadline).
+	_, err = world.Call(context.Background(), w, func(tx *world.Tx) (struct{}, error) {
 		slapper.SummonAll(loadedSlappers, tx)
 		return struct{}{}, nil
 	})
@@ -431,9 +435,7 @@ func (poke *PokeBedrock) loadServers() {
 
 // loadParkour initialises the parkour manager with the provided world.
 func (poke *PokeBedrock) loadParkour(w *world.World) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(poke.conf.Watchdog.WorldExecTimeout))
-	defer cancel()
-	parkour.NewManager(ctx, poke.log, w, parkour.Config{
+	parkour.NewManager(context.Background(), poke.log, w, parkour.Config{
 		LeaderboardPath:  poke.conf.Parkour.LeaderboardPath,
 		CountdownSeconds: poke.conf.Parkour.CountdownSeconds,
 		CompletionRadius: poke.conf.Parkour.CompletionRadius,

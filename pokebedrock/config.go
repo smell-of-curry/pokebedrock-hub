@@ -221,13 +221,37 @@ func ParseLogLevel(level string) (slog.Level, error) {
 func ReadConfig() (Config, error) {
 	g := gophig.NewGophig[Config]("./config.toml", codecs.TOMLMarshaler{}, os.ModePerm)
 
-	_, err := g.LoadConf()
+	conf, err := g.LoadConf()
 	if os.IsNotExist(err) {
-		err = g.SaveConf(DefaultConfig())
-		if err != nil {
+		conf = DefaultConfig()
+		if err = g.SaveConf(conf); err != nil {
 			return Config{}, err
 		}
+		return conf, nil
+	}
+	if err != nil {
+		return Config{}, err
 	}
 
-	return g.LoadConf()
+	// gophig unmarshals into a zero Config; missing TOML keys stay zero.
+	// Overlay defaults for unset watchdog durations so startup/world probes
+	// do not get context.WithTimeout(..., 0) → immediate deadline exceeded.
+	defaults := DefaultConfig()
+	if conf.Watchdog.CheckInterval == 0 {
+		conf.Watchdog.CheckInterval = defaults.Watchdog.CheckInterval
+	}
+	if conf.Watchdog.WorldExecTimeout == 0 {
+		conf.Watchdog.WorldExecTimeout = defaults.Watchdog.WorldExecTimeout
+	}
+	if conf.Watchdog.AlertCooldown == 0 {
+		conf.Watchdog.AlertCooldown = defaults.Watchdog.AlertCooldown
+	}
+	if conf.Watchdog.GoroutineThreshold == 0 {
+		conf.Watchdog.GoroutineThreshold = defaults.Watchdog.GoroutineThreshold
+	}
+	if conf.Watchdog.HeapAllocThresholdBytes == 0 {
+		conf.Watchdog.HeapAllocThresholdBytes = defaults.Watchdog.HeapAllocThresholdBytes
+	}
+
+	return conf, nil
 }
