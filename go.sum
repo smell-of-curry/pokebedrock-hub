@@ -26,8 +26,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/df-mc/atomic v1.10.0 h1:0ZuxBKwR/hxcFGorKiHIp+hY7hgY+XBTzhCYD2NqSEg=
 github.com/df-mc/atomic v1.10.0/go.mod h1:Gw9rf+rPIbydMjA329Jn4yjd/O2c/qusw3iNp4tFGSc=
-github.com/df-mc/dragonfly v0.10.15-0.20260628092836-26be2a6ed61b h1:+UIIXP5XHYF7iHu5Hi37e7iuu5xZ85OQOuTAkRnJbUc=
-github.com/df-mc/dragonfly v0.10.15-0.20260628092836-26be2a6ed61b/go.mod h1:OFJjCz3xfDalVZEtV4lJdbenwKDEAczKHikHN7kVwMc=
+github.com/df-mc/dragonfly v0.11.0 h1:bylZOYzHRuaBxYewToTPa3v1m74aKfG0yd433ZiypfQ=
+github.com/df-mc/dragonfly v0.11.0/go.mod h1:OFJjCz3xfDalVZEtV4lJdbenwKDEAczKHikHN7kVwMc=
 github.com/df-mc/go-playfab v1.0.0 h1:6gVukk3aQbJ934GJFdcZJHVIw9lhauK+KHOevbwJA10=
 github.com/df-mc/go-playfab v1.0.0/go.mod h1:nGOlE+JFGOH5Z0iidEgJapHhndFi/oNk17RN9pKCF+k=
 github.com/df-mc/go-xsapi v1.0.1 h1:H1SbxYr4rXOqZSB8MwiODbDUsHRihxbHf+YOljUWgXw=
