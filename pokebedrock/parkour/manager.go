@@ -1,6 +1,7 @@
 package parkour
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -9,11 +10,12 @@ import (
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
-	"github.com/df-mc/npc"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/block"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/npc"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 )
 
@@ -57,41 +59,48 @@ func NewManager(log *slog.Logger, w *world.World, cfg Config) *Manager {
 	for _, course := range cfg.Courses {
 		m.courses[course.Identifier] = course
 	}
-	m.spawnNPCs()
-	m.spawnLeaderboardTexts()
+	if _, err := world.Call(context.Background(), w, func(tx *world.Tx) (struct{}, error) {
+		m.spawnNPCs(tx)
+		m.spawnLeaderboardTexts(tx)
+		return struct{}{}, nil
+	}); err != nil {
+		log.Error("parkour entities could not be spawned", "error", err)
+	}
 
 	globalManager = m
 	return m
 }
 
 // spawnNPCs ...
-func (m *Manager) spawnNPCs() {
+func (m *Manager) spawnNPCs(tx *world.Tx) {
 	for _, course := range m.courses {
 		sk := slapper.FromIdentifier(course.Identifier)
-		m.w.Exec(func(tx *world.Tx) {
-			n := npc.Create(npc.Settings{
-				Name:     text.Colourf("<green>%s</green>", course.Name),
-				Skin:     sk.Skin(),
-				Position: course.NPC.Position.vec3(),
-				Yaw:      course.NPC.Yaw,
-				Pitch:    course.NPC.Pitch,
-				Scale:    course.NPC.Scale,
-				Immobile: true,
-			}, tx, func(p *player.Player) {
-				m.startForm(p, course)
-			})
-
-			m.npcMu.Lock()
-			m.npcHandles[course.Identifier] = n.H()
-			m.npcMu.Unlock()
+		if sk == nil {
+			m.log.Error("skipping parkour NPC without slapper skin", "identifier", course.Identifier)
+			continue
+		}
+		n := npc.Create(npc.Settings{
+			Name:     text.Colourf("<green>%s</green>", course.Name),
+			Skin:     sk.Skin(),
+			Position: course.NPC.Position.vec3(),
+			Yaw:      course.NPC.Yaw,
+			Pitch:    course.NPC.Pitch,
+			Scale:    course.NPC.Scale,
+			Immobile: true,
+		}, tx, func(p *player.Player) {
+			m.startForm(p, course)
 		})
+
+		m.npcMu.Lock()
+		m.npcHandles[course.Identifier] = n.H()
+		m.npcMu.Unlock()
 	}
 }
 
 // spawnLeaderboardTexts ...
-func (m *Manager) spawnLeaderboardTexts() {
+func (m *Manager) spawnLeaderboardTexts(tx *world.Tx) {
 	for _, course := range m.courses {
-		m.updateLeaderboardText(course.Identifier)
+		m.updateLeaderboardText(tx, course.Identifier)
 	}
 }
 
@@ -238,7 +247,7 @@ func (m *Manager) handleFinish(p *player.Player, sess *Session, dur time.Duratio
 	}
 	p.Message(message)
 
-	m.updateLeaderboardText(sess.courseID)
+	m.updateLeaderboardText(p.Tx(), sess.courseID)
 	m.endRun(p, sess, false)
 }
 
@@ -251,4 +260,9 @@ func (m *Manager) endRun(p *player.Player, sess *Session, teleportSpawn bool) {
 	}
 	p.SetMobile()
 	kit.Apply(kit.Lobby, p)
+}
+
+// Close flushes pending leaderboard saves.
+func (m *Manager) Close() {
+	m.lb.close()
 }

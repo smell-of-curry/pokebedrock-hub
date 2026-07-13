@@ -129,7 +129,6 @@ linters-settings:
       modules:                                                        
         - github.com/df-mc/dragonfly
         - github.com/df-mc/atomic
-        - github.com/df-mc/npc
         - github.com/getsentry/sentry-go
         - github.com/gin-gonic/gin
         - github.com/go-gl/mathgl

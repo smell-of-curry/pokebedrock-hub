@@ -57,10 +57,11 @@ func (lobby) ApplyFunc(p *player.Player) {
 // lobbyGameMode ...
 type lobbyGameMode struct{}
 
-func (lobbyGameMode) AllowsEditing() bool      { return false }
-func (lobbyGameMode) AllowsTakingDamage() bool { return false }
-func (lobbyGameMode) CreativeInventory() bool  { return false }
-func (lobbyGameMode) HasCollision() bool       { return true }
-func (lobbyGameMode) AllowsFlying() bool       { return true }
-func (lobbyGameMode) AllowsInteraction() bool  { return true }
-func (lobbyGameMode) Visible() bool            { return true }
+func (lobbyGameMode) AllowsEditing() bool       { return false }
+func (lobbyGameMode) AllowsTakingDamage() bool  { return false }
+func (lobbyGameMode) CreativeInventory() bool   { return false }
+func (lobbyGameMode) HasCollision() bool        { return true }
+func (lobbyGameMode) AllowsFlying() bool        { return true }
+func (lobbyGameMode) AllowsInteraction() bool   { return true }
+func (lobbyGameMode) Visible() bool             { return true }
+func (lobbyGameMode) InstantPortalTravel() bool { return false }

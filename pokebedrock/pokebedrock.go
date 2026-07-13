@@ -4,6 +4,7 @@
 package pokebedrock
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
@@ -27,8 +29,8 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/restart"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/settings"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/settings"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
@@ -145,8 +147,10 @@ func (poke *PokeBedrock) Start() {
 	poke.srv.Listen()
 	poke.handleWorld()
 
+	// Accept yields players on the world owner. Setup must stay inline —
+	// *player.Player is invalid outside the loop body.
 	for pl := range poke.srv.Accept() {
-		go poke.accept(pl)
+		poke.accept(pl)
 	}
 
 	poke.Close()
@@ -158,7 +162,7 @@ func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
 	l := world.NewLoader(defaultChunkLoaderCount, w, world.NopViewer{})
-	w.Exec(func(tx *world.Tx) {
+	w.Do(func(tx *world.Tx) {
 		l.Move(tx, w.Spawn().Vec3Middle())
 		l.Load(tx, worldLoadRadius)
 	})
@@ -179,7 +183,7 @@ func (poke *PokeBedrock) handleWorld() {
 }
 
 // loadWatchdog starts the runtime health watchdog that detects world-tick
-// stalls (e.g. a re-entrant World.Exec deadlock that blocks all logins),
+// stalls (e.g. an owner deadlock that blocks all logins),
 // goroutine pile-ups, and heap pressure, alerting via the logger and Sentry.
 func (poke *PokeBedrock) loadWatchdog(w *world.World) {
 	poke.watchdog = watchdog.New(poke.log, w, watchdog.Config{
@@ -409,9 +413,18 @@ func (poke *PokeBedrock) loadServers() {
 			}(c.NPC.Position),
 		}
 	})
-	<-w.Exec(func(tx *world.Tx) {
-		slapper.SummonAll(slapperConfigs, tx, poke.resManager)
+	loadedSlappers, loadErr := slapper.LoadAll(slapperConfigs, poke.resManager)
+	if loadErr != nil {
+		poke.log.Error("some slappers could not be loaded", "error", loadErr)
+	}
+
+	_, err = world.Call(context.Background(), w, func(tx *world.Tx) (struct{}, error) {
+		slapper.SummonAll(loadedSlappers, tx)
+		return struct{}{}, nil
 	})
+	if err != nil {
+		poke.log.Error("slappers could not be summoned", "error", err)
+	}
 }
 
 // loadParkour initialises the parkour manager with the provided world.
@@ -471,7 +484,7 @@ func (poke *PokeBedrock) startTicking() {
 		case <-poke.c:
 			return
 		case <-t.C:
-			w.Exec(func(tx *world.Tx) {
+			w.Do(func(tx *world.Tx) {
 				counter++
 
 				queue.QueueManager.Update(tx)
@@ -488,21 +501,14 @@ func (poke *PokeBedrock) startTicking() {
 	}
 }
 
-// accept handles a new player joining the server.
+// accept handles a new player joining the server. Called on the world owner
+// from the Accept loop; p is only valid for this call.
 func (poke *PokeBedrock) accept(p *player.Player) {
-	// Create and set the player handler.
 	h := handler.NewPlayerHandler(p)
 	p.Handle(h)
 
-	// Send details of the player to the moderation service
 	moderation.GlobalService().SendDetailsOf(p)
-
-	// We must exec this in a world transaction to ensure HandleJoin is called in the correct world.
-	p.H().ExecWorld(func(tx *world.Tx, e world.Entity) {
-		if p, ok := e.(*player.Player); ok {
-			h.HandleJoin(p, tx.World())
-		}
-	})
+	h.HandleJoin(p, p.Tx().World())
 }
 
 // World returns the default world.
@@ -616,9 +622,6 @@ func (poke *PokeBedrock) Close() {
 	poke.log.Debug("Stopping Rank Channel...")
 	session.StopRankChannel()
 
-	poke.log.Debug("Stopping Rank Load Worker...")
-	session.StopRankLoadWorker()
-
 	poke.log.Debug("Stopping Infliction Worker...")
 	session.StopInflictionWorker()
 
@@ -626,6 +629,11 @@ func (poke *PokeBedrock) Close() {
 
 	poke.log.Debug("Stopping Server...")
 	poke.srv.Close()
+
+	if manager := parkour.Global(); manager != nil {
+		poke.log.Debug("Flushing Parkour Leaderboard...")
+		manager.Close()
+	}
 
 	poke.log.Debug("Server stopped")
 }

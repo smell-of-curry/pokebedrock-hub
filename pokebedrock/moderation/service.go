@@ -76,11 +76,6 @@ const (
 	maxConcurrentRequests = 5
 )
 
-// InflictionOfPlayer fetches the inflictions for the given player.
-func (s *Service) InflictionOfPlayer(p *player.Player) (*ModelResponse, error) {
-	return s.InflictionOfXUID(p.XUID())
-}
-
 // InflictionOfXUID fetches the inflictions for the given XUID.
 func (s *Service) InflictionOfXUID(xuid string) (*ModelResponse, error) {
 	return s.InflictionOf(ModelRequest{XUID: xuid})
@@ -321,7 +316,7 @@ var detailsWorkerShutdownOnce sync.Once
 
 // playerDetailsRequest represents a queued request to push player details.
 type playerDetailsRequest struct {
-	player *player.Player
+	details PlayerDetails
 }
 
 func init() {
@@ -351,14 +346,14 @@ func playerDetailsWorker() {
 			case semaphore <- struct{}{}:
 				activeRequests <- struct{}{}
 
-				go func(p *player.Player) {
+				go func(details PlayerDetails) {
 					defer func() {
 						<-semaphore
 						<-activeRequests
 					}()
 
-					sendPlayerDetails(p)
-				}(req.player)
+					sendPlayerDetails(details)
+				}(req.details)
 			case <-detailsWorkerShutdown:
 				return
 			}
@@ -366,16 +361,10 @@ func playerDetailsWorker() {
 	}
 }
 
-func sendPlayerDetails(p *player.Player) {
+func sendPlayerDetails(req PlayerDetails) {
 	s := GlobalService()
 	if s == nil || s.closed.Load() {
 		return
-	}
-
-	req := PlayerDetails{
-		Name: p.Name(),
-		XUID: p.XUID(),
-		IP:   strings.Split(p.Addr().String(), ":")[0],
 	}
 
 	body, err := json.Marshal(req)
@@ -395,19 +384,26 @@ func sendPlayerDetails(p *player.Player) {
 	}
 	defer closeBody(resp)
 
-	s.log.Info("sent player details", "name", p.Name(), "status", resp.StatusCode)
+	s.log.Info("sent player details", "name", req.Name, "status", resp.StatusCode)
 }
 
-// SendDetailsOf enqueues a player-details push.
+// SendDetailsOf enqueues a player-details push. Captures identity on the
+// world owner so the HTTP worker never touches a live *player.Player.
 func (s *Service) SendDetailsOf(p *player.Player) {
 	if s.closed.Load() {
 		return
 	}
 
+	details := PlayerDetails{
+		Name: p.Name(),
+		XUID: p.XUID(),
+		IP:   strings.Split(p.Addr().String(), ":")[0],
+	}
+
 	select {
-	case SendDetailsOfQueue <- playerDetailsRequest{player: p}:
+	case SendDetailsOfQueue <- playerDetailsRequest{details: details}:
 	default:
-		s.log.Error("player details queue is full, skipping request", "name", p.Name())
+		s.log.Error("player details queue is full, skipping request", "name", details.Name)
 	}
 }
 

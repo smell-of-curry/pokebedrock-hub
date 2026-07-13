@@ -1,16 +1,18 @@
 package slapper
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/skin"
 	"github.com/df-mc/dragonfly/server/world"
-	"github.com/df-mc/npc"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/npc"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
@@ -26,31 +28,55 @@ type Slapper struct {
 	handle    *world.EntityHandle
 }
 
-// NewSlapper creates and returns a new Slapper instance with the provided configuration and resource manager.
-// It also preloads the skin for the slapper.
-func NewSlapper(conf *Config, resManager *resources.Manager) *Slapper {
+type viewLayerViewer interface {
+	ViewLayer() *world.ViewLayer
+}
+
+func viewerForLayer(viewers []world.Viewer, layer *world.ViewLayer) world.Viewer {
+	if layer == nil {
+		return nil
+	}
+	for _, viewer := range viewers {
+		layered, ok := viewer.(viewLayerViewer)
+		if ok && layered.ViewLayer() == layer {
+			return viewer
+		}
+	}
+	return nil
+}
+
+// NewSlapper creates a Slapper and loads its skin assets.
+func NewSlapper(conf *Config, resManager *resources.Manager) (*Slapper, error) {
 	s := &Slapper{
 		conf:       conf,
 		resManager: resManager,
-
-		animation: world.NewEntityAnimation(fmt.Sprintf("animation.npc_%s.idle", conf.Identifier)),
 	}
-	s.preloadSkin()
+	assetIdentifier := conf.Identifier
+	if err := s.preloadSkin(assetIdentifier); err != nil {
+		if !errors.Is(err, os.ErrNotExist) || conf.Identifier == "black" {
+			return nil, err
+		}
+		assetIdentifier = "black"
+		if err = s.preloadSkin(assetIdentifier); err != nil {
+			return nil, fmt.Errorf("slapper %s fallback failed: %w", conf.Identifier, err)
+		}
+	}
+	s.animation = world.NewEntityAnimation(fmt.Sprintf("animation.npc_%s.idle", assetIdentifier))
 
-	return s
+	return s, nil
 }
 
 // preloadSkin loads the skin texture and model from file paths based on the slapper's configuration.
-func (s *Slapper) preloadSkin() {
+func (s *Slapper) preloadSkin(identifier string) error {
 	texturePath, err := s.resManager.FindFileInPack(
 		"pokebedrock-hub-res",
 		"textures",
 		"entity",
 		"npcs",
-		s.conf.Identifier+".png",
+		identifier+".png",
 	)
 	if err != nil {
-		panic(fmt.Sprintf("slapper %s missing texture: %v", s.conf.Identifier, err))
+		return fmt.Errorf("slapper %s missing texture: %w", identifier, err)
 	}
 
 	geometryPath, err := s.resManager.FindFileInPack(
@@ -58,16 +84,25 @@ func (s *Slapper) preloadSkin() {
 		"models",
 		"entity",
 		"npcs",
-		s.conf.Identifier+".geo.json",
+		identifier+".geo.json",
 	)
 	if err != nil {
-		panic(fmt.Sprintf("slapper %s missing geometry: %v", s.conf.Identifier, err))
+		return fmt.Errorf("slapper %s missing geometry: %w", identifier, err)
 	}
 
-	s.skin = npc.MustSkin(
-		npc.MustParseTexture(texturePath),
-		npc.MustParseModel(geometryPath),
-	)
+	texture, err := npc.ParseTexture(texturePath)
+	if err != nil {
+		return fmt.Errorf("slapper %s invalid texture: %w", identifier, err)
+	}
+	model, err := npc.ParseModel(geometryPath)
+	if err != nil {
+		return fmt.Errorf("slapper %s invalid geometry: %w", identifier, err)
+	}
+	s.skin, err = npc.Skin(texture, model)
+	if err != nil {
+		return fmt.Errorf("slapper %s invalid skin: %w", identifier, err)
+	}
+	return nil
 }
 
 // Spawn creates the slapper NPC in the world with its configured properties and assigns an interaction handler.
@@ -120,18 +155,23 @@ func (s *Slapper) update(tx *world.Tx) {
 	p.SetNameTag(fmt.Sprintf("%s\n%s", s.conf.Name, status))
 }
 
-// SendAnimation ...
+// SendAnimation plays the slapper idle animation for the joining/interacting player after a short delay.
 func (s *Slapper) SendAnimation(p *player.Player) {
-	e, exists := s.handle.Entity(p.Tx())
-	if !exists {
+	viewer := p.H()
+	npcHandle := s.handle
+	if viewer == nil || npcHandle == nil {
 		return
 	}
-	sess := player_session(p)
-	if sess == nil {
-		return
-	}
-	time.AfterFunc(time.Second, func() {
-		sess.ViewEntityAnimation(e, s.animation)
+
+	player.DoAfter(viewer, time.Second, func(tx *world.Tx, p *player.Player) {
+		ent, ok := npcHandle.Entity(tx)
+		if !ok {
+			return
+		}
+		target := viewerForLayer(tx.Viewers(p.Position()), p.ViewLayer())
+		if target != nil {
+			target.ViewEntityAnimation(ent, s.animation)
+		}
 	})
 }
 

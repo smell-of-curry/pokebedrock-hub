@@ -1,6 +1,7 @@
 package slapper
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/df-mc/dragonfly/server/world"
@@ -11,13 +12,29 @@ import (
 // Slappers is a map that stores all slappers by their identifier for easy lookup.
 var slappers sync.Map
 
-// SummonAll spawns slappers based on the provided configurations and stores them in the slappers map.
-// Each slapper is spawned and initialized with the provided transaction and resource manager.
-func SummonAll(cfgs []Config, tx *world.Tx, resManager *resources.Manager) {
+// LoadAll reads and parses slapper assets off the world owner.
+func LoadAll(cfgs []Config, resManager *resources.Manager) ([]*Slapper, error) {
+	loaded := make([]*Slapper, 0, len(cfgs))
+	var loadErrors []error
 	for _, c := range cfgs {
-		s := NewSlapper(&c, resManager)
+		s, err := NewSlapper(&c, resManager)
+		if err != nil {
+			loadErrors = append(loadErrors, err)
+			continue
+		}
+		loaded = append(loaded, s)
+	}
+	return loaded, errors.Join(loadErrors...)
+}
+
+// SummonAll spawns preloaded slappers and stores them by identifier.
+func SummonAll(loaded []*Slapper, tx *world.Tx) {
+	for _, s := range loaded {
+		if s == nil {
+			continue
+		}
 		s.Spawn(tx)
-		slappers.Store(c.Identifier, s)
+		Register(s)
 	}
 }
 

@@ -49,8 +49,7 @@ func (m Moderate) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 		go func() {
 			f := NewRemoveInfliction(m.target)
 
-			h.ExecWorld(func(_ *world.Tx, e world.Entity) {
-				p = e.(*player.Player)
+			player.Do(h, func(_ *world.Tx, p *player.Player) {
 				p.SendForm(f)
 			})
 		}()
@@ -140,12 +139,7 @@ func (c CreateInfliction) Submit(sub form.Submitter, _ *world.Tx) {
 			Infliction:       infliction,
 		})
 
-		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
-			prosecutor, ok := e.(*player.Player)
-			if !ok || prosecutor == nil {
-				return
-			}
-
+		player.Do(h, func(tx *world.Tx, prosecutor *player.Player) {
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while adding infliction on '%s' %s.</red>", c.target, err.Error()))
 
@@ -253,12 +247,7 @@ func (r RemoveInfliction) Submit(sub form.Submitter, b form.Button, _ *world.Tx)
 			Infliction:       infliction,
 		})
 
-		h.ExecWorld(func(tx *world.Tx, e world.Entity) {
-			prosecutor, ok := e.(*player.Player)
-			if !ok {
-				return
-			}
-
+		player.Do(h, func(tx *world.Tx, prosecutor *player.Player) {
 			if err != nil {
 				prosecutor.Message(text.Colourf("<red>Error while removing infliction on '%s'.</red>", r.target))
 

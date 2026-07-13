@@ -5,13 +5,14 @@
 // Sentry) when a threshold is breached or the world stops ticking.
 //
 // The world-stall probe exists specifically to catch the failure mode where
-// the single world-tick goroutine wedges (e.g. a re-entrant World.Exec
-// deadlock): when that happens a probe transaction never completes, so instead
-// of silently dropping every login the watchdog fires a fatal alert with a full
-// goroutine dump attached.
+// the single world-tick goroutine wedges (e.g. an owner deadlock): when that
+// happens a probe task never completes, so instead of silently dropping every
+// login the watchdog fires a fatal alert with a full goroutine dump attached.
 package watchdog
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -48,8 +49,8 @@ const (
 type Config struct {
 	// CheckInterval is how often the watchdog runs its probes.
 	CheckInterval time.Duration
-	// WorldExecTimeout is how long a probe world transaction may take before
-	// the world is considered stalled.
+	// WorldExecTimeout is how long a probe world owner task may take before
+	// the world is considered stalled. Name retained for config compatibility.
 	WorldExecTimeout time.Duration
 	// GoroutineThreshold is the goroutine count at or above which an alert is
 	// raised. A healthy hub sits in the low hundreds; a login pile-up climbs
@@ -191,8 +192,8 @@ func (w *Watchdog) evaluate(s snapshot) []alert {
 			cond:  condWorldStall,
 			level: sentry.LevelFatal,
 			message: fmt.Sprintf(
-				"world tick stalled: probe transaction did not complete within %s "+
-					"(world goroutine wedged, likely a re-entrant World.Exec deadlock); "+
+				"world tick stalled: probe task did not complete within %s "+
+					"(world owner wedged, likely an owner deadlock); "+
 					"new players cannot join",
 				w.conf.WorldExecTimeout),
 		})
@@ -215,22 +216,26 @@ func (w *Watchdog) evaluate(s snapshot) []alert {
 	return out
 }
 
-// worldStalled submits a no-op probe transaction and reports whether it failed
-// to complete within WorldExecTimeout.
+// worldStalled submits a no-op probe task and reports whether it timed out.
+// Closure and cancellation errors are normal lifecycle events, not stalls.
 //
-// @returns true if the world tick goroutine did not process the probe in time.
+// @returns true if the world owner did not process the probe in time.
 func (w *Watchdog) worldStalled() bool {
-	done := w.world.Exec(func(*world.Tx) {})
-	select {
-	case <-done:
+	task := w.world.Do(func(*world.Tx) {})
+	ctx, cancel := context.WithTimeout(context.Background(), w.conf.WorldExecTimeout)
+	defer cancel()
+
+	err := task.Wait(ctx)
+	if err == nil {
 		return false
-	case <-time.After(w.conf.WorldExecTimeout):
-		// ponytail: a genuinely stalled world leaks this one probe transaction
-		// in the world queue until (if) it recovers. Bounded to one per
-		// CheckInterval, and a stalled process is already doomed to a restart,
-		// so we don't attempt to reap it.
-		return true
 	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+
+	// Cancel so a recovered world does not keep a timed-out probe in its queue.
+	task.Cancel()
+	return true
 }
 
 // dispatch always logs the alert and, subject to the per-condition cooldown,

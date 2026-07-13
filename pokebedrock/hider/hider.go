@@ -11,7 +11,6 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/parkour"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
 // Manager ...
@@ -52,10 +51,9 @@ func (m *Manager) Toggle(p *player.Player) {
 
 // HandleJoin ...
 //
-// HandleJoin runs inside the joining player's world transaction, so it must
-// operate on p.Tx() directly. Calling World.Exec here would enqueue a new
-// transaction onto the single world-tick goroutine that is already executing
-// this code, deadlocking it once the (buffered) world queue fills under load.
+// HandleJoin runs on the joining player's world owner, so it must operate on
+// p.Tx() directly. Never call world.Call / Task.Wait from here — that deadlocks
+// the owner on itself.
 func (m *Manager) HandleJoin(p *player.Player) {
 	hidden := m.snapshotHidden()
 	if len(hidden) == 0 {
@@ -64,7 +62,7 @@ func (m *Manager) HandleJoin(p *player.Player) {
 
 	for ent := range p.Tx().Players() {
 		other := ent.(*player.Player)
-		if other == p {
+		if other.H() == p.H() {
 			continue
 		}
 		if _, ok := hidden[other.UUID().String()]; ok {
@@ -80,13 +78,13 @@ func (m *Manager) HandleQuit(p *player.Player) {
 
 // hideAll ...
 //
-// Runs inside p's world transaction (Toggle is called from a packet handler),
-// so it uses p.Tx() directly instead of re-entering World.Exec.
+// Runs on p's world owner (Toggle is called from a packet handler), so it uses
+// p.Tx() directly instead of scheduling a nested owner wait.
 func (m *Manager) hideAll(p *player.Player) {
 	exempted := m.exemptedPlayers()
 	for ent := range p.Tx().Players() {
 		other := ent.(*player.Player)
-		if other == p || slices.Contains(exempted, ent.H()) {
+		if other.H() == p.H() || slices.Contains(exempted, ent.H()) {
 			continue
 		}
 		p.HideEntity(other)
@@ -95,12 +93,12 @@ func (m *Manager) hideAll(p *player.Player) {
 
 // showAll ...
 //
-// Runs inside p's world transaction (Toggle is called from a packet handler),
-// so it uses p.Tx() directly instead of re-entering World.Exec.
+// Runs on p's world owner (Toggle is called from a packet handler), so it uses
+// p.Tx() directly instead of scheduling a nested owner wait.
 func (m *Manager) showAll(p *player.Player) {
 	for ent := range p.Tx().Players() {
 		other := ent.(*player.Player)
-		if other == p {
+		if other.H() == p.H() {
 			continue
 		}
 		p.ShowEntity(other)
@@ -140,16 +138,17 @@ func (m *Manager) snapshotHidden() map[string]struct{} {
 // exemptedPlayers ...
 func (m *Manager) exemptedPlayers() []*world.EntityHandle {
 	set := make(map[*world.EntityHandle]struct{})
-	for _, s := range srv.All() {
-		id := s.Identifier()
-		if h := slapper.FromIdentifier(id).Handle(); h != nil {
+	for _, s := range slapper.All() {
+		if h := s.Handle(); h != nil {
 			set[h] = struct{}{}
 		}
 	}
 
-	for _, h := range parkour.Global().NPCHandles() {
-		if h != nil {
-			set[h] = struct{}{}
+	if manager := parkour.Global(); manager != nil {
+		for _, h := range manager.NPCHandles() {
+			if h != nil {
+				set[h] = struct{}{}
+			}
 		}
 	}
 

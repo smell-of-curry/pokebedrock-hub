@@ -7,8 +7,7 @@ toolchain go1.26.3
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/df-mc/atomic v1.10.0
-	github.com/df-mc/dragonfly v0.10.15-0.20260628092836-26be2a6ed61b
-	github.com/df-mc/npc v1.0.5
+	github.com/df-mc/dragonfly v0.11.0
 	github.com/getsentry/sentry-go v0.47.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-gl/mathgl v1.2.0

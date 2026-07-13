@@ -41,21 +41,20 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 		movement:    session.NewMovement(),
 	}
 
-	// Add a small random delay to infliction loading to avoid all players
-	// loading their inflictions at the exact same time
+	handle := p.H()
+	xuid := p.XUID()
+
+	// Space out HTTP loads so many joins don't spike the moderation/rank APIs.
 	go func() {
-		// Random delay between 100ms and 2000ms to space out requests
 		delay := time.Duration(internal.MinRandomDelayMs+rand.Intn(internal.MaxRandomDelayRangeMs)) * time.Millisecond
 		time.Sleep(delay)
-		h.inflictions.Load(p.H())
+		h.inflictions.Load(xuid, handle)
 	}()
 
-	// Add another random delay to rank loading
 	go func() {
-		// Random delay between 500ms and 3000ms
 		delay := time.Duration(internal.MinRandomDelayLongMs+rand.Intn(internal.MaxRandomDelayLongRangeMs)) * time.Millisecond
 		time.Sleep(delay)
-		h.Ranks().Load(p.XUID(), p.H())
+		h.Ranks().Load(xuid, handle)
 	}()
 
 	return h
@@ -89,7 +88,7 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 
 // HandleItemUse ...
 func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
-	p := ctx.Val()
+	p := ctx.Player()
 	it, _ := p.HeldItems()
 
 	if id, exists := it.Value("lobby"); exists {
@@ -111,8 +110,10 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 			h.ranks.SetLastRankFetch(time.Now())
 			p.SendJukeboxPopup(locale.Translate("rank.fetching"))
 
+			xuid := p.XUID()
+			handle := p.H()
 			go func() {
-				h.Ranks().Load(p.XUID(), p.H())
+				h.Ranks().Load(xuid, handle)
 			}()
 		case "toggle-visibility":
 			hider.Global().Toggle(p)
@@ -128,7 +129,7 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 
 // HandleChat ...
 func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
-	p := ctx.Val()
+	p := ctx.Player()
 	ctx.Cancel()
 
 	if h.inflictions.Muted() {
@@ -173,14 +174,14 @@ func (h *PlayerHandler) HandleItemUseOnBlock(ctx *player.Context, _ cube.Pos, _ 
 
 // HandleItemUseOnEntity ...
 func (h *PlayerHandler) HandleItemUseOnEntity(ctx *player.Context, e world.Entity) {
-	if h.interactHubNPC(ctx.Val(), e) {
+	if h.interactHubNPC(ctx.Player(), e) {
 		ctx.Cancel()
 	}
 }
 
 // HandleAttackEntity ...
 func (h *PlayerHandler) HandleAttackEntity(ctx *player.Context, e world.Entity, _ *float64, _ *float64, _ *bool) {
-	if h.interactHubNPC(ctx.Val(), e) {
+	if h.interactHubNPC(ctx.Player(), e) {
 		ctx.Cancel()
 	}
 }
@@ -215,7 +216,7 @@ func (h *PlayerHandler) HandleItemDamage(ctx *player.Context, _ item.Stack, _ *i
 
 // HandleMove ...
 func (h *PlayerHandler) HandleMove(ctx *player.Context, pos mgl64.Vec3, rot cube.Rotation) {
-	p := ctx.Val()
+	p := ctx.Player()
 
 	delta := pos.Sub(p.Position())
 	if mgl64.FloatEqual(delta.X(), 0) && mgl64.FloatEqual(delta.Z(), 0) {
