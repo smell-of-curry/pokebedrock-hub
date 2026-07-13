@@ -18,7 +18,7 @@ require (
 	github.com/sandertv/gophertunnel v1.57.0
 	github.com/schollz/progressbar/v3 v3.19.1
 	golang.org/x/term v0.44.0
-	golang.org/x/text v0.38.0
+	golang.org/x/text v0.40.0
 )
 
 require (
