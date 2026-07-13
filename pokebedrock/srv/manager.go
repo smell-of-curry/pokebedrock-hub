@@ -15,6 +15,11 @@ func Register(srv *Server) {
 	servers.Store(srv.Identifier(), srv)
 }
 
+// Unregister removes a server from the registry.
+func Unregister(identifier string) {
+	servers.Delete(identifier)
+}
+
 // UpdateAll iterates over all registered servers and invokes the pingServer method concurrently.
 func UpdateAll() {
 	servers.Range(func(_, value any) bool {

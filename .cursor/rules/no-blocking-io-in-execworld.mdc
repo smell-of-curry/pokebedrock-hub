@@ -40,6 +40,7 @@ player.Do(handle, func(_ *world.Tx, p *player.Player) {
 
 ```go
 // ✅ GOOD - capture cheaply on owner, do I/O off-thread, re-enter with Do
+// This code runs inside an existing owner callback where p is the current player.
 xuid := p.XUID() // or pass xuid already captured before scheduling
 handle := p.H()
 

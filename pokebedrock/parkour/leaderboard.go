@@ -3,6 +3,7 @@ package parkour
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,6 +22,7 @@ import (
 type leaderboard struct {
 	Courses map[string]courseData `json:"courses"`
 
+	log      *slog.Logger
 	path     string
 	mu       sync.RWMutex
 	saveCh   chan []byte
@@ -45,8 +47,9 @@ type Entry struct {
 }
 
 // newLeaderboard ...
-func newLeaderboard(path string) *leaderboard {
+func newLeaderboard(log *slog.Logger, path string) *leaderboard {
 	lb := &leaderboard{
+		log:      log,
 		path:     path,
 		Courses:  make(map[string]courseData),
 		saveCh:   make(chan []byte, 1),
@@ -98,8 +101,13 @@ func (l *leaderboard) queueSaveLocked() {
 func (l *leaderboard) saveLoop() {
 	defer close(l.saveDone)
 	for data := range l.saveCh {
-		_ = os.MkdirAll(filepath.Dir(l.path), os.ModePerm)
-		_ = os.WriteFile(l.path, data, os.ModePerm)
+		if err := os.MkdirAll(filepath.Dir(l.path), os.ModePerm); err != nil {
+			l.log.Error("failed to create parkour leaderboard directory", "path", filepath.Dir(l.path), "error", err)
+			continue
+		}
+		if err := os.WriteFile(l.path, data, os.ModePerm); err != nil {
+			l.log.Error("failed to write parkour leaderboard", "path", l.path, "error", err)
+		}
 	}
 }
 

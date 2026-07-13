@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -387,6 +386,14 @@ func sendPlayerDetails(req PlayerDetails) {
 	s.log.Info("sent player details", "name", req.Name, "status", resp.StatusCode)
 }
 
+func hostFromAddress(address string) string {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return address
+	}
+	return host
+}
+
 // SendDetailsOf enqueues a player-details push. Captures identity on the
 // world owner so the HTTP worker never touches a live *player.Player.
 func (s *Service) SendDetailsOf(p *player.Player) {
@@ -397,7 +404,7 @@ func (s *Service) SendDetailsOf(p *player.Player) {
 	details := PlayerDetails{
 		Name: p.Name(),
 		XUID: p.XUID(),
-		IP:   strings.Split(p.Addr().String(), ":")[0],
+		IP:   hostFromAddress(p.Addr().String()),
 	}
 
 	select {

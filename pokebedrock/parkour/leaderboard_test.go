@@ -1,6 +1,8 @@
 package parkour
 
 import (
+	"io"
+	"log/slog"
 	"path/filepath"
 	"testing"
 	"time"
@@ -8,7 +10,8 @@ import (
 
 func TestLeaderboardCloseFlushesLatestSave(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "leaderboard.json")
-	lb := newLeaderboard(path)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	lb := newLeaderboard(log, path)
 
 	if _, _, err := lb.update("course", "one", "One", "Member", 2*time.Second); err != nil {
 		t.Fatal(err)
@@ -18,7 +21,7 @@ func TestLeaderboardCloseFlushesLatestSave(t *testing.T) {
 	}
 	lb.close()
 
-	reloaded := newLeaderboard(path)
+	reloaded := newLeaderboard(log, path)
 	defer reloaded.close()
 	top := reloaded.top("course")
 	if len(top) != 2 {

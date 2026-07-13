@@ -3,6 +3,7 @@ package slapper
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -56,6 +57,7 @@ func NewSlapper(conf *Config, resManager *resources.Manager) (*Slapper, error) {
 		if !errors.Is(err, os.ErrNotExist) || conf.Identifier == "black" {
 			return nil, err
 		}
+		slog.Warn("slapper assets missing; using fallback", "identifier", conf.Identifier, "fallback", "black", "error", err)
 		assetIdentifier = "black"
 		if err = s.preloadSkin(assetIdentifier); err != nil {
 			return nil, fmt.Errorf("slapper %s fallback failed: %w", conf.Identifier, err)

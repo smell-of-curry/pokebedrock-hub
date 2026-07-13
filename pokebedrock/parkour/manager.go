@@ -44,12 +44,12 @@ func Global() *Manager {
 }
 
 // NewManager ...
-func NewManager(log *slog.Logger, w *world.World, cfg Config) *Manager {
+func NewManager(ctx context.Context, log *slog.Logger, w *world.World, cfg Config) *Manager {
 	m := &Manager{
 		courses: make(map[string]CourseConfig),
 
 		cfg: cfg,
-		lb:  newLeaderboard(cfg.LeaderboardPath),
+		lb:  newLeaderboard(log, cfg.LeaderboardPath),
 		w:   w,
 		log: log,
 
@@ -59,7 +59,7 @@ func NewManager(log *slog.Logger, w *world.World, cfg Config) *Manager {
 	for _, course := range cfg.Courses {
 		m.courses[course.Identifier] = course
 	}
-	if _, err := world.Call(context.Background(), w, func(tx *world.Tx) (struct{}, error) {
+	if _, err := world.Call(ctx, w, func(tx *world.Tx) (struct{}, error) {
 		m.spawnNPCs(tx)
 		m.spawnLeaderboardTexts(tx)
 		return struct{}{}, nil

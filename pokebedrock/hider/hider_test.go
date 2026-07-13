@@ -9,10 +9,14 @@ import (
 )
 
 func TestExemptedPlayersSkipsServerWithoutSlapper(t *testing.T) {
+	const identifier = "missing-slapper"
 	srv.Register(srv.NewServer(
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		srv.Config{Identifier: "missing-slapper"},
+		srv.Config{Identifier: identifier},
 	))
+	t.Cleanup(func() {
+		srv.Unregister(identifier)
+	})
 
 	if handles := NewManager().exemptedPlayers(); len(handles) != 0 {
 		t.Fatalf("expected no exempted handles, got %d", len(handles))

@@ -418,7 +418,9 @@ func (poke *PokeBedrock) loadServers() {
 		poke.log.Error("some slappers could not be loaded", "error", loadErr)
 	}
 
-	_, err = world.Call(context.Background(), w, func(tx *world.Tx) (struct{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(poke.conf.Watchdog.WorldExecTimeout))
+	defer cancel()
+	_, err = world.Call(ctx, w, func(tx *world.Tx) (struct{}, error) {
 		slapper.SummonAll(loadedSlappers, tx)
 		return struct{}{}, nil
 	})
@@ -429,7 +431,9 @@ func (poke *PokeBedrock) loadServers() {
 
 // loadParkour initialises the parkour manager with the provided world.
 func (poke *PokeBedrock) loadParkour(w *world.World) {
-	parkour.NewManager(poke.log, w, parkour.Config{
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(poke.conf.Watchdog.WorldExecTimeout))
+	defer cancel()
+	parkour.NewManager(ctx, poke.log, w, parkour.Config{
 		LeaderboardPath:  poke.conf.Parkour.LeaderboardPath,
 		CountdownSeconds: poke.conf.Parkour.CountdownSeconds,
 		CompletionRadius: poke.conf.Parkour.CompletionRadius,
