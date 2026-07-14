@@ -21,6 +21,11 @@ func NewList(r rank.Rank) cmd.Command {
 
 // Run executes the list command.
 func (l List) Run(_ cmd.Source, o *cmd.Output, tx *world.Tx) {
+	if tx == nil {
+		o.Error("list requires a world-attached source")
+		return
+	}
+
 	// Collect all players in the world
 	players := make([]*player.Player, 0)
 

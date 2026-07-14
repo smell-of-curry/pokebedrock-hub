@@ -4,8 +4,10 @@
 package pokebedrock
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
@@ -15,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
@@ -27,10 +30,12 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/resources"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/restart"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/settings"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/status"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/vpn"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/watchdog"
 	"golang.org/x/text/language"
 )
 
@@ -57,6 +62,7 @@ type PokeBedrock struct {
 
 	srv        *server.Server
 	resManager *resources.Manager
+	watchdog   *watchdog.Watchdog
 
 	c chan struct{}
 }
@@ -75,6 +81,8 @@ func NewPokeBedrock(log *slog.Logger, conf Config) (*PokeBedrock, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	settings.SetDowntimeLock(conf.PokeBedrock.DowntimeLock)
 
 	// Initialize rank system with configuration
 	rank.InitializeRanks(rank.RankConfig{
@@ -139,8 +147,10 @@ func (poke *PokeBedrock) Start() {
 	poke.srv.Listen()
 	poke.handleWorld()
 
+	// Accept yields players on the world owner. Setup must stay inline —
+	// *player.Player is invalid outside the loop body.
 	for pl := range poke.srv.Accept() {
-		go poke.accept(pl)
+		poke.accept(pl)
 	}
 
 	poke.Close()
@@ -151,12 +161,6 @@ func (poke *PokeBedrock) Start() {
 func (poke *PokeBedrock) handleWorld() {
 	w := poke.World()
 
-	l := world.NewLoader(defaultChunkLoaderCount, w, world.NopViewer{})
-	w.Exec(func(tx *world.Tx) {
-		l.Move(tx, w.Spawn().Vec3Middle())
-		l.Load(tx, worldLoadRadius)
-	})
-
 	w.StopWeatherCycle()
 	w.StopRaining()
 	w.StopThundering()
@@ -165,10 +169,35 @@ func (poke *PokeBedrock) handleWorld() {
 	w.StopTime()
 	w.SetTickRange(0)
 
+	// Spawn NPCs before the spawn-chunk preload. Preload is a long owner task
+	// (Load drains the whole radius-10 queue); queueing summons behind it made
+	// world.Call hit WorldExecTimeout and skip every slapper/parkour entity.
 	poke.loadServers()
 	poke.loadParkour(w)
-	poke.loadHider(w)
+
+	l := world.NewLoader(defaultChunkLoaderCount, w, world.NopViewer{})
+	w.Do(func(tx *world.Tx) {
+		l.Move(tx, w.Spawn().Vec3Middle())
+		l.Load(tx, worldLoadRadius)
+	})
+
+	poke.loadHider()
+	poke.loadWatchdog(w)
 	go poke.startTicking()
+}
+
+// loadWatchdog starts the runtime health watchdog that detects world-tick
+// stalls (e.g. an owner deadlock that blocks all logins),
+// goroutine pile-ups, and heap pressure, alerting via the logger and Sentry.
+func (poke *PokeBedrock) loadWatchdog(w *world.World) {
+	poke.watchdog = watchdog.New(poke.log, w, watchdog.Config{
+		CheckInterval:      time.Duration(poke.conf.Watchdog.CheckInterval),
+		WorldExecTimeout:   time.Duration(poke.conf.Watchdog.WorldExecTimeout),
+		GoroutineThreshold: poke.conf.Watchdog.GoroutineThreshold,
+		HeapAllocThreshold: poke.conf.Watchdog.HeapAllocThresholdBytes,
+		AlertCooldown:      time.Duration(poke.conf.Watchdog.AlertCooldown),
+	})
+	poke.watchdog.Start()
 }
 
 // setupGin sets up gin for the gobds proxy.
@@ -343,7 +372,7 @@ func (poke *PokeBedrock) loadCommands() {
 func (poke *PokeBedrock) loadServices() {
 	rank.NewService(poke.log, poke.conf.Service.RolesURL)
 	moderation.NewService(poke.log, poke.conf.Service.ModerationURL, poke.conf.Service.ModerationKey)
-	vpn.NewService(poke.log, poke.conf.Service.VpnURL, poke.conf.Service.VpnCachePath)
+	vpn.NewService(poke.log, poke.conf.Service.VpnURL, poke.conf.Service.VpnCachePath, poke.conf.Service.VpnWhitelist)
 
 	// Initialize restart manager service
 	restartConfig := restart.Config{
@@ -388,14 +417,25 @@ func (poke *PokeBedrock) loadServers() {
 			}(c.NPC.Position),
 		}
 	})
-	<-w.Exec(func(tx *world.Tx) {
-		slapper.SummonAll(slapperConfigs, tx, poke.resManager)
+	loadedSlappers, loadErr := slapper.LoadAll(slapperConfigs, poke.resManager)
+	if loadErr != nil {
+		poke.log.Error("some slappers could not be loaded", "error", loadErr)
+	}
+
+	// Startup spawn must finish; do not reuse Watchdog.WorldExecTimeout (often
+	// 0 when [Watchdog] is absent from config.toml → immediate deadline).
+	_, err = world.Call(context.Background(), w, func(tx *world.Tx) (struct{}, error) {
+		slapper.SummonAll(loadedSlappers, tx)
+		return struct{}{}, nil
 	})
+	if err != nil {
+		poke.log.Error("slappers could not be summoned", "error", err)
+	}
 }
 
 // loadParkour initialises the parkour manager with the provided world.
 func (poke *PokeBedrock) loadParkour(w *world.World) {
-	parkour.NewManager(poke.log, w, parkour.Config{
+	parkour.NewManager(context.Background(), poke.log, w, parkour.Config{
 		LeaderboardPath:  poke.conf.Parkour.LeaderboardPath,
 		CountdownSeconds: poke.conf.Parkour.CountdownSeconds,
 		CompletionRadius: poke.conf.Parkour.CompletionRadius,
@@ -427,8 +467,8 @@ func (poke *PokeBedrock) loadParkour(w *world.World) {
 }
 
 // loadHider initialises the player visibility toggle manager.
-func (poke *PokeBedrock) loadHider(w *world.World) {
-	hider.NewManager(w)
+func (poke *PokeBedrock) loadHider() {
+	hider.NewManager()
 }
 
 // startTicking begins the periodic ticking process for the server.
@@ -450,39 +490,31 @@ func (poke *PokeBedrock) startTicking() {
 		case <-poke.c:
 			return
 		case <-t.C:
-			w.Exec(func(tx *world.Tx) {
+			w.Do(func(tx *world.Tx) {
 				counter++
 
 				queue.QueueManager.Update(tx)
 
-				switch {
-				case f(serverUpdateInterval):
+				if f(serverUpdateInterval) {
 					srv.UpdateAll()
-				case f(slapperUpdateInterval):
-					slapper.UpdateAll(tx)
-				case f(1):
-					poke.doAFKCheck(tx)
 				}
+				if f(slapperUpdateInterval) {
+					slapper.UpdateAll(tx)
+				}
+				poke.doAFKCheck(tx)
 			})
 		}
 	}
 }
 
-// accept handles a new player joining the server.
+// accept handles a new player joining the server. Called on the world owner
+// from the Accept loop; p is only valid for this call.
 func (poke *PokeBedrock) accept(p *player.Player) {
-	// Create and set the player handler.
 	h := handler.NewPlayerHandler(p)
 	p.Handle(h)
 
-	// Send details of the player to the moderation service
 	moderation.GlobalService().SendDetailsOf(p)
-
-	// We must exec this in a world transaction to ensure HandleJoin is called in the correct world.
-	p.H().ExecWorld(func(tx *world.Tx, e world.Entity) {
-		if p, ok := e.(*player.Player); ok {
-			h.HandleJoin(p, tx.World())
-		}
-	})
+	h.HandleJoin(p, p.Tx().World())
 }
 
 // World returns the default world.
@@ -490,25 +522,97 @@ func (poke *PokeBedrock) World() *world.World {
 	return poke.srv.World()
 }
 
-// doAFKCheck ...
-func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
-	for ent := range tx.Players() {
-		p := ent.(*player.Player)
+// afkCandidate pairs a player with their handler's movement tracker and their
+// current idle duration so the evaluator can sort and filter without
+// re-reading state more than once.
+type afkCandidate struct {
+	p   *player.Player
+	m   *session.Movement
+	dur time.Duration
+}
 
+// doAFKCheck sends progressive AFK warnings and, when the hub is near
+// capacity, kicks the longest-AFK players first until fullness drops below
+// the configured threshold. Soft warnings fire regardless of fullness; only
+// the final warning and the actual kicks are gated on fullness.
+func (poke *PokeBedrock) doAFKCheck(tx *world.Tx) {
+	cfg := poke.conf.PokeBedrock
+
+	var cands []afkCandidate
+	for ent := range tx.Players() {
+		p, ok := ent.(*player.Player)
+		if !ok {
+			continue
+		}
 		h, ok := p.Handler().(*handler.PlayerHandler)
 		if !ok {
 			continue
 		}
-
 		m := h.Movement()
-		if time.Since(m.LastMoveTime()) > time.Duration(poke.conf.PokeBedrock.AFKTimeout) {
-			p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))
+		cands = append(cands, afkCandidate{p: p, m: m, dur: time.Since(m.LastMoveTime())})
+	}
+	if len(cands) == 0 {
+		return
+	}
+
+	// Soft warnings always fire. Flags are reset on movement so they re-arm
+	// once a player comes back and goes idle again.
+	for _, c := range cands {
+		if c.dur >= time.Duration(cfg.AFKWarnApproaching) && !c.m.WarnedApproaching() {
+			c.p.Message(text.Colourf("<yellow>You will be marked AFK in 1 minute. Move to reset your timer.</yellow>"))
+			c.m.SetWarnedApproaching(true)
 		}
+		if c.dur >= time.Duration(cfg.AFKMarkAFK) && !c.m.MarkedAFK() {
+			c.p.Message(text.Colourf("<gold>You are now AFK. Move to reset your timer.</gold>"))
+			c.m.SetMarkedAFK(true)
+		}
+	}
+
+	maxPlayers := poke.conf.UserConfig.Players.MaxCount
+	if maxPlayers <= 0 {
+		return
+	}
+	fullness := float64(len(cands)) / float64(maxPlayers)
+	if fullness < cfg.AFKFullnessThreshold {
+		return
+	}
+
+	for _, c := range cands {
+		if c.dur >= time.Duration(cfg.AFKFinalWarning) && !c.m.WarnedFinal() {
+			c.p.Message(text.Colourf("<red>Server is near capacity. Move now or you will be kicked for being AFK.</red>"))
+			c.m.SetWarnedFinal(true)
+		}
+	}
+
+	eligible := cands[:0:0]
+	for _, c := range cands {
+		if c.dur >= time.Duration(cfg.AFKTimeout) {
+			eligible = append(eligible, c)
+		}
+	}
+	if len(eligible) == 0 {
+		return
+	}
+	sort.Slice(eligible, func(i, j int) bool { return eligible[i].dur > eligible[j].dur })
+
+	thresholdCount := int(float64(maxPlayers) * cfg.AFKFullnessThreshold)
+	remaining := len(cands)
+	for _, c := range eligible {
+		if remaining < thresholdCount {
+			return
+		}
+		c.p.Disconnect(text.Colourf("<red>You've been kicked for being AFK.</red>"))
+		remaining--
 	}
 }
 
 // Close closes the server and all its associated services.
 func (poke *PokeBedrock) Close() {
+	if poke.watchdog != nil {
+		poke.log.Debug("Stopping Watchdog...")
+		poke.watchdog.Stop()
+	}
+
 	poke.log.Debug("Closing Moderation Service...")
 	moderation.GlobalService().Stop()
 
@@ -524,9 +628,6 @@ func (poke *PokeBedrock) Close() {
 	poke.log.Debug("Stopping Rank Channel...")
 	session.StopRankChannel()
 
-	poke.log.Debug("Stopping Rank Load Worker...")
-	session.StopRankLoadWorker()
-
 	poke.log.Debug("Stopping Infliction Worker...")
 	session.StopInflictionWorker()
 
@@ -534,6 +635,11 @@ func (poke *PokeBedrock) Close() {
 
 	poke.log.Debug("Stopping Server...")
 	poke.srv.Close()
+
+	if manager := parkour.Global(); manager != nil {
+		poke.log.Debug("Flushing Parkour Leaderboard...")
+		manager.Close()
+	}
 
 	poke.log.Debug("Server stopped")
 }

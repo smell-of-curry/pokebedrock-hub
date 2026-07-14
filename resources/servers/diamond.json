@@ -1,0 +1,43 @@
+{
+  "name": "PokeBedrock §bDiamond §r(Asia)",
+  "identifier": "diamond",
+  "address": "15.235.226.144:19132",
+  "parkour": {
+    "name": "Easy Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": 215,
+      "pitch": 0,
+      "position": {
+        "x": 70.5,
+        "y": 51,
+        "z": 52.0
+      }
+    },
+    "leaderboard": {
+      "x": 74.5,
+      "y": 52,
+      "z": 49.0
+    },
+    "start": {
+      "x": 71.5,
+      "y": 51,
+      "z": 51.0
+    },
+    "end": {
+      "x": 95.5,
+      "y": 107.18,
+      "z": 178.52
+    }
+  },
+  "npc": {
+    "scale": 1.5,
+    "yaw": 144,
+    "pitch": 0.0,
+    "position": {
+      "x": -14.7,
+      "y": 51,
+      "z": -69.4
+    }
+  }
+}

@@ -1,3 +1,5 @@
+// Package hider manages per-player visibility toggles, letting players hide or
+// show other players in the hub.
 package hider
 
 import (
@@ -9,23 +11,20 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/parkour"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
-	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
 // Manager ...
 type Manager struct {
 	mu     sync.RWMutex
 	hidden map[string]struct{}
-	w      *world.World
 }
 
 var global *Manager
 
 // NewManager ...
-func NewManager(w *world.World) *Manager {
+func NewManager() *Manager {
 	m := &Manager{
 		hidden: make(map[string]struct{}),
-		w:      w,
 	}
 	global = m
 	return m
@@ -51,23 +50,25 @@ func (m *Manager) Toggle(p *player.Player) {
 }
 
 // HandleJoin ...
+//
+// HandleJoin runs on the joining player's world owner, so it must operate on
+// p.Tx() directly. Never call world.Call / Task.Wait from here — that deadlocks
+// the owner on itself.
 func (m *Manager) HandleJoin(p *player.Player) {
 	hidden := m.snapshotHidden()
 	if len(hidden) == 0 {
 		return
 	}
 
-	m.w.Exec(func(tx *world.Tx) {
-		for ent := range tx.Players() {
-			other := ent.(*player.Player)
-			if other == p {
-				continue
-			}
-			if _, ok := hidden[other.UUID().String()]; ok {
-				other.HideEntity(p)
-			}
+	for ent := range p.Tx().Players() {
+		other := ent.(*player.Player)
+		if other.H() == p.H() {
+			continue
 		}
-	})
+		if _, ok := hidden[other.UUID().String()]; ok {
+			other.HideEntity(p)
+		}
+	}
 }
 
 // HandleQuit ...
@@ -76,30 +77,32 @@ func (m *Manager) HandleQuit(p *player.Player) {
 }
 
 // hideAll ...
+//
+// Runs on p's world owner (Toggle is called from a packet handler), so it uses
+// p.Tx() directly instead of scheduling a nested owner wait.
 func (m *Manager) hideAll(p *player.Player) {
 	exempted := m.exemptedPlayers()
-	m.w.Exec(func(tx *world.Tx) {
-		for ent := range tx.Players() {
-			other := ent.(*player.Player)
-			if other == p || slices.Contains(exempted, ent.H()) {
-				continue
-			}
-			p.HideEntity(other)
+	for ent := range p.Tx().Players() {
+		other := ent.(*player.Player)
+		if other.H() == p.H() || slices.Contains(exempted, ent.H()) {
+			continue
 		}
-	})
+		p.HideEntity(other)
+	}
 }
 
 // showAll ...
+//
+// Runs on p's world owner (Toggle is called from a packet handler), so it uses
+// p.Tx() directly instead of scheduling a nested owner wait.
 func (m *Manager) showAll(p *player.Player) {
-	m.w.Exec(func(tx *world.Tx) {
-		for ent := range tx.Players() {
-			other := ent.(*player.Player)
-			if other == p {
-				continue
-			}
-			p.ShowEntity(other)
+	for ent := range p.Tx().Players() {
+		other := ent.(*player.Player)
+		if other.H() == p.H() {
+			continue
 		}
-	})
+		p.ShowEntity(other)
+	}
 }
 
 // hasHidden ...
@@ -135,16 +138,17 @@ func (m *Manager) snapshotHidden() map[string]struct{} {
 // exemptedPlayers ...
 func (m *Manager) exemptedPlayers() []*world.EntityHandle {
 	set := make(map[*world.EntityHandle]struct{})
-	for _, s := range srv.All() {
-		id := s.Identifier()
-		if h := slapper.FromIdentifier(id).Handle(); h != nil {
+	for _, s := range slapper.All() {
+		if h := s.Handle(); h != nil {
 			set[h] = struct{}{}
 		}
 	}
 
-	for _, h := range parkour.Global().NPCHandles() {
-		if h != nil {
-			set[h] = struct{}{}
+	if manager := parkour.Global(); manager != nil {
+		for _, h := range manager.NPCHandles() {
+			if h != nil {
+				set[h] = struct{}{}
+			}
 		}
 	}
 

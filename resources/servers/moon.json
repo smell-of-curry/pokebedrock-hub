@@ -2,43 +2,42 @@
   "name": "PokeBedrock §dMoon §r(US)",
   "identifier": "moon",
   "address": "40.160.13.133:19136",
-  "beta_lock": false,
   "parkour": {
     "name": "Extreme Parkour",
     "npc": {
       "scale": 1,
-      "yaw": 90.0,
+      "yaw": 251,
       "pitch": 0,
       "position": {
-        "x": 123.5,
-        "y": 96,
-        "z": 4.5
+        "x": -180.7,
+        "y": 51,
+        "z": -33.1
       }
     },
     "leaderboard": {
-      "x": 120.5,
-      "y": 96.0,
-      "z": 15.5
+      "x": -177.0,
+      "y": 52,
+      "z": -29.1
     },
     "start": {
-      "x": 125.5,
-      "y": 96,
-      "z": 8.5
+      "x": -178.5,
+      "y": 51,
+      "z": -31.5
     },
     "end": {
-      "x": 198.5,
-      "y": 180,
-      "z": 8.5
+      "x": -250.5,
+      "y": 135,
+      "z": -27.5
     }
   },
   "npc": {
     "scale": 1.5,
-    "yaw": 90.0,
+    "yaw": 252,
     "pitch": 0.0,
     "position": {
-      "x": 17.0,
-      "y": 96.0,
-      "z": 8.5
+      "x": -37.8,
+      "y": 51,
+      "z": -76.9
     }
   }
 }

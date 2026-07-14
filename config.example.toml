@@ -1,9 +1,14 @@
 [PokeBedrock]
 SentryDsn = '' # DSN for Sentry.
-LogLevel = 'debug' # Log level.
+LogLevel = 'info' # Log level.
 ServerPath = 'resources/servers' # Path to the servers folder.
 LocalePath = 'resources/locales' # Path to the locales folder.
-AFKTimeout = "10m" # The duration for a player to be considered afk.
+AFKTimeout = "10m" # Idle duration at which a player becomes eligible to be kicked for AFK.
+AFKWarnApproaching = "4m" # Idle duration at which players get a soft "AFK in 1 minute" warning (always sent).
+AFKMarkAFK = "5m" # Idle duration at which players are told they are now AFK (always sent).
+AFKFinalWarning = "9m" # Idle duration at which players get the near-capacity hard warning (only when over threshold).
+AFKFullnessThreshold = 0.90 # Fraction (0..1) of MaxCount at/above which AFK players start getting kicked, longest-AFK first.
+DowntimeLock = false # When true, downstream servers are closed to everyone below Sr. Moderator. The hub stays open.
 
 [Network]
 Address = ':19132' # Address to bind to.
@@ -48,6 +53,13 @@ MaxRestartTime = "20m" # Maximum time a server is allowed to be in restarting st
 LeaderboardPath = "resources/parkour/leaderboard.json"
 CountdownSeconds = 5
 CompletionRadius = 1.25
+
+[Watchdog]
+CheckInterval = "30s" # How often to probe world-tick health and process metrics.
+WorldExecTimeout = "10s" # Max time a probe world task may take before the world owner is considered stalled (login-blocking deadlock). Config key kept for deployed configs.
+GoroutineThreshold = 800 # Goroutine count at/above which an alert is raised.
+HeapAllocThresholdBytes = 2147483648 # Heap bytes at/above which an alert is raised (2 GiB). 0 disables the heap probe.
+AlertCooldown = "5m" # Minimum time between repeat Sentry alerts for the same condition.
 
 [Ranks]
 # Discord Role IDs for different ranks

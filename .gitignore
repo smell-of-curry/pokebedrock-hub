@@ -10,6 +10,14 @@ config.toml
 !/resources/slapper/
 !/resources/servers/
 !/resources/locales/
+!/resources/world/
+/resources/world/db/LOG
+/resources/world/db/LOCK
+/resources/world/db/*.log
+/resources/world/db/CURRENT.bak
+/resources/world/db/CURRENT
+/resources/world/db/MANIFEST-*
+/resources/world/level.dat
 
 # Testing resources
 /tests/
@@ -17,3 +25,4 @@ config.toml
 # Binaries
 *.exe
 pokebedrock-hub
+.pokebedrock-hub.etag

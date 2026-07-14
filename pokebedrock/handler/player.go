@@ -20,6 +20,7 @@ import (
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/parkour"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/session"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/settings"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 )
 
@@ -40,21 +41,20 @@ func NewPlayerHandler(p *player.Player) *PlayerHandler {
 		movement:    session.NewMovement(),
 	}
 
-	// Add a small random delay to infliction loading to avoid all players
-	// loading their inflictions at the exact same time
+	handle := p.H()
+	xuid := p.XUID()
+
+	// Space out HTTP loads so many joins don't spike the moderation/rank APIs.
 	go func() {
-		// Random delay between 100ms and 2000ms to space out requests
 		delay := time.Duration(internal.MinRandomDelayMs+rand.Intn(internal.MaxRandomDelayRangeMs)) * time.Millisecond
 		time.Sleep(delay)
-		h.inflictions.Load(p.H())
+		h.inflictions.Load(xuid, handle)
 	}()
 
-	// Add another random delay to rank loading
 	go func() {
-		// Random delay between 500ms and 3000ms
 		delay := time.Duration(internal.MinRandomDelayLongMs+rand.Intn(internal.MaxRandomDelayLongRangeMs)) * time.Millisecond
 		time.Sleep(delay)
-		h.Ranks().Load(p.XUID(), p.H())
+		h.Ranks().Load(xuid, handle)
 	}()
 
 	return h
@@ -73,6 +73,12 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 		p.Message(l)
 	}
 
+	if settings.DowntimeLock() {
+		for l := range strings.SplitSeq(locale.Translate("downtime.lock.notice"), "<new-line>") {
+			p.Message(l)
+		}
+	}
+
 	for _, s := range slapper.All() {
 		s.SendAnimation(p)
 	}
@@ -82,7 +88,7 @@ func (h *PlayerHandler) HandleJoin(p *player.Player, w *world.World) {
 
 // HandleItemUse ...
 func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
-	p := ctx.Val()
+	p := ctx.Player()
 	it, _ := p.HeldItems()
 
 	if id, exists := it.Value("lobby"); exists {
@@ -104,8 +110,10 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 			h.ranks.SetLastRankFetch(time.Now())
 			p.SendJukeboxPopup(locale.Translate("rank.fetching"))
 
+			xuid := p.XUID()
+			handle := p.H()
 			go func() {
-				h.Ranks().Load(p.XUID(), p.H())
+				h.Ranks().Load(xuid, handle)
 			}()
 		case "toggle-visibility":
 			hider.Global().Toggle(p)
@@ -121,7 +129,7 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 
 // HandleChat ...
 func (h *PlayerHandler) HandleChat(ctx *player.Context, message *string) {
-	p := ctx.Val()
+	p := ctx.Player()
 	ctx.Cancel()
 
 	if h.inflictions.Muted() {
@@ -164,6 +172,33 @@ func (h *PlayerHandler) HandleItemUseOnBlock(ctx *player.Context, _ cube.Pos, _ 
 	ctx.Cancel()
 }
 
+// HandleItemUseOnEntity ...
+func (h *PlayerHandler) HandleItemUseOnEntity(ctx *player.Context, e world.Entity) {
+	if h.interactHubNPC(ctx.Player(), e) {
+		ctx.Cancel()
+	}
+}
+
+// HandleAttackEntity ...
+func (h *PlayerHandler) HandleAttackEntity(ctx *player.Context, e world.Entity, _ *float64, _ *float64, _ *bool) {
+	if h.interactHubNPC(ctx.Player(), e) {
+		ctx.Cancel()
+	}
+}
+
+func (h *PlayerHandler) interactHubNPC(p *player.Player, e world.Entity) bool {
+	if _, ok := e.(*player.Player); !ok {
+		return false
+	}
+	if slapper.InteractPlayer(p, e) {
+		return true
+	}
+	if m := parkour.Global(); m != nil && m.InteractPlayer(p, e) {
+		return true
+	}
+	return false
+}
+
 // HandleHurt ...
 func (h *PlayerHandler) HandleHurt(ctx *player.Context, _ *float64, _ bool, _ *time.Duration, _ world.DamageSource) {
 	ctx.Cancel()
@@ -181,7 +216,7 @@ func (h *PlayerHandler) HandleItemDamage(ctx *player.Context, _ item.Stack, _ *i
 
 // HandleMove ...
 func (h *PlayerHandler) HandleMove(ctx *player.Context, pos mgl64.Vec3, rot cube.Rotation) {
-	p := ctx.Val()
+	p := ctx.Player()
 
 	delta := pos.Sub(p.Position())
 	if mgl64.FloatEqual(delta.X(), 0) && mgl64.FloatEqual(delta.Z(), 0) {

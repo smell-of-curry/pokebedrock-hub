@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server/player"
+	"github.com/df-mc/dragonfly/server/world"
 	"github.com/go-gl/mathgl/mgl64"
 )
 
@@ -16,20 +17,27 @@ const (
 	stateRunning
 )
 
-// Session ...
+// Session tracks one player's parkour run.
+//
+// All Session fields are mutated only on the world owner. Delayed countdown
+// work is scheduled with player.DoAfter so dragonfly per-player state is only
+// ever read/written on the owner that owns it.
 type Session struct {
+	handle *world.EntityHandle
+
 	courseID string
 	state    sessionState
 
-	startPos         mgl64.Vec3
-	endPos           mgl64.Vec3
-	completionRadius float64
+	startPos          mgl64.Vec3
+	endPos            mgl64.Vec3
+	completionRadius  float64
 	checkpoint        mgl64.Vec3
 	runStart          time.Time
 	checkpointElapsed time.Duration
-	rankName         string
+	rankName          string
 
-	countdownStop chan struct{}
+	countdownTask       *world.Task
+	countdownGeneration uint64
 }
 
 // session ...
@@ -45,46 +53,82 @@ func (m *Manager) session(p *player.Player) *Session {
 	return sess
 }
 
-// ensureSession ...
+// ensureSession returns the existing session for p, or creates a new one
+// bound to p's EntityHandle. The handle is captured once at creation so
+// delayed countdown tasks can re-enter without holding a stale *player.Player.
 func (m *Manager) ensureSession(p *player.Player) *Session {
 	if sess := m.session(p); sess != nil {
 		return sess
 	}
-	sess := &Session{}
+	sess := &Session{handle: p.H()}
 	m.sessions.Store(p.UUID().String(), sess)
 	return sess
 }
 
-// stopCountdown ...
+// stopCountdown cancels an in-flight countdown task. Safe to call from the
+// world owner.
 func (s *Session) stopCountdown() {
-	if channel := s.countdownStop; channel != nil {
-		s.countdownStop = nil
-		close(channel)
+	s.countdownGeneration++
+	if task := s.countdownTask; task != nil {
+		s.countdownTask = nil
+		task.Cancel()
 	}
 }
 
-// beginCountdown ...
-func (s *Session) beginCountdown(seconds int, tick func(int), onDone func()) {
+// beginCountdown starts an N-second countdown that fires tick once per
+// second (counting down from seconds to 1) and then fires onDone.
+//
+// Both callbacks run on the world owner via player.Do / player.DoAfter.
+// If the player has left by the time a callback runs, the task fails and no
+// callback fires.
+func (s *Session) beginCountdown(seconds int, tick func(*player.Player, int), onDone func(*world.Tx, *player.Player)) {
 	s.stopCountdown()
-	s.countdownStop = make(chan struct{})
+	generation := s.countdownGeneration
 
-	go func(stop <-chan struct{}, sec int) {
-		for i := sec; i > 0; i-- {
-			select {
-			case <-stop:
+	handle := s.handle
+	if handle == nil {
+		return
+	}
+
+	var scheduleNext func(remaining int)
+	scheduleNext = func(remaining int) {
+		s.countdownTask = player.DoAfter(handle, time.Second, func(tx *world.Tx, p *player.Player) {
+			if generation != s.countdownGeneration {
 				return
-			default:
+			}
+			if remaining > 1 {
+				if tick != nil {
+					tick(p, remaining-1)
+				}
+				scheduleNext(remaining - 1)
+				return
+			}
+			s.countdownTask = nil
+			if onDone != nil {
+				onDone(tx, p)
+			}
+		})
+	}
+
+	if seconds > 0 {
+		player.Do(handle, func(_ *world.Tx, p *player.Player) {
+			if generation != s.countdownGeneration {
+				return
 			}
 			if tick != nil {
-				tick(i)
+				tick(p, seconds)
 			}
-			time.Sleep(time.Second)
-		}
-		select {
-		case <-stop:
+		})
+		scheduleNext(seconds)
+		return
+	}
+
+	player.Do(handle, func(tx *world.Tx, p *player.Player) {
+		if generation != s.countdownGeneration {
 			return
-		default:
-			onDone()
 		}
-	}(s.countdownStop, seconds)
+		if onDone != nil {
+			onDone(tx, p)
+		}
+	})
 }

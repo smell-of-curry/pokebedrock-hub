@@ -1,6 +1,7 @@
 package parkour
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -9,11 +10,12 @@ import (
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/world"
-	"github.com/df-mc/npc"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/block"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/npc"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/slapper"
 )
 
@@ -42,12 +44,12 @@ func Global() *Manager {
 }
 
 // NewManager ...
-func NewManager(log *slog.Logger, w *world.World, cfg Config) *Manager {
+func NewManager(ctx context.Context, log *slog.Logger, w *world.World, cfg Config) *Manager {
 	m := &Manager{
 		courses: make(map[string]CourseConfig),
 
 		cfg: cfg,
-		lb:  newLeaderboard(cfg.LeaderboardPath),
+		lb:  newLeaderboard(log, cfg.LeaderboardPath),
 		w:   w,
 		log: log,
 
@@ -57,41 +59,48 @@ func NewManager(log *slog.Logger, w *world.World, cfg Config) *Manager {
 	for _, course := range cfg.Courses {
 		m.courses[course.Identifier] = course
 	}
-	m.spawnNPCs()
-	m.spawnLeaderboardTexts()
+	if _, err := world.Call(ctx, w, func(tx *world.Tx) (struct{}, error) {
+		m.spawnNPCs(tx)
+		m.spawnLeaderboardTexts(tx)
+		return struct{}{}, nil
+	}); err != nil {
+		log.Error("parkour entities could not be spawned", "error", err)
+	}
 
 	globalManager = m
 	return m
 }
 
 // spawnNPCs ...
-func (m *Manager) spawnNPCs() {
+func (m *Manager) spawnNPCs(tx *world.Tx) {
 	for _, course := range m.courses {
 		sk := slapper.FromIdentifier(course.Identifier)
-		m.w.Exec(func(tx *world.Tx) {
-			n := npc.Create(npc.Settings{
-				Name:     text.Colourf("<green>%s</green>", course.Name),
-				Skin:     sk.Skin(),
-				Position: course.NPC.Position.vec3(),
-				Yaw:      course.NPC.Yaw,
-				Pitch:    course.NPC.Pitch,
-				Scale:    course.NPC.Scale,
-				Immobile: true,
-			}, tx, func(p *player.Player) {
-				m.startForm(p, course)
-			})
-
-			m.npcMu.Lock()
-			m.npcHandles[course.Identifier] = n.H()
-			m.npcMu.Unlock()
+		if sk == nil {
+			m.log.Error("skipping parkour NPC without slapper skin", "identifier", course.Identifier)
+			continue
+		}
+		n := npc.Create(npc.Settings{
+			Name:     text.Colourf("<green>%s</green>", course.Name),
+			Skin:     sk.Skin(),
+			Position: course.NPC.Position.vec3(),
+			Yaw:      course.NPC.Yaw,
+			Pitch:    course.NPC.Pitch,
+			Scale:    course.NPC.Scale,
+			Immobile: true,
+		}, tx, func(p *player.Player) {
+			m.startForm(p, course)
 		})
+
+		m.npcMu.Lock()
+		m.npcHandles[course.Identifier] = n.H()
+		m.npcMu.Unlock()
 	}
 }
 
 // spawnLeaderboardTexts ...
-func (m *Manager) spawnLeaderboardTexts() {
+func (m *Manager) spawnLeaderboardTexts(tx *world.Tx) {
 	for _, course := range m.courses {
-		m.updateLeaderboardText(course.Identifier)
+		m.updateLeaderboardText(tx, course.Identifier)
 	}
 }
 
@@ -121,20 +130,17 @@ func (m *Manager) StartCourse(p *player.Player, courseID string, rankName string
 	p.Teleport(sess.startPos)
 	p.SetImmobile()
 
-	sess.beginCountdown(m.cfg.CountdownSeconds, func(remaining int) {
-		p.SendJukeboxPopup(text.Colourf("<yellow>Starting in %d...</yellow>", remaining))
-	}, func() {
-		p.H().ExecWorld(func(_ *world.Tx, e world.Entity) {
-			p, exists := e.(*player.Player)
-			if !exists {
-				return
-			}
+	sess.beginCountdown(m.cfg.CountdownSeconds,
+		func(p *player.Player, remaining int) {
+			p.SendJukeboxPopup(text.Colourf("<yellow>Starting in %d...</yellow>", remaining))
+		},
+		func(_ *world.Tx, p *player.Player) {
 			sess.state = stateRunning
 			sess.runStart = time.Now()
 			p.SetMobile()
 			p.SendJukeboxPopup(text.Colourf("<green>Go!</green>"))
-		})
-	})
+		},
+	)
 	return nil
 }
 
@@ -150,20 +156,17 @@ func (m *Manager) restartFromCheckpoint(p *player.Player, sess *Session) {
 	p.Teleport(sess.checkpoint)
 	p.SetImmobile()
 
-	sess.beginCountdown(m.cfg.CountdownSeconds, func(remaining int) {
-		p.SendJukeboxPopup(text.Colourf("<yellow>Restarting in %d...</yellow>", remaining))
-	}, func() {
-		p.H().ExecWorld(func(_ *world.Tx, e world.Entity) {
-			p, exists := e.(*player.Player)
-			if !exists {
-				return
-			}
+	sess.beginCountdown(m.cfg.CountdownSeconds,
+		func(p *player.Player, remaining int) {
+			p.SendJukeboxPopup(text.Colourf("<yellow>Restarting in %d...</yellow>", remaining))
+		},
+		func(_ *world.Tx, p *player.Player) {
 			sess.state = stateRunning
 			sess.runStart = time.Now()
 			p.SetMobile()
 			p.SendJukeboxPopup(text.Colourf("<green>Go!</green>"))
-		})
-	})
+		},
+	)
 }
 
 // checkCheckpoint ...
@@ -244,7 +247,7 @@ func (m *Manager) handleFinish(p *player.Player, sess *Session, dur time.Duratio
 	}
 	p.Message(message)
 
-	m.updateLeaderboardText(sess.courseID)
+	m.updateLeaderboardText(p.Tx(), sess.courseID)
 	m.endRun(p, sess, false)
 }
 
@@ -257,4 +260,9 @@ func (m *Manager) endRun(p *player.Player, sess *Session, teleportSpawn bool) {
 	}
 	p.SetMobile()
 	kit.Apply(kit.Lobby, p)
+}
+
+// Close flushes pending leaderboard saves.
+func (m *Manager) Close() {
+	m.lb.close()
 }

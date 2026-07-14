@@ -3,6 +3,7 @@ package parkour
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,8 +22,11 @@ import (
 type leaderboard struct {
 	Courses map[string]courseData `json:"courses"`
 
-	path string
-	mu   sync.RWMutex
+	log      *slog.Logger
+	path     string
+	mu       sync.RWMutex
+	saveCh   chan []byte
+	saveDone chan struct{}
 }
 
 // courseData ...
@@ -43,13 +47,17 @@ type Entry struct {
 }
 
 // newLeaderboard ...
-func newLeaderboard(path string) *leaderboard {
+func newLeaderboard(log *slog.Logger, path string) *leaderboard {
 	lb := &leaderboard{
-		path:    path,
-		Courses: make(map[string]courseData),
+		log:      log,
+		path:     path,
+		Courses:  make(map[string]courseData),
+		saveCh:   make(chan []byte, 1),
+		saveDone: make(chan struct{}),
 	}
 	_ = os.MkdirAll(filepath.Dir(path), os.ModePerm)
 	_ = lb.load()
+	go lb.saveLoop()
 	return lb
 }
 
@@ -68,21 +76,45 @@ func (l *leaderboard) load() error {
 	return json.Unmarshal(data, l)
 }
 
-// save ...
-func (l *leaderboard) save() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.saveLocked()
-}
-
-// saveLocked ...
-func (l *leaderboard) saveLocked() {
-	_ = os.MkdirAll(filepath.Dir(l.path), os.ModePerm)
+// queueSaveLocked snapshots the leaderboard while its mutex is held and
+// coalesces disk writes on the background save loop.
+func (l *leaderboard) queueSaveLocked() {
 	data, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(l.path, data, os.ModePerm)
+	select {
+	case l.saveCh <- data:
+	default:
+		select {
+		case <-l.saveCh:
+		default:
+		}
+		select {
+		case l.saveCh <- data:
+		default:
+		}
+	}
+}
+
+// saveLoop writes queued snapshots without blocking the world owner.
+func (l *leaderboard) saveLoop() {
+	defer close(l.saveDone)
+	for data := range l.saveCh {
+		if err := os.MkdirAll(filepath.Dir(l.path), os.ModePerm); err != nil {
+			l.log.Error("failed to create parkour leaderboard directory", "path", filepath.Dir(l.path), "error", err)
+			continue
+		}
+		if err := os.WriteFile(l.path, data, os.ModePerm); err != nil {
+			l.log.Error("failed to write parkour leaderboard", "path", l.path, "error", err)
+		}
+	}
+}
+
+// close flushes queued leaderboard snapshots.
+func (l *leaderboard) close() {
+	close(l.saveCh)
+	<-l.saveDone
 }
 
 // update ...
@@ -108,7 +140,7 @@ func (l *leaderboard) update(courseID, xuid, name, rankName string, dur time.Dur
 			course.Ranks[xuid] = rankName
 			course.Top = rebuildTop(course)
 			l.Courses[courseID] = course
-			l.saveLocked()
+			l.queueSaveLocked()
 			return 0, prevBest, nil
 		}
 	}
@@ -118,7 +150,7 @@ func (l *leaderboard) update(courseID, xuid, name, rankName string, dur time.Dur
 	course.Ranks[xuid] = rankName
 	course.Top = rebuildTop(course)
 	l.Courses[courseID] = course
-	l.saveLocked()
+	l.queueSaveLocked()
 
 	for i, entry := range course.Top {
 		if entry.XUID == xuid {
@@ -205,17 +237,23 @@ func (l *leaderboard) reset(courseID string, xuid string) {
 		l.Courses[courseID] = course
 	}
 
-	l.saveLocked()
+	l.queueSaveLocked()
 }
 
 // Reset ...
-func (m *Manager) Reset(courseID, xuid string) {
+func (m *Manager) Reset(tx *world.Tx, courseID, xuid string) {
 	m.lb.reset(courseID, xuid)
-	m.updateLeaderboardText(courseID)
+	if tx != nil {
+		m.updateLeaderboardText(tx, courseID)
+		return
+	}
+	m.w.Do(func(tx *world.Tx) {
+		m.updateLeaderboardText(tx, courseID)
+	})
 }
 
 // updateLeaderboardText ...
-func (m *Manager) updateLeaderboardText(courseID string) {
+func (m *Manager) updateLeaderboardText(tx *world.Tx, courseID string) {
 	course, ok := m.courses[courseID]
 	if !ok {
 		return
@@ -228,23 +266,21 @@ func (m *Manager) updateLeaderboardText(courseID string) {
 	handle, exists := m.leaderboardTexts[courseID]
 	m.leaderboardMu.RUnlock()
 
-	m.w.Exec(func(tx *world.Tx) {
-		if exists && handle != nil {
-			if ent, ok := handle.Entity(tx); ok {
-				if textEnt, ok := ent.(*entity.Ent); ok {
-					textEnt.SetNameTag(textContent)
-					return
-				}
+	if exists && handle != nil {
+		if ent, ok := handle.Entity(tx); ok {
+			if textEnt, ok := ent.(*entity.Ent); ok {
+				textEnt.SetNameTag(textContent)
+				return
 			}
-			handle = nil
 		}
+		handle = nil
+	}
 
-		h := entity.NewText(textContent, pos)
-		tx.AddEntity(h)
-		m.leaderboardMu.Lock()
-		m.leaderboardTexts[courseID] = h
-		m.leaderboardMu.Unlock()
-	})
+	h := entity.NewText(textContent, pos)
+	tx.AddEntity(h)
+	m.leaderboardMu.Lock()
+	m.leaderboardTexts[courseID] = h
+	m.leaderboardMu.Unlock()
 }
 
 // LeaderboardEntities ...

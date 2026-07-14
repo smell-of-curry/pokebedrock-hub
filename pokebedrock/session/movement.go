@@ -9,12 +9,18 @@ import (
 )
 
 // Movement provides tracking of a player’s last move time,
-// position, yaw, and pitch.
+// position, yaw, and pitch, along with per-idle-streak AFK warning flags
+// consumed by the hub's AFK evaluator.
 type Movement struct {
 	lastMoveTime time.Time
 	lastPosition mgl64.Vec3
 	lastRotation cube.Rotation
-	mu           sync.RWMutex
+
+	warnedApproaching bool
+	markedAFK         bool
+	warnedFinal       bool
+
+	mu sync.RWMutex
 }
 
 // NewMovement creates a new instance of Movement.
@@ -34,10 +40,59 @@ func (m *Movement) LastMoveTime() time.Time {
 	return m.lastMoveTime
 }
 
-// SetLastMoveTime updates the time of the last movement.
+// SetLastMoveTime updates the time of the last movement. Warning flags are
+// reset so the next idle streak starts from scratch.
 func (m *Movement) SetLastMoveTime(t time.Time) {
 	m.mu.Lock()
 	m.lastMoveTime = t
+	m.warnedApproaching = false
+	m.markedAFK = false
+	m.warnedFinal = false
+	m.mu.Unlock()
+}
+
+// WarnedApproaching reports whether the approaching-AFK soft warning has
+// already been sent for the current idle streak.
+func (m *Movement) WarnedApproaching() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.warnedApproaching
+}
+
+// SetWarnedApproaching marks the approaching-AFK soft warning as sent.
+func (m *Movement) SetWarnedApproaching(v bool) {
+	m.mu.Lock()
+	m.warnedApproaching = v
+	m.mu.Unlock()
+}
+
+// MarkedAFK reports whether the "you are now AFK" soft warning has already
+// been sent for the current idle streak.
+func (m *Movement) MarkedAFK() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.markedAFK
+}
+
+// SetMarkedAFK marks the "you are now AFK" soft warning as sent.
+func (m *Movement) SetMarkedAFK(v bool) {
+	m.mu.Lock()
+	m.markedAFK = v
+	m.mu.Unlock()
+}
+
+// WarnedFinal reports whether the near-capacity final warning has already
+// been sent for the current idle streak.
+func (m *Movement) WarnedFinal() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.warnedFinal
+}
+
+// SetWarnedFinal marks the near-capacity final warning as sent.
+func (m *Movement) SetWarnedFinal(v bool) {
+	m.mu.Lock()
+	m.warnedFinal = v
 	m.mu.Unlock()
 }
 

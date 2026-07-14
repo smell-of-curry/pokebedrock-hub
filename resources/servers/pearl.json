@@ -1,0 +1,43 @@
+{
+  "name": "PokeBedrock §dPearl §r(Asia)",
+  "identifier": "pearl",
+  "address": "15.235.226.144:19136",
+  "parkour": {
+    "name": "Easy Parkour",
+    "npc": {
+      "scale": 1,
+      "yaw": 107,
+      "pitch": 0,
+      "position": {
+        "x": 130.3,
+        "y": 51,
+        "z": -28.9
+      }
+    },
+    "leaderboard": {
+      "x": 132.7,
+      "y": 52,
+      "z": -33.9
+    },
+    "start": {
+      "x": 131.5,
+      "y": 51,
+      "z": -31.5
+    },
+    "end": {
+      "x": 187.5,
+      "y": 143,
+      "z": -15.5
+    }
+  },
+  "npc": {
+    "scale": 1.5,
+    "yaw": 108,
+    "pitch": 0.0,
+    "position": {
+      "x": -9.2,
+      "y": 51,
+      "z": -76.9
+    }
+  }
+}
