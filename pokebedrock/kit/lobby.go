@@ -15,6 +15,7 @@ const (
 
 	// Lobby-specific constants
 	compassSlot        = 8   // Slot for compass item
+	betaNavigatorSlot  = 5   // Slot for beta navigator (7 is spawn nether star)
 	speedEffectLevel   = 5   // Speed effect level
 	defaultFlightSpeed = 0.2 // Default flight speed
 )
@@ -25,9 +26,14 @@ var Lobby lobby
 // lobby ...
 type lobby struct{}
 
+// betaAccessHandler is implemented by *handler.PlayerHandler.
+type betaAccessHandler interface {
+	CanAccessBeta() bool
+}
+
 // Items ...
-func (lobby) Items(*player.Player) (items [inventorySlots]item.Stack) {
-	return [inventorySlots]item.Stack{
+func (lobby) Items(p *player.Player) (items [inventorySlots]item.Stack) {
+	items = [inventorySlots]item.Stack{
 		0: item.NewStack(item.Spyglass{}, 1).
 			WithCustomName(text.Colourf("<yellow>Toggle Players</yellow>")).
 			WithValue("lobby", "toggle-visibility"),
@@ -41,6 +47,12 @@ func (lobby) Items(*player.Player) (items [inventorySlots]item.Stack) {
 			WithCustomName(text.Colourf("<purple>Server Navigator</purple>")).
 			WithValue("lobby", "navigator"),
 	}
+	if h, ok := p.Handler().(betaAccessHandler); ok && h.CanAccessBeta() {
+		items[betaNavigatorSlot] = item.NewStack(item.RecoveryCompass{}, 1).
+			WithCustomName(text.Colourf("<aqua>Beta Navigator</aqua>")).
+			WithValue("lobby", "beta-navigator")
+	}
+	return items
 }
 
 // ApplyFunc ...

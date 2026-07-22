@@ -20,6 +20,7 @@ import (
 
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/authentication"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/command"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/devserver"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/handler"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/hider"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
@@ -383,6 +384,14 @@ func (poke *PokeBedrock) loadServices() {
 		MaxRestartTime:  time.Duration(poke.conf.RestartManager.MaxRestartTime),
 	}
 	restart.NewService(poke.log, restartConfig)
+
+	devserver.NewService(poke.log, devserver.Config{
+		Enabled:             poke.conf.DevServers.Enabled,
+		URL:                 poke.conf.DevServers.URL,
+		Token:               poke.conf.DevServers.Token,
+		Host:                poke.conf.DevServers.Host,
+		PollIntervalSeconds: poke.conf.DevServers.PollIntervalSeconds,
+	})
 }
 
 // loadServers loads all the server configurations from the specified path
@@ -624,6 +633,9 @@ func (poke *PokeBedrock) Close() {
 
 	poke.log.Debug("Closing Restart Manager Service...")
 	restart.GlobalService().Stop()
+
+	poke.log.Debug("Closing Dev Servers Service...")
+	devserver.GlobalService().Stop()
 
 	poke.log.Debug("Stopping Rank Channel...")
 	session.StopRankChannel()
