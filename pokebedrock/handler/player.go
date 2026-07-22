@@ -96,6 +96,8 @@ func (h *PlayerHandler) HandleItemUse(ctx *player.Context) {
 		switch action {
 		case "navigator":
 			p.SendForm(form.NewServerNavigator())
+		case "beta-navigator":
+			p.SendForm(form.NewBetaNavigator())
 		case "spawn":
 			w := p.Tx().World()
 			p.Teleport(w.Spawn().Vec3Middle())
@@ -241,6 +243,11 @@ func (h *PlayerHandler) HandleQuit(p *player.Player) {
 // Ranks ...
 func (h *PlayerHandler) Ranks() *session.Ranks {
 	return h.ranks
+}
+
+// CanAccessBeta reports whether this player may use beta/dev servers.
+func (h *PlayerHandler) CanAccessBeta() bool {
+	return rank.CanAccessBeta(h.ranks.Ranks())
 }
 
 // Inflictions ...
