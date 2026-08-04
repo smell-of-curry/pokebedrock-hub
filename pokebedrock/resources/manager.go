@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	repoOwner   = "smell-of-curry"
-	apiURL      = "https://api.github.com/repos/%s/%s/releases/latest"
+	repoOwner   = "pokebedrock"
+	apiURL      = "https://git.pokebedrock.com/api/v1/repos/%s/%s/releases/latest"
 	httpTimeout = 5 * time.Minute
 
 	// DirectoryPermissions is the standard permission for creating directories
@@ -56,12 +56,34 @@ func httpGet(url string) (*http.Response, context.CancelFunc, error) {
 	return resp, cancel, nil
 }
 
-// GithubRelease ...
-type GithubRelease struct {
-	TagName string `json:"tag_name"`
-	Assets  []struct {
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
+// Release describes a release as returned by the Forgejo API, whose shape is
+// compatible with GitHub's.
+type Release struct {
+	TagName string         `json:"tag_name"`
+	Assets  []ReleaseAsset `json:"assets"`
+}
+
+// ReleaseAsset is a single downloadable file attached to a release.
+type ReleaseAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+}
+
+// packAsset returns the release's `.mcpack` asset.
+//
+// Releases carry both a `.mcpack` and an identically-sized `.zip`. Selecting by
+// extension rather than taking Assets[0] means a change in asset ordering can't
+// silently hand every server the `.zip`.
+//
+// @returns the `.mcpack` asset and true, or false if the release has none.
+func (r *Release) packAsset() (ReleaseAsset, bool) {
+	for _, asset := range r.Assets {
+		if strings.HasSuffix(asset.Name, ".mcpack") {
+			return asset, true
+		}
+	}
+
+	return ReleaseAsset{}, false
 }
 
 // ManifestJSON represents the structure of a Minecraft resource pack manifest.json file
@@ -272,7 +294,7 @@ func (m *Manager) isResourcePackValid(pack packSpec) bool {
 }
 
 // LatestRelease ...
-func (m *Manager) LatestRelease() (*GithubRelease, error) {
+func (m *Manager) LatestRelease() (*Release, error) {
 	if len(m.packs) == 0 {
 		return nil, fmt.Errorf("no resource packs configured")
 	}
@@ -280,7 +302,7 @@ func (m *Manager) LatestRelease() (*GithubRelease, error) {
 	return m.latestRelease(m.packs[0])
 }
 
-func (m *Manager) latestRelease(pack packSpec) (*GithubRelease, error) {
+func (m *Manager) latestRelease(pack packSpec) (*Release, error) {
 	resp, cancel, err := httpGet(fmt.Sprintf(apiURL, pack.owner, pack.repo))
 	if err != nil {
 		return nil, err
@@ -292,7 +314,7 @@ func (m *Manager) latestRelease(pack packSpec) (*GithubRelease, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var release GithubRelease
+	var release Release
 	if err = json.NewDecoder(resp.Body).Decode(&release); err != nil {
 		return nil, err
 	}
@@ -300,14 +322,15 @@ func (m *Manager) latestRelease(pack packSpec) (*GithubRelease, error) {
 }
 
 // downloadResourcePack ...
-func (m *Manager) downloadResourcePack(pack packSpec, release *GithubRelease) (err error) {
+func (m *Manager) downloadResourcePack(pack packSpec, release *Release) (err error) {
 	packLog := m.log.With("pack", pack.repo)
 
-	if len(release.Assets) == 0 {
-		return fmt.Errorf("no assets found in release")
+	asset, ok := release.packAsset()
+	if !ok {
+		return fmt.Errorf("no .mcpack asset found in release")
 	}
 
-	resp, cancel, err := httpGet(release.Assets[0].BrowserDownloadURL)
+	resp, cancel, err := httpGet(asset.BrowserDownloadURL)
 	if err != nil {
 		return err
 	}
