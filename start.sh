@@ -12,7 +12,8 @@
 
 set -euo pipefail
 
-REPO="smell-of-curry/pokebedrock-hub"
+FORGE="https://git.pokebedrock.com"
+REPO="pokebedrock/pokebedrock-hub"
 
 case "$(uname -s)" in
 MINGW* | MSYS* | CYGWIN*)
@@ -23,7 +24,6 @@ MINGW* | MSYS* | CYGWIN*)
 	;;
 esac
 
-URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
 ETAG_FILE=".${ASSET}.etag"
 
 FORCE=0
@@ -38,8 +38,28 @@ done
 
 cd "$(dirname "$0")"
 
+# Forgejo has no /releases/latest/download/<asset> shortcut, so the newest tag
+# has to be resolved through the API before the asset can be addressed.
+latest_asset_url() {
+	curl -fsSL "${FORGE}/api/v1/repos/${REPO}/releases/latest" \
+		| tr ',{}' '\n\n\n' \
+		| grep -F "\"browser_download_url\"" \
+		| sed 's/.*"browser_download_url": *"\([^"]*\)".*/\1/' \
+		| grep -E "/${ASSET}\$" \
+		| head -1
+}
+
 download() {
 	echo ">> Checking for the latest release of ${ASSET}..."
+
+	local URL
+	URL="$(latest_asset_url)"
+	if [ -z "$URL" ]; then
+		echo ">> Could not resolve a ${ASSET} asset on the latest release." >&2
+		[ -f "$ASSET" ] || exit 1
+		echo ">> Keeping the existing binary." >&2
+		return
+	fi
 
 	local prev_etag=""
 	[ -f "$ETAG_FILE" ] && prev_etag="$(cat "$ETAG_FILE")"

@@ -14,10 +14,17 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Publishes the binary that start.sh deploys, so it runs on the runner
+    # reserved for credential-handling jobs rather than the shared one that also
+    # executes public pull-request code. See docs/forgejo.md in website-services.
+    runs-on: private
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Release notes are built from the commit range since the previous tag,
+          # which a shallow clone cannot see.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -45,12 +52,56 @@ jobs:
           CGO_ENABLED: "0"
         run: go build -trimpath -ldflags "-s -w" -o pokebedrock-hub.exe .
 
+      # Releases used to be tagged v0.1.${{ github.run_number }}. That counter is
+      # per-forge and restarts at 1 here, which would collide with the v0.1.1
+      # onwards tags migrated from GitHub. Continuing from the highest existing
+      # patch number keeps one unbroken sequence and stores no state.
+      - name: Determine next version
+        id: version
+        run: |
+          set -euo pipefail
+          latest="$(curl -sSf "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/tags?limit=200" \
+            | jq '[.[].name | select(test("^v0\\.1\\.[0-9]+$")) | split(".")[2] | tonumber] | max // 0')"
+          echo "tag=v0.1.$((latest + 1))" >> $GITHUB_OUTPUT
+          echo "prev=v0.1.${latest}" >> $GITHUB_OUTPUT
+          echo "Latest tag v0.1.${latest} -> releasing v0.1.$((latest + 1))"
+
+      # Replaces softprops/action-gh-release, which speaks only the GitHub API.
+      # There is no equivalent of its generate_release_notes, so the notes are the
+      # commit subjects since the previous tag.
       - name: Publish release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v0.1.${{ github.run_number }}
-          name: v0.1.${{ github.run_number }}
-          generate_release_notes: true
-          files: |
-            pokebedrock-hub
-            pokebedrock-hub.exe
+        env:
+          FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PREV: ${{ steps.version.outputs.prev }}
+        run: |
+          set -euo pipefail
+          api="${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}"
+
+          if git rev-parse -q --verify "refs/tags/${PREV}" > /dev/null; then
+            notes="$(git log --no-merges --pretty='- %s' "${PREV}..HEAD")"
+          else
+            notes="$(git log --no-merges --pretty='- %s' -20)"
+          fi
+          [ -n "${notes}" ] || notes="- No changes recorded."
+
+          payload="$(jq -n \
+            --arg tag "${TAG}" \
+            --arg sha "${GITHUB_SHA}" \
+            --arg body "${notes}" \
+            '{tag_name: $tag, target_commitish: $sha, name: $tag, body: $body, draft: false, prerelease: false}')"
+
+          release_id="$(curl -sSf -X POST "${api}/releases" \
+            -H "Authorization: token ${FORGEJO_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "${payload}" | jq -r '.id')"
+          echo "Created release ${release_id} (${TAG})"
+
+          # start.sh matches these names exactly; do not rename them.
+          for asset in pokebedrock-hub pokebedrock-hub.exe; do
+            [ -f "${asset}" ] || { echo "missing build artifact: ${asset}"; exit 1; }
+            curl -sSf -X POST "${api}/releases/${release_id}/assets?name=${asset}" \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              -F "attachment=@${asset}" > /dev/null
+            echo "Uploaded ${asset}"
+          done
