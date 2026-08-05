@@ -34,6 +34,7 @@ require (
 	github.com/df-mc/goleveldb v1.1.9 // indirect
 	github.com/df-mc/jsonc v1.0.5 // indirect
 	github.com/df-mc/worldupgrader v1.0.21 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
@@ -56,7 +57,6 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.0 // indirect
 	github.com/pion/datachannel v1.6.0 // indirect
 	github.com/pion/dtls/v3 v3.1.2 // indirect
@@ -94,3 +94,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/df-mc/dragonfly => github.com/smell-of-curry/dragonfly v0.0.0-20260805190250-88e074e51bb7
+
+replace github.com/sandertv/gophertunnel => github.com/smell-of-curry/gophertunnel v1.51.2-0.20260805185104-7defb4c500e8
