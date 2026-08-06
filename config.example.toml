@@ -61,6 +61,13 @@ GoroutineThreshold = 800 # Goroutine count at/above which an alert is raised.
 HeapAllocThresholdBytes = 2147483648 # Heap bytes at/above which an alert is raised (2 GiB). 0 disables the heap probe.
 AlertCooldown = "5m" # Minimum time between repeat Sentry alerts for the same condition.
 
+[DevServers]
+Enabled = false # Poll remote manager and expose beta/PR servers in Beta Navigator.
+URL = '' # Manager API base, e.g. https://dev.pokebedrock.com
+Token = '' # Sent as the authorization header on GET /dev-servers
+Host = '' # Public IP/host the managed servers listen on, e.g. 198.244.176.51
+PollIntervalSeconds = 10 # How often to refresh the dynamic server list
+
 [Ranks]
 # Discord Role IDs for different ranks
 TrainerRoleID = "xxxxxxxxxxxxxxxxxxxxx"

@@ -56,7 +56,7 @@ func (f ServerConfirm) Submit(sub form.Submitter, b form.Button, _ *world.Tx) {
 	}
 
 	// Check if beta lock is enabled, if so, only Supporters and staff can join
-	if cfg.BetaLock && !(h.Ranks().HasRank(rank.Supporter) || highestRank >= rank.Moderator) {
+	if cfg.BetaLock && !rank.CanAccessBeta(h.Ranks().Ranks()) {
 		p.Message(locale.Translate("queue.beta.lock"))
 
 		return

@@ -8,6 +8,7 @@ import (
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/devserver"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/srv"
 )
 
@@ -22,6 +23,9 @@ func NewServerNavigator() form.Menu {
 	btns := make([]form.Button, 0, len(srv.All()))
 
 	for _, s := range srv.All() {
+		if devserver.IsDevIdentifier(s.Identifier()) {
+			continue
+		}
 		st := s.Status()
 
 		var statusName string

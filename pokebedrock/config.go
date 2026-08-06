@@ -35,6 +35,8 @@ const (
 	defaultWatchdogGoroutineThreshold = 800
 	defaultWatchdogHeapAllocThreshold = 2 << 30 // 2 GiB
 	defaultWatchdogAlertCooldown      = 5 * time.Minute
+
+	defaultDevServersPollIntervalSeconds = 10
 )
 
 // Config holds the server configuration, including paths, translations, and service-related settings.
@@ -135,6 +137,18 @@ type Config struct {
 		ManagerRoleID              string
 		OwnerRoleID                string
 	}
+	DevServers struct {
+		// Enabled turns on polling the remote manager for beta/dev servers.
+		Enabled bool
+		// URL is the manager API base (e.g. https://dev.pokebedrock.com).
+		URL string
+		// Token is sent as the authorization header.
+		Token string
+		// Host is the public IP/host the managed servers listen on.
+		Host string
+		// PollIntervalSeconds is how often to GET /dev-servers.
+		PollIntervalSeconds int
+	}
 	server.UserConfig
 }
 
@@ -181,6 +195,12 @@ func DefaultConfig() Config {
 	c.Watchdog.GoroutineThreshold = defaultWatchdogGoroutineThreshold
 	c.Watchdog.HeapAllocThresholdBytes = defaultWatchdogHeapAllocThreshold
 	c.Watchdog.AlertCooldown = util.Duration(defaultWatchdogAlertCooldown)
+
+	c.DevServers.Enabled = false
+	c.DevServers.URL = ""
+	c.DevServers.Token = ""
+	c.DevServers.Host = ""
+	c.DevServers.PollIntervalSeconds = defaultDevServersPollIntervalSeconds
 
 	userConfig := server.DefaultConfig()
 	userConfig.Server.Name = text.Colourf("<red>Poke</red><aqua>Bedrock</aqua>")
@@ -251,6 +271,9 @@ func ReadConfig() (Config, error) {
 	}
 	if conf.Watchdog.HeapAllocThresholdBytes == 0 {
 		conf.Watchdog.HeapAllocThresholdBytes = defaults.Watchdog.HeapAllocThresholdBytes
+	}
+	if conf.DevServers.PollIntervalSeconds == 0 {
+		conf.DevServers.PollIntervalSeconds = defaults.DevServers.PollIntervalSeconds
 	}
 
 	return conf, nil

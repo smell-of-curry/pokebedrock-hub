@@ -12,6 +12,7 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/text"
 
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/internal"
+	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/kit"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/locale"
 	"github.com/smell-of-curry/pokebedrock-hub/pokebedrock/rank"
 )
@@ -139,7 +140,29 @@ func processRankUpdate(update rankUpdate) {
 		p.SendJukeboxPopup(syncedMsg)
 		p.Message(syncedMsg)
 		p.SetNameTag(highest.NameTag(p.Name()))
+		// Ranks load async after join; re-apply lobby kit so gated items
+		// (Beta Navigator) appear once roles are known. Skip mid-parkour
+		// (avoid session→parkour import cycle; parkour items carry "parkour" NBT).
+		if hasParkourKitItem(p) {
+			return
+		}
+		kit.Apply(kit.Lobby, p)
 	})
+}
+
+// hasParkourKitItem reports whether the player currently holds parkour kit items.
+func hasParkourKitItem(p *player.Player) bool {
+	inv := p.Inventory()
+	for slot, size := 0, inv.Size(); slot < size; slot++ {
+		it, err := inv.Item(slot)
+		if err != nil || it.Empty() {
+			continue
+		}
+		if _, ok := it.Value("parkour"); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // Ranks tracks a player's resolved ranks and the last time they were
