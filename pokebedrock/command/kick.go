@@ -43,7 +43,6 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
 		victim := target.(*player.Player)
 		victimName := victim.Name()
 
-		// Create the kick infliction
 		infliction := moderation.Infliction{
 			Type:          moderation.InflictionKicked,
 			DateInflicted: time.Now().UnixMilli(),
@@ -52,17 +51,14 @@ func (k Kick) Run(src cmd.Source, o *cmd.Output, _ *world.Tx) {
 		}
 
 		// Sync to the moderation service off the world transaction goroutine.
-		go func(name string) {
-			if err := moderation.GlobalService().AddInfliction(moderation.ModelRequest{
-				Name:             name,
-				InflictionStatus: moderation.InflictionStatusCurrent,
-				Infliction:       infliction,
-			}); err != nil {
-				slog.Default().Error("error while syncing kick globally", "target", name, "error", err)
+		// Capture a stable UserContext (XUID + name) so the goroutine never
+		// touches the live *player.Player.
+		go func(ctx moderation.UserContext) {
+			if err := moderation.GlobalService().AddInfliction(ctx, infliction); err != nil {
+				slog.Default().Error("error while syncing kick globally", "target", ctx.Name, "error", err)
 			}
-		}(victimName)
+		}(moderation.UserContext{XUID: victim.XUID(), Name: victimName})
 
-		// Kick the player
 		victim.Disconnect(text.Colourf("<red>You've been kicked. Reason: %s</red>", reason))
 		o.Print("Successfully kicked from world", "target", victimName, "reason", reason)
 	}

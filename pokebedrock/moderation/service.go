@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,8 +29,8 @@ func GlobalService() *Service {
 	return globalService
 }
 
-// Service talks to the moderation HTTP API. The closed flag is atomic so
-// concurrent readers (worker goroutines, request callers) and the
+// Service talks to the players-service moderation API. The closed flag is
+// atomic so concurrent readers (worker goroutines, request callers) and the
 // shutdown writer don't race.
 type Service struct {
 	url    string
@@ -40,6 +42,8 @@ type Service struct {
 }
 
 // NewService initialises the singleton moderation service.
+// url should be the players service base URL (e.g. https://players.pokebedrock.com).
+// key is the x-api-key value for authenticating with the players service.
 func NewService(log *slog.Logger, url, key string) {
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -56,7 +60,7 @@ func NewService(log *slog.Logger, url, key string) {
 	}
 
 	globalService = &Service{
-		url: url,
+		url: strings.TrimRight(url, "/"),
 		key: key,
 		client: &http.Client{
 			Timeout:   requestTimeout,
@@ -75,23 +79,33 @@ const (
 	maxConcurrentRequests = 5
 )
 
-// InflictionOfXUID fetches the inflictions for the given XUID.
+// setAuthHeaders sets the x-api-key header used by the players service.
+func (s *Service) setAuthHeaders(req *http.Request) {
+	req.Header.Set("x-api-key", s.key)
+}
+
+// InflictionOfPlayer retrieves the inflictions for a given player by their XUID.
+func (s *Service) InflictionOfPlayer(p *player.Player) (*ModelResponse, error) {
+	return s.InflictionOfXUID(p.XUID())
+}
+
+// InflictionOfXUID retrieves the inflictions for a specific XUID.
 func (s *Service) InflictionOfXUID(xuid string) (*ModelResponse, error) {
-	return s.InflictionOf(ModelRequest{XUID: xuid})
+	params := url.Values{}
+	params.Set("xuid", xuid)
+	return s.inflictionOf(params)
 }
 
-// InflictionOfName fetches the inflictions for the given player name.
+// InflictionOfName retrieves the inflictions for a player based on their name.
 func (s *Service) InflictionOfName(name string) (*ModelResponse, error) {
-	return s.InflictionOf(ModelRequest{Name: name})
+	params := url.Values{}
+	params.Set("name", name)
+	return s.inflictionOf(params)
 }
 
-// InflictionOf retrieves the current and past inflictions matching the given request.
-func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
+// inflictionOf makes a GET request to /api/players/inflictions with the given
+// query params and maps the players-service response to the internal model.
+func (s *Service) inflictionOf(params url.Values) (*ModelResponse, error) {
 	var lastErr error
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
@@ -102,43 +116,89 @@ func (s *Service) InflictionOf(req ModelRequest) (*ModelResponse, error) {
 			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
-		resp, err := s.attempt(http.MethodPost, "/getInflictions", body)
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		endpoint := s.url + "/api/players/inflictions?" + params.Encode()
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 		if err != nil {
-			lastErr = err
+			cancel()
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		s.setAuthHeaders(httpReq)
+
+		resp, err := s.client.Do(httpReq)
+		cancel()
+		if err != nil {
+			lastErr = fmt.Errorf("request failed: %w", err)
 			if isTemporaryError(err) {
 				continue
 			}
-
-			return nil, err
+			return nil, lastErr
 		}
 
-		out, retry, err := decodeInflictionsResponse(resp, req)
+		out, retry, err := decodeInflictionsResponse(resp)
 		if retry {
 			lastErr = err
 			time.Sleep(time.Duration(attempt+1) * retryDelay)
-
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
 
-		s.log.Debug("fetched inflictions", "xuid", req.XUID, "name", req.Name, "current", len(out.CurrentInflictions), "past", len(out.PastInflictions))
-
+		s.log.Debug(fmt.Sprintf("fetched inflictions via players service, active=%d inactive=%d",
+			len(out.CurrentInflictions), len(out.PastInflictions)))
 		return out, nil
 	}
 
 	return nil, lastErr
 }
 
-// AddInfliction submits a new infliction.
-func (s *Service) AddInfliction(req ModelRequest) error {
-	body, err := json.Marshal(req)
+// decodeInflictionsResponse parses a GET /api/players/inflictions response.
+// The returned retry flag indicates the caller should sleep and try again (for
+// example, on rate limiting). A 404 is treated as "no inflictions".
+func decodeInflictionsResponse(resp *http.Response) (out *ModelResponse, retry bool, err error) {
+	defer closeBody(resp)
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var apiResp apiInflictionsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+			return nil, false, err
+		}
+
+		result := &ModelResponse{
+			CurrentInflictions: make([]Infliction, 0, len(apiResp.Active)),
+			PastInflictions:    make([]Infliction, 0, len(apiResp.Inactive)),
+		}
+		for _, a := range apiResp.Active {
+			result.CurrentInflictions = append(result.CurrentInflictions, apiInflictionToInternal(a))
+		}
+		for _, a := range apiResp.Inactive {
+			result.PastInflictions = append(result.PastInflictions, apiInflictionToInternal(a))
+		}
+		return result, false, nil
+	case http.StatusNotFound:
+		return &ModelResponse{}, false, nil
+	case http.StatusTooManyRequests:
+		return nil, true, fmt.Errorf("rate limited")
+	default:
+		body, _ := io.ReadAll(resp.Body)
+		return nil, false, fmt.Errorf("failed to get inflictions: %s", string(body))
+	}
+}
+
+// AddInfliction creates a new infliction via the players service.
+// userCtx identifies the target player; infliction holds the punishment details.
+func (s *Service) AddInfliction(userCtx UserContext, infliction Infliction) error {
+	apiReq := apiCreateRequest{
+		UserContext: userCtx,
+		Infliction:  internalToAPICreate(infliction),
+	}
+	rawRequest, err := json.Marshal(apiReq)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
-
-	s.log.Debug("adding infliction", "url", s.url+"/addInfliction", "xuid", req.XUID, "name", req.Name)
 
 	var lastErr error
 
@@ -150,35 +210,46 @@ func (s *Service) AddInfliction(req ModelRequest) error {
 			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
-		resp, err := s.attempt(http.MethodPost, "/addInfliction", body)
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		endpoint := s.url + "/api/inflictions"
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(rawRequest))
 		if err != nil {
-			lastErr = err
+			cancel()
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		s.setAuthHeaders(httpReq)
+		httpReq.Header.Set("Content-Type", "application/json")
+
+		resp, err := s.client.Do(httpReq)
+		cancel()
+		if err != nil {
+			lastErr = fmt.Errorf("request failed: %w", err)
 			if isTemporaryError(err) {
 				continue
 			}
-
-			return err
+			return lastErr
 		}
 
-		err = decodeNoContentResponse(resp, "add infliction")
+		status := resp.StatusCode
+		body, _ := io.ReadAll(resp.Body)
 		closeBody(resp)
-		if err == nil {
-			s.log.Debug("added infliction", "xuid", req.XUID, "name", req.Name)
 
+		if status == http.StatusCreated || status == http.StatusOK {
+			// Log a bounded identifier only; never the full UserContext (PII).
+			s.log.Debug("added infliction", "xuid", userCtx.XUID, "name", userCtx.Name)
 			return nil
 		}
-
-		return err
+		return fmt.Errorf("failed to add infliction: %s", string(body))
 	}
 
 	return lastErr
 }
 
-// RemoveInfliction removes an existing infliction (un-ban, un-mute, etc.).
-func (s *Service) RemoveInfliction(req ModelRequest) error {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
+// RemoveInfliction removes an existing infliction by its UUID via the players service.
+func (s *Service) RemoveInfliction(inflictionID string) error {
+	if inflictionID == "" {
+		return errors.New("infliction ID is required")
 	}
 
 	var lastErr error
@@ -191,75 +262,42 @@ func (s *Service) RemoveInfliction(req ModelRequest) error {
 			time.Sleep(retryDelay * time.Duration(1<<attempt))
 		}
 
-		resp, err := s.attempt(http.MethodDelete, "/removeInfliction", body)
+		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+		endpoint := s.url + "/api/inflictions/" + inflictionID
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
 		if err != nil {
-			lastErr = err
+			cancel()
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		s.setAuthHeaders(httpReq)
+
+		resp, err := s.client.Do(httpReq)
+		cancel()
+		if err != nil {
+			lastErr = fmt.Errorf("request failed: %w", err)
 			if isTemporaryError(err) {
 				continue
 			}
-
-			return err
+			return lastErr
 		}
 
-		err = decodeNoContentResponse(resp, "remove infliction")
+		status := resp.StatusCode
+		body, _ := io.ReadAll(resp.Body)
 		closeBody(resp)
-		if err == nil {
-			s.log.Debug("removed infliction", "xuid", req.XUID, "name", req.Name)
 
+		if status == http.StatusNoContent || status == http.StatusOK {
+			s.log.Debug("removed infliction", "id", inflictionID)
 			return nil
 		}
-
-		return err
+		return fmt.Errorf("failed to remove infliction: %s", string(body))
 	}
 
 	return lastErr
 }
 
-// attempt issues a single HTTP request against the moderation API. The
-// caller is responsible for closing the response body once it has been
-// drained (use closeBody if no further processing is needed, otherwise
-// close it manually).
-func (s *Service) attempt(method, path string, body []byte) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-
-	httpReq, err := http.NewRequestWithContext(ctx, method, s.url+path, bytes.NewReader(body))
-	if err != nil {
-		cancel()
-
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("authorization", s.key)
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.client.Do(httpReq)
-	if err != nil {
-		cancel()
-
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-
-	// Cancel only fires after the body is closed; defer it on the
-	// response by wrapping the body.
-	resp.Body = ctxCloser{ReadCloser: resp.Body, cancel: cancel}
-
-	return resp, nil
-}
-
-// ctxCloser ensures we cancel the request context the moment the body is
-// closed, releasing the associated timer slot.
-type ctxCloser struct {
-	io.ReadCloser
-	cancel context.CancelFunc
-}
-
-func (c ctxCloser) Close() error {
-	err := c.ReadCloser.Close()
-	c.cancel()
-
-	return err
-}
-
+// closeBody drains and closes an HTTP response body so the connection can be
+// reused by the keep-alive pool.
 func closeBody(resp *http.Response) {
 	if resp == nil || resp.Body == nil {
 		return
@@ -268,43 +306,7 @@ func closeBody(resp *http.Response) {
 	_ = resp.Body.Close()
 }
 
-// decodeInflictionsResponse parses an InflictionOf response. The returned
-// retry flag indicates the caller should sleep and try again (for example,
-// on rate limiting).
-func decodeInflictionsResponse(resp *http.Response, _ ModelRequest) (out *ModelResponse, retry bool, err error) {
-	defer closeBody(resp)
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var response ModelResponse
-		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return nil, false, err
-		}
-
-		return &response, false, nil
-	case http.StatusTooManyRequests:
-		return nil, true, fmt.Errorf("rate limited")
-	default:
-		body, _ := io.ReadAll(resp.Body)
-
-		return nil, false, fmt.Errorf("failed to get inflictions: %s", string(body))
-	}
-}
-
-// decodeNoContentResponse asserts the response has 204 No Content,
-// returning a descriptive error otherwise.
-func decodeNoContentResponse(resp *http.Response, what string) error {
-	if resp.StatusCode == http.StatusNoContent {
-		return nil
-	}
-
-	body, _ := io.ReadAll(resp.Body)
-
-	return fmt.Errorf("failed to %s: %s", what, string(body))
-}
-
-// SendDetailsOfQueue is the buffered channel for queued player detail
-// pushes.
+// SendDetailsOfQueue is the buffered channel for queued player detail pushes.
 var SendDetailsOfQueue = make(chan playerDetailsRequest, internal.DefaultChannelBufferSize)
 
 // detailsWorkerShutdown signals the player-details worker to exit.
@@ -334,7 +336,6 @@ func playerDetailsWorker() {
 			for range len(activeRequests) {
 				<-activeRequests
 			}
-
 			return
 		case req, ok := <-SendDetailsOfQueue:
 			if !ok {
@@ -360,25 +361,43 @@ func playerDetailsWorker() {
 	}
 }
 
+// sendPlayerDetails upserts a player into the players service via POST /api/players.
 func sendPlayerDetails(req PlayerDetails) {
 	s := GlobalService()
 	if s == nil || s.closed.Load() {
 		return
 	}
 
-	body, err := json.Marshal(req)
+	body := apiUpsertPlayer{
+		XUID: req.XUID,
+		Name: req.Name,
+	}
+	if req.IP != "" {
+		body.IPs = []string{req.IP}
+	}
+
+	rawRequest, err := json.Marshal(body)
 	if err != nil {
 		s.log.Error("failed to marshal player details", "error", err)
-
 		return
 	}
 
-	s.log.Debug("sending player details", "url", s.url+"/playerDetails", "name", req.Name, "xuid", req.XUID)
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
 
-	resp, err := s.attempt(http.MethodPost, "/playerDetails", body)
+	endpoint := s.url + "/api/players"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(rawRequest))
+	if err != nil {
+		s.log.Error("failed to create player details request", "error", err)
+		return
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	s.setAuthHeaders(httpReq)
+
+	resp, err := s.client.Do(httpReq)
 	if err != nil {
 		s.log.Error("player details request failed", "error", err)
-
 		return
 	}
 	defer closeBody(resp)
@@ -386,6 +405,8 @@ func sendPlayerDetails(req PlayerDetails) {
 	s.log.Info("sent player details", "name", req.Name, "status", resp.StatusCode)
 }
 
+// hostFromAddress extracts the host portion of a host:port string, correctly
+// handling IPv6 addresses (net.SplitHostPort) rather than a naive ":" split.
 func hostFromAddress(address string) string {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
@@ -394,8 +415,8 @@ func hostFromAddress(address string) string {
 	return host
 }
 
-// SendDetailsOf enqueues a player-details push. Captures identity on the
-// world owner so the HTTP worker never touches a live *player.Player.
+// SendDetailsOf enqueues a player-details push. Captures identity on the world
+// owner so the HTTP worker never touches a live *player.Player.
 func (s *Service) SendDetailsOf(p *player.Player) {
 	if s.closed.Load() {
 		return
@@ -414,8 +435,8 @@ func (s *Service) SendDetailsOf(p *player.Player) {
 	}
 }
 
-// Stop signals the service and worker to shut down. The call blocks for up
-// to 3 seconds while in-flight requests drain.
+// Stop signals the service and worker to shut down. The call blocks for up to
+// 3 seconds while in-flight requests drain.
 func (s *Service) Stop() {
 	s.log.Debug("Stopping moderation service and workers...")
 	s.closed.Store(true)
